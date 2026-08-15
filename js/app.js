@@ -9,6 +9,7 @@ const MODULES = {
   cadastros: { title: 'Cadastros', domain: 'customers', permission: 'cadastros', render: renderCadastrosClientes },
   portalCadastros: { title: 'Portal Clientes', domain: 'customers', permission: 'usuarios', adminOnly: true, render: renderPortalCadastrosControle },
   companySettings: { title: 'Configuracoes da Empresa', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderCompanySettings },
+  taxRules: { title: 'Impostos', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderFiscalTaxRules },
   users: { title: 'Usuarios', domain: 'users', permission: 'usuarios', render: renderUsers },
   logs: { title: 'Logs', domain: 'reports', permission: 'logs', render: renderLogs }
 };
@@ -21,7 +22,9 @@ const MODULE_ALIASES = {
   quotes: { module: 'quoteReports' },
   quoteCreate: { module: 'quoteReports', action: 'create' },
   reports: { module: 'quoteReports' },
-  settings: { module: 'companySettings' }
+  settings: { module: 'companySettings' },
+  impostos: { module: 'taxRules' },
+  fiscal: { module: 'taxRules' }
 };
 
 let currentSession = null;

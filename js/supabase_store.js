@@ -696,6 +696,19 @@ async function supabaseUpdateStockTransferStatus(id, status, notes = null) {
   })) || {};
 }
 
+async function supabaseListFiscalTaxRules(filters = {}) {
+  return (await callCommercialRpc('list_fiscal_tax_rules', { filters })) || [];
+}
+
+async function supabaseSaveFiscalTaxRule(payload = {}) {
+  return (await callCommercialRpc('save_fiscal_tax_rule', { payload })) || {};
+}
+
+async function supabaseDeleteFiscalTaxRule(id) {
+  if (!id) throw new Error('Regra fiscal nao informada.');
+  return (await callCommercialRpc('delete_fiscal_tax_rule', { target_id: id })) || {};
+}
+
 async function supabaseCreateQuotation(payload) {
   return (await callCommercialRpc('commercial_create_quotation', { payload }, 'create_quotation', { payload })) || {};
 }
