@@ -865,7 +865,7 @@ function renderDocumentReport(kind, rows) {
       <table>
         <thead>
           <tr>
-            <th>Numero</th><th>Data</th><th>Cliente</th><th>SAP</th><th>Vendedor</th><th>Status</th><th>Total</th><th></th>
+            <th>Numero</th><th>Data</th><th>Cliente</th><th>SAP</th><th>Vendedor</th><th>Status</th>${kind === 'pedidos' ? '<th>Transferencia</th>' : ''}<th>Total</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -877,6 +877,7 @@ function renderDocumentReport(kind, rows) {
               <td>${escapeHtml(row.codigo_sap_cliente || '')}</td>
               <td>${escapeHtml(row.vendedor || '')}</td>
               <td><span class="status-pill">${escapeHtml(formatDocumentStatus(kind, row.status))}</span></td>
+              ${kind === 'pedidos' ? `<td>${renderOrderTransferBadge(row.transfer_summary)}</td>` : ''}
               <td>${money(row.total)}</td>
               <td>
                 <div class="actions-row compact-actions">
@@ -891,6 +892,18 @@ function renderDocumentReport(kind, rows) {
       </table>
     </div>
   `;
+}
+
+function renderOrderTransferBadge(summary) {
+  if (!summary || !Number(summary.total || 0)) return '<span class="muted">-</span>';
+  const pending = Number(summary.pending || 0);
+  const inTransit = Number(summary.in_transit || 0);
+  const received = Number(summary.received || 0);
+  let label = `${Number(summary.total || 0)} solic.`;
+  if (pending) label = `${pending} pend.`;
+  else if (inTransit) label = `${inTransit} em trans.`;
+  else if (received) label = `${received} receb.`;
+  return `<span class="status-pill">${escapeHtml(label)}</span>`;
 }
 
 function bindDocumentEditButtons(kind, rows) {
@@ -1016,6 +1029,7 @@ function showDocumentEditForm(kind, row) {
             </div>
           </div>
         </section>
+        ${kind === 'pedidos' ? `<section class="sap-section" id="${kind}TransferPanel"><h3>Transferencias</h3><div class="empty-state compact-state">Carregando transferencias vinculadas...</div></section>` : ''}
         <section class="sap-section sap-tabs-section">
           <div class="sap-tabs">
             <button class="is-active" type="button" data-sap-tab="edit-items">Itens</button>
@@ -1072,6 +1086,7 @@ function showDocumentEditForm(kind, row) {
   `;
   bindSapTabs(panel);
   renderDocumentEditItems(kind);
+  if (kind === 'pedidos') loadOrderTransferPanel(row.id, `${kind}TransferPanel`);
   const searchButton = document.getElementById(`${kind}EditProductSearchButton`);
   const searchInput = document.getElementById(`${kind}EditProductTerm`);
   searchButton.addEventListener('click', () => searchProductsForDocumentEdit(kind, row.regiao || 'SP'));
@@ -1090,6 +1105,40 @@ function showDocumentEditForm(kind, row) {
     panel.innerHTML = '';
   });
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadOrderTransferPanel(orderId, panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  try {
+    const rows = await supabaseListOrderTransferRequests(orderId);
+    panel.innerHTML = '<h3>Transferencias</h3>' + renderOrderTransferPanelRows(rows);
+  } catch (error) {
+    panel.innerHTML = `<h3>Transferencias</h3><div class="empty-state compact-state">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderOrderTransferPanelRows(rows) {
+  if (!rows.length) return '<div class="empty-state compact-state">Nenhuma transferencia vinculada a este pedido.</div>';
+  return `
+    <div class="table-wrap compact-table">
+      <table>
+        <thead><tr><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th>Atualizada</th></tr></thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td><strong>${escapeHtml(row.product_code || '')}</strong><small>${escapeHtml([row.product_description, row.product_brand].filter(Boolean).join(' | '))}</small></td>
+              <td>${escapeHtml(row.source_branch_code || '')}<small>${escapeHtml(formatTransferQty(row.source_available_qty))} disp.</small></td>
+              <td>${escapeHtml(row.target_branch_code || '')}<small>${escapeHtml(formatTransferQty(row.target_available_qty))} disp.</small></td>
+              <td>${escapeHtml(formatTransferQty(row.requested_qty))}</td>
+              <td><span class="status-pill">${escapeHtml(formatStockTransferStatus(row.status))}</span></td>
+              <td>${escapeHtml(formatDateTime(row.updated_at || row.created_at))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function normalizeDocumentItems(items) {

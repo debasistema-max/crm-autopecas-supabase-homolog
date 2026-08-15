@@ -669,6 +669,17 @@ async function supabaseListStockTransferRequests(filters = {}) {
   return (await callCommercialRpc('list_stock_transfer_requests', { filters })) || [];
 }
 
+async function supabaseListOrderTransferSummaries(orderIds = []) {
+  const ids = Array.isArray(orderIds) ? orderIds.filter(Boolean) : [];
+  if (!ids.length) return [];
+  return (await callCommercialRpc('list_order_transfer_request_summaries', { target_order_ids: ids })) || [];
+}
+
+async function supabaseListOrderTransferRequests(orderId) {
+  if (!orderId) return [];
+  return (await callCommercialRpc('list_order_transfer_requests', { target_order_id: orderId })) || [];
+}
+
 async function supabaseUpdateStockTransferStatus(id, status, notes = null) {
   if (!id) throw new Error('Solicitacao nao informada.');
   if (!status) throw new Error('Status nao informado.');
@@ -698,7 +709,21 @@ async function supabaseListOrdersReport(filters = {}) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return enrichOrdersWithTransferSummaries(data || []);
+}
+
+async function enrichOrdersWithTransferSummaries(rows) {
+  if (!Array.isArray(rows) || !rows.length) return rows || [];
+  try {
+    const summaries = await supabaseListOrderTransferSummaries(rows.map((row) => row.id));
+    const byOrder = new Map((summaries || []).map((summary) => [summary.order_id, summary]));
+    return rows.map((row) => Object.assign({}, row, {
+      transfer_summary: byOrder.get(row.id) || null
+    }));
+  } catch (error) {
+    if (!isMissingSupabaseResource(error)) console.info('Resumo de transferencias indisponivel:', error.message || error);
+    return rows;
+  }
 }
 
 async function supabaseListQuotationsReport(filters = {}) {
