@@ -665,6 +665,20 @@ async function supabaseCreateOrderTransferRequests(orderId) {
   return (await callCommercialRpc('create_order_transfer_requests', { target_order_id: orderId })) || { created: 0, updated: 0 };
 }
 
+async function supabaseListStockTransferRequests(filters = {}) {
+  return (await callCommercialRpc('list_stock_transfer_requests', { filters })) || [];
+}
+
+async function supabaseUpdateStockTransferStatus(id, status, notes = null) {
+  if (!id) throw new Error('Solicitacao nao informada.');
+  if (!status) throw new Error('Status nao informado.');
+  return (await callCommercialRpc('update_stock_transfer_request_status', {
+    target_request_id: id,
+    target_status: status,
+    target_notes: notes
+  })) || {};
+}
+
 async function supabaseCreateQuotation(payload) {
   return (await callCommercialRpc('commercial_create_quotation', { payload }, 'create_quotation', { payload })) || {};
 }
