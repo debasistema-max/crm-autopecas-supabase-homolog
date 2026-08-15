@@ -80,7 +80,7 @@ function renderStockTransferResults(rows) {
       <table>
         <thead>
           <tr>
-            <th>Pedido</th><th>Cliente</th><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th></th>
+            <th>Pedido</th><th>Cliente</th><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th>Observacao</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -92,7 +92,8 @@ function renderStockTransferResults(rows) {
               <td>${escapeHtml(row.source_branch_code || '')}<small>${escapeHtml(formatTransferQty(row.source_available_qty))} disp.</small></td>
               <td>${escapeHtml(row.target_branch_code || '')}<small>${escapeHtml(formatTransferQty(row.target_available_qty))} disp.</small></td>
               <td>${escapeHtml(formatTransferQty(row.requested_qty))}</td>
-              <td><span class="status-pill">${escapeHtml(formatStockTransferStatus(row.status))}</span></td>
+              <td><span class="status-pill">${escapeHtml(formatStockTransferStatus(row.status))}</span><small>${escapeHtml(formatDateTime(row.updated_at))}</small></td>
+              <td><textarea data-transfer-notes="${index}" maxlength="500" placeholder="Ex.: aprovado com prioridade">${escapeHtml(row.notes || '')}</textarea></td>
               <td>
                 <div class="actions-row compact-actions">
                   <select data-transfer-status="${index}">
@@ -115,11 +116,12 @@ function bindStockTransferActions(rows) {
       const index = Number(button.dataset.transferSave);
       const row = rows[index];
       const select = document.querySelector(`[data-transfer-status="${index}"]`);
+      const notes = document.querySelector(`[data-transfer-notes="${index}"]`);
       const message = document.getElementById('transferMessage');
       button.disabled = true;
       message.textContent = '';
       try {
-        await supabaseUpdateStockTransferStatus(row.id, select.value);
+        await supabaseUpdateStockTransferStatus(row.id, select.value, notes ? notes.value.trim() : null);
         message.style.color = 'var(--success)';
         message.textContent = 'Status atualizado.';
         await loadStockTransfers();
