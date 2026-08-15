@@ -44,7 +44,8 @@ async function renderOrders(container) {
               <label>No Ref.Cli.<input id="orderClientRef" type="text"></label>
               <label>Vendedor<input id="orderSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}"></label>
               <label>Utilizacao principal<select id="orderUsage"><option>Revenda</option><option>Consumo</option></select></label>
-              <label>Deposito<select id="orderRegion"><option value="SP">02 - FILIAL - SP</option><option value="PR">01 - MATRIZ - PR</option></select></label>
+              <label>Faturamento<select id="orderRegion"><option value="PR">01 - MATRIZ - PR</option><option value="SP">02 - FILIAL - SP</option></select></label>
+              <input id="orderBillingState" type="hidden">
               <label>Endereco<input id="orderAddress" type="text"></label>
             </div>
             <div class="sap-form-right">
@@ -242,7 +243,8 @@ async function renderOrders(container) {
 
 function applyOrderDraft(draft) {
   if (!draft) return;
-  document.getElementById('orderRegion').value = draft.regiao || 'SP';
+  document.getElementById('orderRegion').value = draft.regiao || 'PR';
+  document.getElementById('orderBillingState').value = draft.estado || '';
   document.getElementById('orderClientSapCode').value = draft.codigo_sap_cliente || '';
   document.getElementById('orderCnpj').value = formatCnpj(draft.cnpj || '');
   document.getElementById('orderClient').value = draft.cliente || '';
@@ -589,6 +591,7 @@ async function saveCurrentOrder() {
     const payload = {
       sessionId: getSessionId(),
       regiao: document.getElementById('orderRegion').value,
+      cliente_estado: document.getElementById('orderBillingState').value,
       codigo_sap_cliente: document.getElementById('orderClientSapCode').value,
       cliente: document.getElementById('orderClient').value,
       cnpj: document.getElementById('orderCnpj').value,
@@ -764,9 +767,24 @@ function applyCadastroToOrder(row) {
   document.getElementById('orderAddress').value = formatCadastroAddress(row);
   document.getElementById('orderTerm').value = row.prazo_desejado || '';
   document.getElementById('orderCarrier').value = row.transportadora || '';
+  const billingChanged = applyBillingRegionToOrder(row.estado);
   const message = document.getElementById('orderMessage');
   message.style.color = 'var(--success)';
-  message.textContent = 'Cadastro ' + (row.protocolo || '') + ' carregado no pedido.';
+  message.textContent = 'Cadastro ' + (row.protocolo || '') + ' carregado no pedido. Faturamento: ' + getBillingBranchLabel(document.getElementById('orderRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+}
+
+function applyBillingRegionToOrder(uf) {
+  const regionSelect = document.getElementById('orderRegion');
+  const stateInput = document.getElementById('orderBillingState');
+  const nextRegion = getBillingRegionForUf(uf, regionSelect.value);
+  const changed = regionSelect.value !== nextRegion;
+  stateInput.value = normalizeBillingUf(uf);
+  regionSelect.value = nextRegion;
+  if (changed && orderItems.length) {
+    orderItems = [];
+    renderCart();
+  }
+  return changed;
 }
 
 async function searchCarriersForOrder() {

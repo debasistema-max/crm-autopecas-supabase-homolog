@@ -272,7 +272,7 @@ async function supabaseListProductFilters() {
 }
 
 async function supabaseListProducts(params = {}) {
-  const region = params.regiao || 'SP';
+  const region = getBillingRegionForUf(params.uf || params.estado, params.regiao || 'PR');
   const limit = Math.min(Math.max(Number(params.limite || params.pageSize || 60), 1), 200);
   const offset = Math.max(Number(params.offset || 0), 0);
   let query = supabaseClient
@@ -322,6 +322,22 @@ async function supabaseListProducts(params = {}) {
     linha: product.categoria,
     preco: region === 'PR' ? product.preco_pr : product.preco_sp
   }));
+}
+
+function normalizeBillingUf(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+}
+
+function getBillingRegionForUf(uf, fallbackRegion = 'PR') {
+  const normalizedUf = normalizeBillingUf(uf);
+  if (normalizedUf) return normalizedUf === 'SP' ? 'SP' : 'PR';
+  return String(fallbackRegion || 'PR').toUpperCase() === 'SP' ? 'SP' : 'PR';
+}
+
+function getBillingBranchLabel(region) {
+  return String(region || '').toUpperCase() === 'SP'
+    ? '02 - FILIAL - SP'
+    : '01 - MATRIZ - PR';
 }
 
 const productExperienceAvailability = {

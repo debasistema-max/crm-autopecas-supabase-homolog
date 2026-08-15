@@ -44,7 +44,8 @@ async function renderCreateQuotation(container) {
               <label>No Ref.Cli.<input id="quoteClientRef" type="text"></label>
               <label>Vendedor<input id="quoteSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}"></label>
               <label>Utilizacao principal<select id="quoteUsage"><option>Revenda</option><option>Consumo</option></select></label>
-              <label>Deposito<select id="quoteRegion"><option value="SP">02 - FILIAL - SP</option><option value="PR">01 - MATRIZ - PR</option></select></label>
+              <label>Faturamento<select id="quoteRegion"><option value="PR">01 - MATRIZ - PR</option><option value="SP">02 - FILIAL - SP</option></select></label>
+              <input id="quoteBillingState" type="hidden">
               <label>Endereco<input id="quoteAddress" type="text"></label>
             </div>
             <div class="sap-form-right">
@@ -239,7 +240,8 @@ async function renderCreateQuotation(container) {
 
 function applyQuoteDraft(draft) {
   if (!draft) return;
-  document.getElementById('quoteRegion').value = draft.regiao || 'SP';
+  document.getElementById('quoteRegion').value = draft.regiao || 'PR';
+  document.getElementById('quoteBillingState').value = draft.estado || '';
   document.getElementById('quoteClientSapCode').value = draft.codigo_sap_cliente || '';
   document.getElementById('quoteCnpj').value = formatCnpj(draft.cnpj || '');
   document.getElementById('quoteClient').value = draft.cliente || '';
@@ -531,6 +533,7 @@ async function saveCurrentQuote() {
     const payload = {
       sessionId: getSessionId(),
       regiao: document.getElementById('quoteRegion').value,
+      cliente_estado: document.getElementById('quoteBillingState').value,
       codigo_sap_cliente: document.getElementById('quoteClientSapCode').value,
       cliente: document.getElementById('quoteClient').value,
       cnpj: document.getElementById('quoteCnpj').value,
@@ -652,9 +655,24 @@ function applyClientToQuote(row) {
   document.getElementById('quotePhone').value = row.whatsapp || row.telefone || '';
   document.getElementById('quoteAddress').value = formatCadastroAddress(row);
   document.getElementById('quoteTerm').value = row.prazo_desejado || '';
+  const billingChanged = applyBillingRegionToQuote(row.estado);
   const message = document.getElementById('quoteMessage');
   message.style.color = 'var(--success)';
-  message.textContent = 'Cliente carregado na cotacao.';
+  message.textContent = 'Cliente carregado na cotacao. Faturamento: ' + getBillingBranchLabel(document.getElementById('quoteRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+}
+
+function applyBillingRegionToQuote(uf) {
+  const regionSelect = document.getElementById('quoteRegion');
+  const stateInput = document.getElementById('quoteBillingState');
+  const nextRegion = getBillingRegionForUf(uf, regionSelect.value);
+  const changed = regionSelect.value !== nextRegion;
+  stateInput.value = normalizeBillingUf(uf);
+  regionSelect.value = nextRegion;
+  if (changed && quoteItems.length) {
+    quoteItems = [];
+    renderQuoteCart();
+  }
+  return changed;
 }
 
 async function searchCarriersForQuote() {
