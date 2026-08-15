@@ -1123,7 +1123,7 @@ function renderOrderTransferPanelRows(rows) {
   return `
     <div class="table-wrap compact-table">
       <table>
-        <thead><tr><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th>Atualizada</th></tr></thead>
+        <thead><tr><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th>Observacao</th><th>Atualizada</th></tr></thead>
         <tbody>
           ${rows.map((row) => `
             <tr>
@@ -1132,6 +1132,7 @@ function renderOrderTransferPanelRows(rows) {
               <td>${escapeHtml(row.target_branch_code || '')}<small>${escapeHtml(formatTransferQty(row.target_available_qty))} disp.</small></td>
               <td>${escapeHtml(formatTransferQty(row.requested_qty))}</td>
               <td><span class="status-pill">${escapeHtml(formatStockTransferStatus(row.status))}</span></td>
+              <td>${row.notes ? `<small>${escapeHtml(row.notes)}</small>` : '<small>-</small>'}</td>
               <td>${escapeHtml(formatDateTime(row.updated_at || row.created_at))}</td>
             </tr>
           `).join('')}
