@@ -53,6 +53,16 @@ async function renderDashboard(container) {
   await loadCommercialDashboard(container, state);
 }
 
+function canViewDashboardTransfers() {
+  try {
+    const session = getCurrentSession && getCurrentSession();
+    const modules = Array.isArray(session && session.modules) ? session.modules : [];
+    return (session && session.perfil === 'ADMIN') || modules.includes('pedidos');
+  } catch (error) {
+    return false;
+  }
+}
+
 function renderCommercialDashboardShell(state) {
   return `
     <section class="panel commercial-dashboard">
@@ -172,6 +182,9 @@ async function loadCommercialDashboard(container, state) {
     validateDashboardPeriod(state.dateFrom, state.dateTo);
     const response = await supabaseGetCommercialDashboardSummary(state);
     const data = normalizeCommercialDashboardPayload(response);
+    if (canViewDashboardTransfers()) {
+      data.transfer_summary = await loadDashboardTransferSummary();
+    }
     syncSellerFilter(container, data, state);
     syncDashboardScope(container, data);
     result.innerHTML = renderCommercialDashboard(data);
@@ -188,6 +201,15 @@ async function loadCommercialDashboard(container, state) {
   } finally {
     refreshButton.disabled = false;
     refreshButton.textContent = 'Atualizar';
+  }
+}
+
+async function loadDashboardTransferSummary() {
+  try {
+    return await supabaseGetDashboardTransferSummary();
+  } catch (error) {
+    console.info('Resumo de transferencias indisponivel:', error.message || error);
+    return { unavailable: true };
   }
 }
 
@@ -325,12 +347,44 @@ function renderCommercialDashboard(data) {
       ${renderRankingPanel('Clientes com maior movimentacao', rankings.clients, 'nome', 'pedidos', 'total')}
     </section>
     ${renderAbcPanel(data.abc_curve || [])}
+    ${canViewDashboardTransfers() ? renderTransferSummaryPanel(data.transfer_summary || {}) : ''}
     ${access.can_view_stock ? renderStockPanel(data.stock || {}) : ''}
     ${access.can_view_imports ? renderImportPanel(data.imports || {}) : ''}
     <section class="dashboard-shortcuts" aria-label="Atalhos">
       <button class="btn btn-secondary" type="button" data-dashboard-route="ordersReport">Ver pedidos</button>
+      ${canViewDashboardTransfers() ? '<button class="btn btn-secondary" type="button" data-dashboard-route="stockTransfers">Ver transferencias</button>' : ''}
       <button class="btn btn-secondary" type="button" data-dashboard-route="quoteReports">Ver cotacoes</button>
       <button class="btn btn-secondary" type="button" data-dashboard-route="products">Consultar produtos</button>
+    </section>
+  `;
+}
+
+function renderTransferSummaryPanel(summary) {
+  if (summary.unavailable) {
+    return `
+      <section class="panel dashboard-transfer-panel">
+        <div class="panel-header">
+          <div><h2>Transferencias PR -> SP</h2><p>Resumo operacional indisponivel no momento.</p></div>
+          <button class="btn btn-secondary" type="button" data-dashboard-route="stockTransfers">Abrir</button>
+        </div>
+      </section>
+    `;
+  }
+
+  const active = Number(summary.active || 0);
+  return `
+    <section class="panel dashboard-transfer-panel">
+      <div class="panel-header">
+        <div><h2>Transferencias PR -> SP</h2><p>Solicitacoes abertas que nao movimentam estoque no CRM.</p></div>
+        <button class="btn btn-secondary" type="button" data-dashboard-route="stockTransfers">Abrir</button>
+      </div>
+      <div class="dashboard-transfer-metrics">
+        <article><span>Pendentes</span><strong>${dashboardInteger(summary.pending)}</strong></article>
+        <article><span>Aprovadas</span><strong>${dashboardInteger(summary.approved)}</strong></article>
+        <article><span>Em transferencia</span><strong>${dashboardInteger(summary.in_transit)}</strong></article>
+        <article><span>Qtd. ativa</span><strong>${formatTransferDashboardQty(summary.active_qty)}</strong></article>
+      </div>
+      <p class="dashboard-note">${active ? `${dashboardInteger(active)} solicitacao${active === 1 ? '' : 'es'} aberta${active === 1 ? '' : 's'}.` : 'Nenhuma transferencia aberta.'}</p>
     </section>
   `;
 }
@@ -462,6 +516,10 @@ function dashboardCompactMoney(value) {
     notation: 'compact',
     maximumFractionDigits: 1
   }).format(Number(value || 0));
+}
+
+function formatTransferDashboardQty(value) {
+  return Number(value || 0).toLocaleString(APP_CONFIG.locale, { maximumFractionDigits: 3 });
 }
 
 function formatDateTime(value) {

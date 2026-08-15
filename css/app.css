@@ -440,6 +440,31 @@
   gap: 10px;
 }
 
+.dashboard-transfer-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-transfer-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.dashboard-transfer-metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dashboard-transfer-metrics strong {
+  display: block;
+  margin-top: 4px;
+}
+
 .stock-risk {
   margin-top: 10px;
 }
@@ -1932,7 +1957,10 @@ button:disabled {
     min-height: 48px;
     font-size: 15px;
   }
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cards,
+  .dashboard-transfer-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .dashboard-report-grid,
   .dashboard-main-grid,
   .dashboard-filters,
@@ -2042,7 +2070,10 @@ button:disabled {
   label {
     gap: 6px;
   }
-  .cards { grid-template-columns: 1fr; }
+  .cards,
+  .dashboard-transfer-metrics {
+    grid-template-columns: 1fr;
+  }
   .dashboard-periods {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

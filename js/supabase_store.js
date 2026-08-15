@@ -118,6 +118,12 @@ async function supabaseGetCommercialDashboardSummary(filters = {}) {
   });
 }
 
+async function supabaseGetDashboardTransferSummary() {
+  const { data, error } = await supabaseClient.rpc('get_dashboard_transfer_summary');
+  if (error) throw error;
+  return data || {};
+}
+
 function normalizeCommercialDashboardFilters(filters = {}) {
   return {
     date_from: filters.dateFrom || filters.date_from || '',
