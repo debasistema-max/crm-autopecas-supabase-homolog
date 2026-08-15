@@ -309,7 +309,8 @@ function updateOrderProductSelection(product) {
   document.getElementById('orderProductTerm').value = product.codigo || '';
   document.getElementById('orderProductNamePreview').value = product.descricao || '';
   setOrderProductGroup(product.grupo || product.linha || product.categoria || '');
-  document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>';
+  const branchInfo = formatBranchAvailability(product, document.getElementById('orderRegion').value);
+  document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>' + (branchInfo ? '<br><small>' + escapeHtml(branchInfo) + '</small>' : '');
   document.getElementById('orderAddQuantity').value = 0;
 }
 
@@ -351,7 +352,8 @@ function addProductToOrder(product, forcedQuantity = null) {
       aplicacao: product.aplicacao,
       preco: Number(product.preco || 0),
       quantidade: quantity,
-      desconto_percentual: 0
+      desconto_percentual: 0,
+      branch_stock: product.branch_stock || null
     });
   }
   renderCart();
@@ -520,11 +522,12 @@ function renderSapOrderItemsTable(items) {
   const rows = items.length ? items.map((item, index) => {
     const finalUnit = item.preco * (1 - item.desconto_percentual / 100);
     const rowTotal = finalUnit * item.quantidade;
+    const branchInfo = formatBranchAvailability(item, document.getElementById('orderRegion')?.value || 'PR');
     return `
       <tr>
         <td>${index + 1}</td>
         <td class="sap-code">${escapeHtml(item.codigo)}</td>
-        <td>${escapeHtml(item.descricao || '')}</td>
+        <td>${escapeHtml(item.descricao || '')}${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}</td>
         <td>${escapeHtml(item.marca || '')}</td>
         <td>${escapeHtml(item.aplicacao || '')}</td>
         <td>UN</td>
@@ -616,7 +619,8 @@ async function saveCurrentOrder() {
     orderCreateSaved = true;
     renderCart();
     message.style.color = 'var(--success)';
-    message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.';
+    const transferCount = Number((data.transferencias && data.transferencias.created) || 0);
+    message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.' + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '');
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;

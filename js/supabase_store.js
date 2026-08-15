@@ -248,7 +248,42 @@ async function supabaseSearchProducts(params) {
     limit_count: Number(params.limite || 40)
   });
   if (error) throw error;
-  return data || [];
+  return enrichProductsWithBranchAvailability(data || []);
+}
+
+async function enrichProductsWithBranchAvailability(products) {
+  const rows = Array.isArray(products) ? products : [];
+  const codes = Array.from(new Set(rows.map((product) => String(product.codigo || '').trim()).filter(Boolean)));
+  if (!codes.length) return rows;
+  try {
+    const { data, error } = await supabaseClient.rpc('get_branch_product_availability', {
+      product_codes: codes
+    });
+    if (error) throw error;
+    const byCode = new Map((data || []).map((row) => [row.product_code, row]));
+    return rows.map((product) => Object.assign({}, product, {
+      branch_stock: byCode.get(product.codigo) || null
+    }));
+  } catch (error) {
+    if (!isMissingSupabaseResource(error)) console.info('Disponibilidade por filial indisponivel:', error.message || error);
+    return rows;
+  }
+}
+
+function formatBranchAvailability(product, region) {
+  const stock = product && product.branch_stock;
+  if (!stock) return '';
+  const sp = Number(stock.sp_available_qty || 0);
+  const pr = Number(stock.pr_available_qty || 0);
+  if (String(region || '').toUpperCase() === 'SP' && sp <= 0 && pr > 0) {
+    return 'Sem saldo em SP. Disponivel na Matriz PR: ' + formatQuantity(pr) + '. Sera solicitada transferencia ao salvar pedido.';
+  }
+  return 'SP: ' + formatQuantity(sp) + ' / PR: ' + formatQuantity(pr);
+}
+
+function formatQuantity(value) {
+  const number = Number(value || 0);
+  return Number.isInteger(number) ? String(number) : number.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 }
 
 async function supabaseListProductFilters() {
@@ -623,6 +658,11 @@ async function callCommercialRpc(name, args, fallbackName, fallbackArgs) {
 
 async function supabaseCreateOrder(payload) {
   return (await callCommercialRpc('commercial_create_order', { payload }, 'create_order', { payload })) || {};
+}
+
+async function supabaseCreateOrderTransferRequests(orderId) {
+  if (!orderId) return { created: 0, updated: 0 };
+  return (await callCommercialRpc('create_order_transfer_requests', { target_order_id: orderId })) || { created: 0, updated: 0 };
 }
 
 async function supabaseCreateQuotation(payload) {
