@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nova Empresa | Cadastro de Cliente</title>
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+  <main class="portal-shell">
+    <section class="hero">
+      <img src="../assets/logo-neutral.svg" alt="Nova Empresa" class="logo" data-company-logo>
+      <div>
+        <p class="eyebrow" data-company-kicker>Nova Empresa</p>
+        <h1>Cadastro de Cliente</h1>
+        <p>Preencha os dados abaixo para analise do seu cadastro.</p>
+        <p class="company-contact" data-company-contact></p>
+      </div>
+      <span class="time-badge">3 a 5 minutos</span>
+    </section>
+
+    <section class="progress-card">
+      <div class="progress-top">
+        <strong id="stepLabel">Empresa</strong>
+        <span id="stepCount">Etapa 1 de 5</span>
+      </div>
+      <div class="progress-track"><div id="progressBar"></div></div>
+    </section>
+
+    <form id="cadastroForm" class="form-card">
+      <section class="form-step is-active" data-step="0">
+        <div class="section-title">
+          <h2>Empresa</h2>
+          <p>Informe o CNPJ para buscar os dados automaticamente. Se a consulta falhar, preencha manualmente.</p>
+        </div>
+        <div class="field-grid">
+          <label class="span-8">CNPJ
+            <input name="cnpj" id="cnpj" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" required>
+          </label>
+          <button class="btn btn-secondary span-4 field-button" id="consultarCnpj" type="button">Consultar CNPJ</button>
+          <label class="span-8">Razao Social
+            <input name="razao_social" required>
+          </label>
+          <label class="span-4">Nome Fantasia
+            <input name="nome_fantasia">
+          </label>
+          <label class="span-4">Inscricao Estadual
+            <input name="ie">
+          </label>
+          <label class="span-4">CNAE
+            <input name="cnae">
+          </label>
+          <label class="span-4">Situacao Cadastral
+            <input name="situacao_cadastral">
+          </label>
+          <label class="span-12">Atividade Principal
+            <input name="atividade_principal">
+          </label>
+          <label class="span-3">CEP
+            <input name="cep" inputmode="numeric">
+          </label>
+          <label class="span-7">Endereco
+            <input name="endereco">
+          </label>
+          <label class="span-2">Numero
+            <input name="numero">
+          </label>
+          <label class="span-4">Complemento
+            <input name="complemento">
+          </label>
+          <label class="span-4">Bairro
+            <input name="bairro">
+          </label>
+          <label class="span-3">Cidade
+            <input name="cidade">
+          </label>
+          <label class="span-1">UF
+            <input name="estado" maxlength="2">
+          </label>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="1">
+        <div class="section-title">
+          <h2>Contato</h2>
+          <p>Dados para o setor de cadastro e futuras comunicacoes comerciais.</p>
+        </div>
+        <div class="field-grid">
+          <label class="span-6">Telefone
+            <input name="telefone" inputmode="tel">
+          </label>
+          <label class="span-6">WhatsApp
+            <input name="whatsapp" inputmode="tel">
+          </label>
+          <label class="span-6">Email Compras
+            <input name="email_compras" type="email" required>
+          </label>
+          <label class="span-6">Email Financeiro
+            <input name="email_financeiro" type="email">
+          </label>
+          <label class="span-6">Responsavel Compras
+            <input name="responsavel_compras">
+          </label>
+          <label class="span-6">Responsavel Financeiro
+            <input name="responsavel_financeiro">
+          </label>
+          <label class="span-6">Site
+            <input name="site" inputmode="url">
+          </label>
+          <label class="span-6">Instagram
+            <input name="instagram">
+          </label>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="2">
+        <div class="section-title">
+          <h2>Informacoes Comerciais</h2>
+          <p>Ajude nossa equipe a entender melhor o perfil da empresa.</p>
+        </div>
+        <div class="field-grid">
+          <label class="span-6">Como conheceu a empresa?
+            <select name="origem_conhecimento">
+              <option value="">Selecione</option>
+              <option>Representante</option>
+              <option>WhatsApp</option>
+              <option>Google</option>
+              <option>Indicacao</option>
+              <option>Feira/Eventos</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label class="span-6">Segmento
+            <input name="segmento" placeholder="Autopecas, oficina, distribuidor...">
+          </label>
+          <label class="span-6">Transportadora preferida
+            <input name="transportadora">
+          </label>
+          <label class="span-6">Nome do vendedor
+            <input name="vendedor" placeholder="Quem esta atendendo este cliente">
+          </label>
+          <label class="span-6">Prazo desejado
+            <input name="prazo_desejado" placeholder="Ex.: 28/35/42 dias">
+          </label>
+          <label class="span-6">Volume medio de compras
+            <input name="volume_estimado" placeholder="Ex.: R$ 10.000/mes">
+          </label>
+          <label class="span-12">Observacoes
+            <textarea name="observacoes"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="3">
+        <div class="section-title">
+          <h2>Informacoes Fiscais</h2>
+          <p>Informe se existe algum regime especial, beneficio fiscal ou acordo.</p>
+        </div>
+        <div class="choice-group">
+          <label><input type="radio" name="possui_regime_especial" value="false" checked> Nao</label>
+          <label><input type="radio" name="possui_regime_especial" value="true"> Sim</label>
+        </div>
+        <div class="field-grid regime-fields" id="regimeFields" hidden>
+          <label class="span-12">Descricao do acordo
+            <textarea name="descricao_regime" placeholder="Regime Especial, Diferimento, ST, Reducao de Base, Beneficio Estadual..."></textarea>
+          </label>
+          <label class="span-12">Estados onde possui beneficio
+            <input name="estados_regime" placeholder="Ex.: SP, PR, SC">
+          </label>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="4">
+        <div class="section-title">
+          <h2>Documentos</h2>
+          <p>Envie os principais documentos para agilizar a analise do cadastro.</p>
+          <p class="upload-hint">Limite: ate 5 arquivos, 5 MB por arquivo e 15 MB no total.</p>
+        </div>
+        <div class="documents-list" id="documentsList">
+          <label class="document-upload">Cartao CNPJ
+            <input type="file" name="doc_cartao_cnpj" data-doc-label="Cartao CNPJ" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
+            <span>Nenhum arquivo selecionado</span>
+          </label>
+          <label class="document-upload">Contrato Social
+            <input type="file" name="doc_contrato_social" data-doc-label="Contrato Social" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
+            <span>Nenhum arquivo selecionado</span>
+          </label>
+          <label class="document-upload">Comprovante de Endereco
+            <input type="file" name="doc_comprovante_endereco" data-doc-label="Comprovante de Endereco" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
+            <span>Nenhum arquivo selecionado</span>
+          </label>
+          <label class="document-upload">Inscricao Estadual
+            <input type="file" name="doc_inscricao_estadual" data-doc-label="Inscricao Estadual" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
+            <span>Nenhum arquivo selecionado</span>
+          </label>
+          <label class="document-upload">Outros documentos
+            <input type="file" name="doc_outros" data-doc-label="Outros documentos" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple>
+            <span>Nenhum arquivo selecionado</span>
+          </label>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="prevStep" type="button">Voltar</button>
+        <button class="btn btn-primary" id="nextStep" type="button">Continuar</button>
+        <button class="btn btn-primary" id="submitForm" type="submit" hidden>Enviar cadastro</button>
+      </div>
+      <p id="formMessage" class="form-message"></p>
+    </form>
+
+    <section class="success-card" id="successCard" hidden>
+      <span>Cadastro enviado</span>
+      <h2 id="protocolTitle"></h2>
+      <p>Recebemos seus dados. Nossa equipe ira analisar o cadastro e entrara em contato pelo email ou WhatsApp informado.</p>
+      <button class="btn btn-secondary" id="newFormButton" type="button">Enviar outro cadastro</button>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/portal.js"></script>
+</body>
+</html>

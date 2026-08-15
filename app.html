@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nova Empresa | CRM</title>
+  <link rel="stylesheet" href="css/theme.css?v=20260701-5">
+  <link rel="stylesheet" href="css/app.css?v=20260720-2">
+</head>
+<body class="app-page">
+  <div class="app-shell">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Fechar menu"></button>
+    <aside class="sidebar" id="sidebar">
+      <a class="sidebar-brand" href="#dashboard" aria-label="Inicio">
+        <img src="assets/logo-neutral.svg" alt="" class="sidebar-logo" data-company-logo>
+        <span data-company-name>Nova Empresa</span>
+      </a>
+      <nav class="side-nav" aria-label="Modulos">
+        <button class="nav-item is-active" data-module="dashboard">Inicio</button>
+        <button class="nav-item" data-module="products">Produtos</button>
+        <button class="nav-item" data-module="ordersReport">Pedidos</button>
+        <button class="nav-item" data-module="quoteReports">Cotacoes</button>
+        <button class="nav-item" data-module="partners">Parceiros</button>
+        <button class="nav-item" data-module="sap">Importacao SAP</button>
+        <button class="nav-item" data-module="cadastros">Cadastros</button>
+        <button class="nav-item" data-module="portalCadastros">Portal Clientes</button>
+        <button class="nav-item" data-module="companySettings">Configuracoes da Empresa</button>
+        <button class="nav-item" data-module="users">Usuarios</button>
+        <button class="nav-item" data-module="logs">Logs</button>
+      </nav>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button>
+        <div>
+          <p class="topbar-kicker">Operacao Comercial</p>
+          <h1 id="pageTitle">Inicio</h1>
+        </div>
+        <div class="topbar-user">
+          <span id="userName">Usuario</span>
+          <button class="btn btn-ghost" id="logoutButton" type="button">Sair</button>
+        </div>
+      </header>
+
+      <main class="content" id="content" tabindex="-1"></main>
+    </section>
+  </div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="Acesso rapido">
+    <button type="button" data-mobile-module="products">Produtos</button>
+    <button type="button" data-mobile-module="partners">Clientes</button>
+    <button type="button" data-mobile-module="ordersReport">Pedidos</button>
+    <button type="button" data-mobile-module="quoteReports">Cotacoes</button>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260701-5"></script>
+  <script src="js/utils/format.js?v=20260719-1"></script>
+  <script src="js/supabase.js?v=20260701-5"></script>
+  <script src="js/supabase_store.js?v=20260720-1"></script>
+  <script src="js/company_settings.js?v=20260720-1"></script>
+  <script src="js/auth.js?v=20260815-1"></script>
+  <script src="js/dashboard.js?v=20260720-3"></script>
+  <script src="js/products.js?v=20260702-3"></script>
+  <script src="js/partners.js?v=20260720-1"></script>
+  <script src="js/orders.js?v=20260720-1"></script>
+  <script src="js/cadastros.js?v=20260703-1"></script>
+  <script src="js/quotes.js?v=20260815-1"></script>
+  <script src="js/users.js?v=20260815-1"></script>
+  <script src="js/app.js?v=20260815-2"></script>
+</body>
+</html>

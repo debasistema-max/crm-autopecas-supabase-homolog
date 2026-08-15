@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">Logo neutro do CRM</title>
+  <desc id="desc">Marca neutra usada como fallback visual do sistema.</desc>
+  <rect width="160" height="160" rx="24" fill="#ffffff"/>
+  <rect x="18" y="18" width="124" height="124" rx="18" fill="#0d6b5f"/>
+  <path d="M44 60h72v12H44zM44 84h45v12H44z" fill="#ffffff"/>
+  <circle cx="112" cy="90" r="14" fill="#17212b"/>
+  <path d="M105 90h14M112 83v14" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <text x="80" y="126" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#ffffff">CRM</text>
+</svg>

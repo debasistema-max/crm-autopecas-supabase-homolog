@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nova Empresa | Login</title>
+  <link rel="stylesheet" href="css/theme.css?v=20260701-2">
+  <link rel="stylesheet" href="css/login.css?v=20260720-1">
+</head>
+<body class="login-page">
+  <img src="assets/logo-neutral.svg" alt="" class="brand-watermark" data-company-logo-watermark aria-hidden="true">
+  <main class="login-shell">
+    <section class="login-brand" aria-label="CRM Comercial">
+      <img src="assets/logo-neutral.svg" alt="Nova Empresa" class="brand-logo" data-company-logo>
+      <div>
+        <p class="eyebrow" data-company-kicker>Nova Empresa</p>
+        <h1>CRM Comercial</h1>
+        <p class="brand-copy">Pedidos, produtos, importacao SAP e operacao comercial em um painel rapido para equipe de vendas.</p>
+      </div>
+    </section>
+
+    <section class="login-card" aria-label="Entrar">
+      <div class="login-card__header">
+        <h2>Acessar CRM</h2>
+        <p>Use seu usuario e senha cadastrados no sistema.</p>
+      </div>
+
+      <form id="loginForm" autocomplete="on">
+        <label>
+          Usuario
+          <input id="usuario" name="usuario" type="text" autocomplete="username" required autofocus>
+        </label>
+        <label>
+          Senha
+          <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-primary" id="loginButton" type="submit">Entrar</button>
+        <p id="loginMessage" class="form-message" role="alert"></p>
+      </form>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260701-2"></script>
+  <script src="js/utils/format.js?v=20260719-1"></script>
+  <script src="js/supabase.js?v=20260701-2"></script>
+  <script src="js/supabase_store.js?v=20260701-2"></script>
+  <script src="js/company_settings.js?v=20260720-1"></script>
+  <script src="js/auth.js?v=20260815-1"></script>
+</body>
+</html>
