@@ -1032,6 +1032,10 @@ function showDocumentEditForm(kind, row) {
           </div>
         </section>
         ${kind === 'pedidos' ? `<section class="sap-section" id="${kind}TransferPanel"><h3>Transferencias</h3><div class="empty-state compact-state">Carregando transferencias vinculadas...</div></section>` : ''}
+        <section class="sap-section">
+          <h3>Fiscal</h3>
+          ${renderDocumentFiscalPanel(window[`${kind}EditingItems`] || [])}
+        </section>
         <section class="sap-section sap-tabs-section">
           <div class="sap-tabs">
             <button class="is-active" type="button" data-sap-tab="edit-items">Itens</button>
@@ -1155,8 +1159,74 @@ function normalizeDocumentItems(items) {
       aplicacao: item.aplicacao,
       preco: Number(item.preco_unitario || 0),
       quantidade: Number(item.quantidade || 1),
-      desconto_percentual: Number(item.desconto_percentual || 0)
+      desconto_percentual: Number(item.desconto_percentual || 0),
+      preco_sem_imposto_unitario: item.preco_sem_imposto_unitario == null ? null : Number(item.preco_sem_imposto_unitario),
+      imposto_unitario: item.imposto_unitario == null ? null : Number(item.imposto_unitario),
+      fiscal_tax_rule_id: item.fiscal_tax_rule_id || '',
+      fiscal_status: item.fiscal_status || '',
+      fiscal_details: item.fiscal_details || null
     }));
+}
+
+function renderDocumentFiscalPanel(items) {
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) return '<div class="empty-state compact-state">Nenhum item para analise fiscal.</div>';
+  const calculated = rows.filter((item) => item.fiscal_status === 'CALCULATED').length;
+  const missingNcm = rows.filter((item) => item.fiscal_status === 'MISSING_NCM').length;
+  const missingRule = rows.filter((item) => item.fiscal_status === 'MISSING_RULE').length;
+  return `
+    <div class="import-summary">
+      <article><span>Calculados</span><strong>${calculated}</strong></article>
+      <article><span>Sem NCM</span><strong>${missingNcm}</strong></article>
+      <article><span>Sem regra</span><strong>${missingRule}</strong></article>
+      <article><span>Preco legado</span><strong>${rows.filter((item) => !['CALCULATED', 'MISSING_NCM', 'MISSING_RULE'].includes(item.fiscal_status)).length}</strong></article>
+    </div>
+    <div class="table-wrap compact-table">
+      <table>
+        <thead>
+          <tr><th>Produto</th><th>NCM</th><th>Status</th><th>Base s/ imp.</th><th>Imposto un.</th><th>Preco final</th><th>Regra</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map((item) => renderDocumentFiscalRow(item)).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDocumentFiscalRow(item) {
+  const details = item.fiscal_details || {};
+  const status = formatFiscalStatus(item.fiscal_status);
+  const ncm = details.ncm || '-';
+  const rule = item.fiscal_tax_rule_id
+    ? [details.uf_origem, details.uf_destino, details.customer_type].filter(Boolean).join(' -> ')
+    : '-';
+  return `
+    <tr>
+      <td><strong>${escapeHtml(item.codigo || '')}</strong><small>${escapeHtml(item.descricao || '')}</small></td>
+      <td>${escapeHtml(formatFiscalNcm(ncm))}</td>
+      <td><span class="status-pill">${escapeHtml(status)}</span></td>
+      <td>${item.preco_sem_imposto_unitario == null ? '-' : money(item.preco_sem_imposto_unitario)}</td>
+      <td>${item.imposto_unitario == null ? '-' : money(item.imposto_unitario)}</td>
+      <td>${money(item.preco)}</td>
+      <td>${escapeHtml(rule)}${item.fiscal_tax_rule_id ? `<small>${escapeHtml(item.fiscal_tax_rule_id)}</small>` : ''}</td>
+    </tr>
+  `;
+}
+
+function formatFiscalStatus(status) {
+  const labels = {
+    CALCULATED: 'Calculado',
+    MISSING_NCM: 'Sem NCM',
+    MISSING_RULE: 'Sem regra',
+    LEGACY_PRICE: 'Preco legado'
+  };
+  return labels[status] || status || 'Preco legado';
+}
+
+function formatFiscalNcm(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length === 8 ? `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}` : String(value || '-');
 }
 
 function renderDocumentEditItems(kind) {

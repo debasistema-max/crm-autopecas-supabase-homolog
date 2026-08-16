@@ -716,7 +716,7 @@ async function supabaseCreateQuotation(payload) {
 async function supabaseListOrdersReport(filters = {}) {
   let query = supabaseClient
     .from('orders')
-    .select('id, numero_pedido, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, order_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item)')
+    .select('id, numero_pedido, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, order_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item, preco_sem_imposto_unitario, imposto_unitario, fiscal_tax_rule_id, fiscal_status, fiscal_details)')
     .order('created_at', { ascending: false })
     .limit(300);
   if (filters.from) query = query.gte('created_at', filters.from);
@@ -748,7 +748,7 @@ async function enrichOrdersWithTransferSummaries(rows) {
 async function supabaseListQuotationsReport(filters = {}) {
   let query = supabaseClient
     .from('quotations')
-    .select('id, numero_cotacao, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, quotation_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item)')
+    .select('id, numero_cotacao, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, quotation_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item, preco_sem_imposto_unitario, imposto_unitario, fiscal_tax_rule_id, fiscal_status, fiscal_details)')
     .order('created_at', { ascending: false })
     .limit(300);
   if (filters.from) query = query.gte('created_at', filters.from);
