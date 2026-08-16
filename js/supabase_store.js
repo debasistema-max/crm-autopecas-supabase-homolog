@@ -318,7 +318,7 @@ async function supabaseListProducts(params = {}) {
   const offset = Math.max(Number(params.offset || 0), 0);
   let query = supabaseClient
     .from('products')
-    .select('codigo, descricao, marca, aplicacao, ano, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar')
+    .select('codigo, descricao, marca, aplicacao, ano, ncm, ipi, preco_sem_imposto, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar')
     .order('codigo', { ascending: true })
     .range(offset, offset + limit - 1);
 
@@ -465,7 +465,7 @@ async function supabaseListRecentProducts(limitCount = 6) {
   try {
     const { data, error } = await supabaseClient
       .from('product_recent_views')
-      .select('codigo, viewed_at, view_count, products(codigo, descricao, marca, aplicacao, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr)')
+      .select('codigo, viewed_at, view_count, products(codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr)')
       .order('viewed_at', { ascending: false })
       .limit(Math.min(Math.max(Number(limitCount || 6), 1), 30));
     if (error) throw error;
@@ -488,7 +488,7 @@ async function supabaseProductsByCodes(codes) {
   if (!cleanCodes.length) return [];
   const { data, error } = await supabaseClient
     .from('products')
-    .select('codigo, descricao, marca, aplicacao, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr')
+    .select('codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr')
     .in('codigo', cleanCodes);
   if (error) return [];
   const byCode = new Map((data || []).map((product) => [product.codigo, product]));
@@ -1418,7 +1418,7 @@ function getImportAutoAnalysis(text, currentType) {
 function inferImportTypeFromMapping(mapping, currentType) {
   const fields = Object.values(mapping || {}).filter(Boolean);
   const has = (field) => fields.includes(field);
-  const descriptiveCount = ['descricao', 'marca', 'aplicacao', 'ano', 'ipi', 'preco_sem_imposto', 'grupo', 'categoria', 'montadora', 'oem', 'similar']
+  const descriptiveCount = ['descricao', 'marca', 'aplicacao', 'ano', 'ncm', 'ipi', 'preco_sem_imposto', 'grupo', 'categoria', 'montadora', 'oem', 'similar']
     .filter(has).length;
   const hasOnlyStock = has('estoque') && descriptiveCount === 0 && !has('preco_sp') && !has('preco_pr') && !has('preco_referencia');
   if (has('preco_sp') && descriptiveCount === 0) return 'PRECO_SP';
@@ -1445,6 +1445,7 @@ const allowedProductFields = [
   'marca',
   'aplicacao',
   'ano',
+  'ncm',
   'ipi',
   'preco_sem_imposto',
   'estoque',
@@ -1651,6 +1652,7 @@ function suggestImportField(header, tipo) {
     veiculoaplicacao: 'aplicacao',
     veiculosaplicacao: 'aplicacao',
     ano: 'ano',
+    ncm: 'ncm',
     ipi: 'ipi',
     precosimp: 'preco_sem_imposto',
     precosemimposto: 'preco_sem_imposto',
@@ -1738,6 +1740,11 @@ function normalizeImportCode(value) {
     .trim();
 }
 
+function normalizeImportNcm(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length === 8 ? digits : null;
+}
+
 function normalizeProductCode(value) {
   let text = normalizeImportCode(value);
   if (!text) return '';
@@ -1763,6 +1770,7 @@ function mapImportProduct(row, tipo) {
     marca: pickImport(row, ['marca']),
     aplicacao: pickImport(row, ['aplicacao']),
     ano: pickImport(row, ['ano']),
+    ncm: normalizeImportNcm(pickImport(row, ['ncm'])),
     ipi: importNumber(pickImport(row, ['ipi'])),
     preco_sem_imposto: precoSemImposto,
     status_cadastro: pickImport(row, ['status cadastro', 'status_cadastro']),

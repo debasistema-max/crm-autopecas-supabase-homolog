@@ -330,6 +330,8 @@ function addProductToQuote(product, forcedQuantity = null) {
       descricao: product.descricao,
       marca: product.marca,
       aplicacao: product.aplicacao,
+      ncm: product.ncm || '',
+      preco_sem_imposto: Number(product.preco_sem_imposto || 0),
       preco: Number(product.preco || 0),
       quantidade: quantity,
       desconto_percentual: 0
@@ -552,7 +554,7 @@ async function saveCurrentQuote() {
     quoteCreateSaved = true;
     renderQuoteCart();
     message.style.color = 'var(--success)';
-    message.textContent = 'Cotacao ' + data.numero_cotacao + ' salva com sucesso.';
+    message.textContent = 'Cotacao ' + data.numero_cotacao + ' salva com sucesso.' + formatFiscalSaveSummary(data.fiscal);
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;

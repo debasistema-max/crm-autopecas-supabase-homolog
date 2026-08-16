@@ -350,6 +350,8 @@ function addProductToOrder(product, forcedQuantity = null) {
       descricao: product.descricao,
       marca: product.marca,
       aplicacao: product.aplicacao,
+      ncm: product.ncm || '',
+      preco_sem_imposto: Number(product.preco_sem_imposto || 0),
       preco: Number(product.preco || 0),
       quantidade: quantity,
       desconto_percentual: 0,
@@ -620,7 +622,9 @@ async function saveCurrentOrder() {
     renderCart();
     message.style.color = 'var(--success)';
     const transferCount = Number((data.transferencias && data.transferencias.created) || 0);
-    message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.' + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '');
+    message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.'
+      + formatFiscalSaveSummary(data.fiscal)
+      + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '');
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;
@@ -628,6 +632,18 @@ async function saveCurrentOrder() {
     button.disabled = false;
     button.textContent = 'Salvar';
   }
+}
+
+function formatFiscalSaveSummary(fiscal) {
+  if (!fiscal) return '';
+  const calculated = Number(fiscal.calculated || 0);
+  const missingNcm = Number(fiscal.missing_ncm || 0);
+  const missingRule = Number(fiscal.missing_rule || 0);
+  if (!calculated && !missingNcm && !missingRule) return ' Fiscal: preco legado.';
+  return ' Fiscal: ' + calculated + ' item(ns) calculado(s)'
+    + (missingNcm ? ', ' + missingNcm + ' sem NCM' : '')
+    + (missingRule ? ', ' + missingRule + ' sem regra' : '')
+    + '.';
 }
 
 function hasUnsavedOrderDraft() {
