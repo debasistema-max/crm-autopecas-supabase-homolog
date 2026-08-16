@@ -1418,7 +1418,7 @@ function getImportAutoAnalysis(text, currentType) {
 function inferImportTypeFromMapping(mapping, currentType) {
   const fields = Object.values(mapping || {}).filter(Boolean);
   const has = (field) => fields.includes(field);
-  const descriptiveCount = ['descricao', 'marca', 'aplicacao', 'ano', 'ncm', 'ipi', 'preco_sem_imposto', 'grupo', 'categoria', 'montadora', 'oem', 'similar']
+  const descriptiveCount = ['descricao', 'marca', 'aplicacao', 'ano', 'ncm', 'ipi', 'preco_sem_imposto', 'url_imagem', 'grupo', 'categoria', 'montadora', 'detalhes', 'oem', 'similar']
     .filter(has).length;
   const hasOnlyStock = has('estoque') && descriptiveCount === 0 && !has('preco_sp') && !has('preco_pr') && !has('preco_referencia');
   if (has('preco_sp') && descriptiveCount === 0) return 'PRECO_SP';
@@ -1514,7 +1514,7 @@ function getImportUpdatedFields(tipo) {
   if (tipo === 'PRECO_SP') return ['codigo', 'preco_sp'];
   if (tipo === 'PRECO_PR') return ['codigo', 'preco_pr'];
   if (tipo === 'CATALOGO_PESQUISA') {
-    return ['codigo', 'descricao', 'marca', 'aplicacao', 'ano', 'grupo', 'categoria', 'montadora', 'detalhes', 'oem', 'similar'];
+    return ['codigo', 'ncm', 'url_imagem', 'marca', 'aplicacao', 'ano', 'grupo', 'categoria', 'montadora', 'detalhes', 'oem', 'similar'];
   }
   return [
     'codigo',
@@ -1663,6 +1663,16 @@ function suggestImportField(header, tipo) {
     quantidade: 'estoque',
     qtd: 'estoque',
     qtde: 'estoque',
+    url: 'url_imagem',
+    link: 'url_imagem',
+    foto: 'url_imagem',
+    imagem: 'url_imagem',
+    urlimagem: 'url_imagem',
+    urlfoto: 'url_imagem',
+    image: 'url_imagem',
+    imageurl: 'url_imagem',
+    picture: 'url_imagem',
+    pictureurl: 'url_imagem',
     grupo: 'grupo',
     linha: 'categoria',
     linhas: 'categoria',
@@ -1670,7 +1680,10 @@ function suggestImportField(header, tipo) {
     montadora: 'montadora',
     oem: 'oem',
     similar: 'similar',
-    similares: 'similar'
+    similares: 'similar',
+    descricaodetalhada: 'detalhes',
+    descricaoconsulta: 'detalhes',
+    palavraschave: 'detalhes'
   };
   if (exact[key]) return exact[key];
   if (['precocimp', 'precocomimposto', 'valor', 'prunitci', 'totalcimp', 'praposdesc'].includes(key)) {
@@ -1774,11 +1787,11 @@ function mapImportProduct(row, tipo) {
     ipi: importNumber(pickImport(row, ['ipi'])),
     preco_sem_imposto: precoSemImposto,
     status_cadastro: pickImport(row, ['status cadastro', 'status_cadastro']),
-    url_imagem: pickImport(row, ['url imagem', 'url_imagem', 'imagem']),
+    url_imagem: pickImport(row, ['url imagem', 'url_imagem', 'url', 'link', 'foto', 'imagem', 'image url', 'image_url', 'picture url']),
     grupo: pickImport(row, ['grupo']),
     categoria: pickImport(row, ['categoria', 'linha']),
     montadora: pickImport(row, ['montadora']),
-    detalhes: pickImport(row, ['detalhes', 'palavras chave', 'palavras-chave']),
+    detalhes: pickImport(row, ['detalhes', 'descricao detalhada', 'descricao consulta', 'palavras chave', 'palavras-chave']),
     oem: pickImport(row, ['oem']),
     similar: pickImport(row, ['similar', 'similares'])
   };

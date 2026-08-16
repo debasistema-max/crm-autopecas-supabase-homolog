@@ -1176,6 +1176,7 @@ function getImportFieldOptions() {
     ['marca', 'Marca'],
     ['aplicacao', 'Aplicacao'],
     ['ano', 'Ano'],
+    ['ncm', 'NCM'],
     ['ipi', 'IPI'],
     ['preco_sem_imposto', 'Preco s/ imposto'],
     ['preco_referencia', 'Preco c/ imposto ref.'],
@@ -1183,6 +1184,7 @@ function getImportFieldOptions() {
     ['preco_pr', 'Preco PR'],
     ['estoque', 'Estoque'],
     ['status_estoque', 'Status estoque'],
+    ['url_imagem', 'URL imagem'],
     ['grupo', 'Grupo'],
     ['categoria', 'Categoria'],
     ['montadora', 'Montadora'],
@@ -1370,10 +1372,10 @@ function getImportTemplate(type) {
     CATALOGO_PESQUISA: {
       title: 'Catalogo de pesquisa',
       required: ['codigo'],
-      optional: ['linha', 'grupo', 'veiculos', 'detalhes', 'similares'],
-      sample: 'CODIGO;LINHA;GRUPO;VEICULOS;DETALHES;SIMILARES\n7146505811;DIRECAO;BOMBA;PALIO E-TORQ 11/20;BOMBA DIR.HIDRAULICA;7146505810',
+      optional: ['linha', 'grupo', 'veiculos', 'detalhes', 'similares', 'ncm', 'url imagem'],
+      sample: 'CODIGO;LINHA;GRUPO;VEICULOS;DETALHES;SIMILARES;NCM;URL IMAGEM\n7146505811;DIRECAO;BOMBA;PALIO E-TORQ 11/20;BOMBA DIR.HIDRAULICA;7146505810;87089990;https://exemplo.com/7146505811.jpg',
       notes: [
-        'Enriquece a busca e a listagem de produtos com linha, grupo, veiculos, detalhes e similares.',
+        'Enriquece a busca e a listagem de produtos com linha, grupo, veiculos, detalhes, similares, NCM e imagem.',
         'Nao altera estoque nem valor. Esses campos continuam vindo das importacoes de estoque e preco.'
       ]
     },

@@ -268,12 +268,14 @@ function renderProductDetail(product, params, history) {
       </div>
       <dl class="product-detail-grid">
         ${detailItem('Marca', product.marca)}
+        ${detailItem('NCM', formatProductNcm(product.ncm))}
         ${detailItem('Linha', product.linha || product.categoria)}
         ${detailItem('Grupo', product.grupo)}
         ${detailItem('Montadora', product.montadora)}
         ${detailItem('OEM', product.oem)}
         ${detailItem('Similares', product.similar)}
         ${detailItem('Aplicacoes', product.aplicacao)}
+        ${detailItem('Detalhes consulta', product.detalhes)}
         ${detailItem('Estoque', product.estoque)}
         ${detailItem('Qtd. estoque', product.estoque_quantidade)}
         ${detailItem('Preco SP', money(product.preco_sp))}
@@ -289,6 +291,11 @@ function renderProductDetail(product, params, history) {
 
 function detailItem(label, value) {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '-')}</dd></div>`;
+}
+
+function formatProductNcm(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length === 8 ? `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}` : digits;
 }
 
 function renderHistoryBlock(title, rows) {
