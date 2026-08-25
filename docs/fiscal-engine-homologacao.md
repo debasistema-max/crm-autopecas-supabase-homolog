@@ -67,11 +67,25 @@ Quando `has_st=false`, ICMS-ST é zero e o status é `OK_SEM_ST`. PIS, COFINS e 
 
 ## Aplicação em homologação
 
-As migrations `043` a `047` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
+As migrations `043` a `052` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
 
 Testes SQL são transacionais e terminam com `ROLLBACK`, preservando a base:
 
 - `047_fiscal_engine_regression.sql`;
 - `048_sap_import_center_regression.sql`;
-- `049_all_import_types_regression.sql`.
+- `049_all_import_types_regression.sql`;
+- `050_reference_workbook_regression.sql`.
 
+## Carga da planilha de referência em 25/08/2026
+
+Arquivo validado: `1-calculos-impostos.xlsx`, SHA-256 `19918d547beb8da80ead65f365f1908183fafb7fcb0454341e4d33d00ae5e03d`.
+
+Foram confirmados em uma única transação global sete lotes v3: 4.238 itens SAP, 3.387 produtos comerciais, 3.177 posições de estoque PR, 3.385 preços base PR, 3.385 preços base SP, 48 regras fiscais de origem PR e 23 regras fiscais de origem SP. A aba `PORTAL ESTOQUE SP` está vazia e, por isso, nenhum estoque SP foi inventado ou gravado como zero.
+
+A linha fiscal SAP de origem SP `Code 80`, NCM `84149020`, veio sem ICMS interno e MVA. Ela está registrada no lote rejeitado `f5aabdcb-88df-419e-97c0-8256b616b367` e não foi ativada. PIS, COFINS e FCP não existem nas listas de origem; permanecem `NULL` com avisos explícitos.
+
+Regressão real do produto `6111032201`:
+
+- PR→PR: base 232,000000; tributos 115,854460; final 347,854460; `OK`;
+- SP→SP: base 232,000000; tributos 114,791931; final 346,791931; `OK`, com estoque `ESTOQUE_NAO_IMPORTADO`;
+- PR→SC: base 232,000000; tributos 31,900000; final 263,900000; `OK_SEM_ST`.

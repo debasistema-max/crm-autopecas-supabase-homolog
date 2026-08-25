@@ -1,7 +1,10 @@
 begin;
 
 insert into public.products(codigo,descricao,ncm,cest,ipi_rate,ipi_defined)
-values('6111032201','PRODUTO REGRESSAO FISCAL','85122011','0100100',0.0975,true);
+values('6111032201','PRODUTO REGRESSAO FISCAL','85122011','0100100',0.0975,true)
+on conflict (codigo) do update set
+  descricao=excluded.descricao,ncm=excluded.ncm,cest=excluded.cest,
+  ipi_rate=excluded.ipi_rate,ipi_defined=excluded.ipi_defined;
 
 insert into public.product_branch_prices(product_code,branch_id,sale_price,source)
 select '6111032201',id,232.000000,'MANUAL' from public.branches where code in ('PR','SP')
@@ -20,7 +23,18 @@ insert into public.fiscal_tax_rules(
 ) values
   ('85122011','PR','PR','VENDA','GERAL',0.12,0.195,0.8778,0.0975,0,0,0,0,0,0,0,true,12,19.5,87.78,9.75,0,0,0,current_date,'TEST','REGRESSAO PR-PR'),
   ('85122011','SP','SP','VENDA','GERAL',0.04,0.18,1.0111,0.0975,0,0,0,0,0,0,0,true,4,18,101.11,9.75,0,0,0,current_date,'TEST','REGRESSAO SP-SP'),
-  ('85122011','PR','SC','VENDA','GERAL',0.04,0.17,0,0.0975,0,0,0,0,0,0,0,false,4,17,0,9.75,0,0,0,current_date,'TEST','REGRESSAO PR-SC');
+  ('85122011','PR','SC','VENDA','GERAL',0.04,0.17,0,0.0975,0,0,0,0,0,0,0,false,4,17,0,9.75,0,0,0,current_date,'TEST','REGRESSAO PR-SC')
+on conflict(ncm,uf_origem,uf_destino,operation_type,customer_type,effective_from) do update set
+  interstate_icms_rate=excluded.interstate_icms_rate,
+  internal_icms_rate=excluded.internal_icms_rate,
+  mva_rate=excluded.mva_rate,
+  ipi_rate=excluded.ipi_rate,
+  pis_rate=excluded.pis_rate,
+  cofins_rate=excluded.cofins_rate,
+  fcp_rate=excluded.fcp_rate,
+  has_st=excluded.has_st,
+  source=excluded.source,
+  notes=excluded.notes;
 
 do $$
 declare

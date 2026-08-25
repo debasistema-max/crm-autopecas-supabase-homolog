@@ -39,14 +39,15 @@ const SAP_HEADER_ALIASES = {
   description: ['descricao', 'descricao do item', 'descricao item', 'descricao base'], brand: ['marca'], application: ['aplicacao'], year: ['ano'],
   ncm: ['ncm', 'codigo ncm'], cest: ['cest', 'codigo cest'], ipi_rate: ['ipi', '% ipi', 'aliquota ipi'], model: ['modelo'],
   in_stock: ['em estoque'], ordered_qty: ['qtd pedido', 'qtd. pedido', 'quantidade pedido'], oem_01: ['oem 01', 'oem'], delivery: ['entrega'],
-  last_purchase_date: ['ultima data de compra', 'data ultima compra'], compatible: ['compativel'], import_notes: ['observacao importacao'],
-  item_group: ['grupo de itens'], sales_unit: ['um venda'], item_notes: ['observacao do item'], weight: ['peso'], volume: ['volume'],
-  manufacturer_code_01: ['codigo fabricante 01'], manufacturer_code_02: ['codigo fabricante 02'], manufacturer: ['fabricante'],
-  barcode: ['codigo de barras', 'ean'], product_source: ['fonte origem do produto', 'fonte origem', 'origem produto'], material_type: ['tipo de material'],
+  last_purchase_date: ['ultima data de compra', 'data ultima compra', 'ult dt compra'], compatible: ['compativel'],
+  import_notes: ['observacao importacao', 'obs importacion', 'obs importacao'],
+  item_group: ['grupo de itens'], sales_unit: ['um venda'], item_notes: ['observacao do item', 'obs item'], weight: ['peso'], volume: ['volume'],
+  manufacturer_code_01: ['codigo fabricante 01', 'cod fabricante 01'], manufacturer_code_02: ['codigo fabricante 02', 'cod fabricante 02'], manufacturer: ['fabricante'],
+  barcode: ['codigo de barras', 'ean'], product_source: ['fonte origem do produto', 'fonte origem', 'origem produto', 'fonte do produto'], material_type: ['tipo de material'],
   origin_and_fiscal_group: ['origem e grupo fiscal'], materials_group: ['grupo de materiais'], origin_and_ncm: ['origem e ncm'],
   origin_code: ['codigo origem', 'origem codigo'], origin_description: ['descricao origem'], fiscal_group: ['grupo fiscal'], group: ['grupo'],
   stock_qty: ['estoque'], confirmed_qty: ['confirmado'], sales_available_qty: ['disp venda', 'disponivel venda'],
-  authorized_pending_qty: ['quantidade autorizada pendente', 'qtd autorizada pendente'], general_available_qty: ['disp geral', 'disponivel geral'],
+  authorized_pending_qty: ['quantidade autorizada pendente', 'qtd autorizada pendente', 'qtd auth pend'], general_available_qty: ['disp geral', 'disponivel geral'],
   base_price: ['preco base', 'preco s imp', 'preco sem imposto', 'valor'], source_code: ['code'], destination_state: ['estado', 'uf destino', 'destino'],
   interstate_icms_rate: ['% icms', 'icms'], internal_icms_rate: ['% icms dest', 'icms dest', 'icms destino'], mva_rate: ['% mva', 'mva'],
   has_st: ['has st', 'possui st', 'st'], effective_from: ['vigencia', 'valid from', 'data inicial'], effective_to: ['valid until', 'data final'],
@@ -55,7 +56,7 @@ const SAP_HEADER_ALIASES = {
   other_expenses_rate: ['outras despesas'], notes: ['notas', 'observacoes']
 };
 
-const sapImportState = { workbook: null, sheet: null, headers: [], sourceRows: [], mapping: {}, bytes: null, filename: '', batchId: null, preview: null, listRows: [] };
+const sapImportState = { workbook: null, sheet: null, headers: [], sourceRows: [], mapping: {}, bytes: null, filename: '', batchId: null, preview: null, listRows: [], ignoredRows: 0 };
 
 async function renderImportCenter(container) {
   container.innerHTML = `
@@ -94,7 +95,7 @@ function renderNewSapImport() {
         </label>
         <label class="span-4">Filial <select id="sapImportBranch"><option>PR</option><option>SP</option></select></label>
         <label class="span-4">Padrão de ST (listas fiscais)
-          <select id="sapImportHasSt"><option value="true">Com ST</option><option value="false">Sem ST</option></select>
+          <select id="sapImportHasSt"><option value="auto">Automático: PR→SC sem ST</option><option value="true">Com ST</option><option value="false">Sem ST</option></select>
         </label>
         <label class="span-8">Arquivo XLSX / CSV / TSV
           <input id="sapImportFile" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt">
@@ -114,7 +115,9 @@ function renderNewSapImport() {
     <section class="panel" id="sapDetection"><div class="empty-state">Selecione um arquivo ou cole uma tabela.</div></section>
     <section class="panel" id="sapMapping" hidden></section>
     <section class="panel" id="sapServerPreview" hidden></section>`;
-  document.getElementById('sapImportFile').addEventListener('change', loadSapImportFile);
+  document.getElementById('sapImportFile').addEventListener('change', (event) => loadSapImportFile(event).catch((error) => {
+    console.error(error); document.getElementById('sapImportMessage').textContent = error.message || 'Falha ao ler o arquivo.';
+  }));
   document.getElementById('sapImportSheet').addEventListener('change', () => selectSapWorkbookSheet(document.getElementById('sapImportSheet').value));
   document.getElementById('sapAnalyzeButton').addEventListener('click', analyzeSapImportInput);
   document.getElementById('sapValidateButton').addEventListener('click', stageAndValidateSapImport);
@@ -144,23 +147,24 @@ async function loadSapImportFile(event) {
 
 function selectSapWorkbookSheet(name) {
   sapImportState.sheet = name;
-  const matrix = XLSX.utils.sheet_to_json(sapImportState.workbook.Sheets[name], { header: 1, defval: '', raw: false });
+  const matrix = XLSX.utils.sheet_to_json(sapImportState.workbook.Sheets[name], { header: 1, defval: '', raw: true });
   loadSapMatrix(matrix);
   analyzeSapRows();
 }
 
 function loadSapMatrix(matrix) {
   const nonEmpty = (matrix || []).filter((row) => row.some((cell) => String(cell || '').trim()));
-  sapImportState.headers = (nonEmpty.shift() || []).map((value) => String(value || '').trim());
-  sapImportState.sourceRows = nonEmpty.map((cells) => Object.fromEntries(sapImportState.headers.map((header, index) => [sapNormalizeHeader(header), String(cells[index] || '').trim()])));
+  sapImportState.headers = sapUniqueHeaders((nonEmpty.shift() || []).map((value) => String(value || '').trim()));
+  sapImportState.sourceRows = nonEmpty.map((cells) => Object.fromEntries(sapImportState.headers.map((header, index) => [sapColumnKey(header), sapCellText(cells[index])])));
 }
 
 async function analyzeSapImportInput() {
   if (!sapImportState.workbook) {
     const parsed = parseDelimitedTable(document.getElementById('sapImportText').value);
-    sapImportState.headers = parsed.headers;
+    const originalHeaders = parsed.headers;
+    sapImportState.headers = sapUniqueHeaders(originalHeaders);
     sapImportState.sourceRows = parsed.rows.map((row) => Object.fromEntries(
-      parsed.headers.map((header) => [sapNormalizeHeader(header), row[normalizeHeader(header)] || ''])
+      sapImportState.headers.map((header, index) => [sapColumnKey(header), row[normalizeHeader(originalHeaders[index])] || ''])
     ));
     sapImportState.sheet = null;
     sapImportState.bytes = sapImportState.bytes || new TextEncoder().encode(document.getElementById('sapImportText').value).buffer;
@@ -179,12 +183,16 @@ function analyzeSapRows() {
   document.getElementById('sapImportKind').value = detectedKind;
   const mapped = Object.values(sapImportState.mapping).filter(Boolean);
   const missing = (SAP_IMPORT_REQUIRED[detectedKind] || []).filter((field) => !mapped.includes(field));
+  const codeHeader = Object.keys(sapImportState.mapping).find((header) => sapImportState.mapping[header] === 'product_code');
+  sapImportState.ignoredRows = ['COMMERCIAL_PRODUCTS','SAP_ITEM_MASTER'].includes(detectedKind) && codeHeader
+    ? sapImportState.sourceRows.filter((row) => !String(row[sapColumnKey(codeHeader)] || '').trim()).length : 0;
   document.getElementById('sapDetection').innerHTML = `
     <div class="import-summary">
       <div><strong>${escapeHtml(SAP_IMPORT_TYPES[detectedKind])}</strong><span>Tipo detectado</span></div>
       <div><strong>${sapImportState.sourceRows.length}</strong><span>linhas</span></div>
       <div><strong>${mapped.length}</strong><span>campos encontrados</span></div>
       <div><strong>${missing.length}</strong><span>campos ausentes</span></div>
+      ${sapImportState.ignoredRows ? `<div><strong>${sapImportState.ignoredRows}</strong><span>separadores ignorados</span></div>` : ''}
     </div>
     ${missing.length ? `<div class="import-warnings">Ausentes: ${missing.map((field) => escapeHtml(SAP_IMPORT_FIELDS[field] || field)).join(', ')}</div>` : ''}`;
   renderSapColumnMapping();
@@ -200,7 +208,7 @@ function renderSapColumnMapping() {
         <option value="">Ignorar</option>${Object.entries(SAP_IMPORT_FIELDS).map(([value, label]) => `<option value="${value}" ${sapImportState.mapping[header] === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
       </select></label>`).join('')}</div>
     <div class="table-wrap"><table><thead><tr>${sapImportState.headers.slice(0, 8).map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
-      <tbody>${sapImportState.sourceRows.slice(0, 5).map((row) => `<tr>${sapImportState.headers.slice(0, 8).map((h) => `<td>${escapeHtml(row[sapNormalizeHeader(h)] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      <tbody>${sapImportState.sourceRows.slice(0, 5).map((row) => `<tr>${sapImportState.headers.slice(0, 8).map((h) => `<td>${escapeHtml(row[sapColumnKey(h)] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   target.querySelectorAll('[data-sap-map]').forEach((select) => select.addEventListener('change', () => {
     sapImportState.mapping[select.dataset.sapMap] = select.value;
     document.getElementById('sapValidateButton').disabled = false;
@@ -217,11 +225,12 @@ function suggestSapField(header) {
 function detectSapImportKind(mapping, headers) {
   const fields = Object.values(mapping);
   const current = document.getElementById('sapImportKind').value;
+  const sheet = sapNormalizeHeader(sapImportState.sheet || '');
   if (fields.includes('destination_state') && fields.includes('mva_rate') && fields.includes('internal_icms_rate')) {
-    return current === 'FISCAL_RULES_SP' ? current : 'FISCAL_RULES_PR';
+    return sheet.includes('sap sp') || sheet.endsWith(' sp') || current === 'FISCAL_RULES_SP' ? 'FISCAL_RULES_SP' : 'FISCAL_RULES_PR';
   }
-  if (fields.includes('general_available_qty')) return current === 'STOCK_SP' ? current : 'STOCK_PR';
-  if (fields.includes('base_price') && fields.filter(Boolean).length <= 4) return current === 'BASE_PRICE_SP' ? current : 'BASE_PRICE_PR';
+  if (fields.includes('general_available_qty')) return sheet.includes('estoque sp') || current === 'STOCK_SP' ? 'STOCK_SP' : 'STOCK_PR';
+  if (fields.includes('base_price') && fields.filter(Boolean).length <= 4) return sheet.includes('sp') || current === 'BASE_PRICE_SP' ? 'BASE_PRICE_SP' : 'BASE_PRICE_PR';
   if (fields.includes('item_group') || fields.includes('manufacturer') || headers.some((header) => sapNormalizeHeader(header) === 'n do item')) return 'SAP_ITEM_MASTER';
   return 'COMMERCIAL_PRODUCTS';
 }
@@ -266,21 +275,27 @@ async function stageAndValidateSapImport() {
 }
 
 function normalizeSapRows(kind, mapping) {
-  return sapImportState.sourceRows.map((source, index) => {
+  const normalizedRows = sapImportState.sourceRows.map((source, index) => {
     const data = {};
     Object.entries(mapping).forEach(([header, field]) => {
       if (!field) return;
-      const raw = source[sapNormalizeHeader(header)];
+      const raw = source[sapColumnKey(header)];
       if (raw == null || String(raw).trim() === '') return;
       data[field] = normalizeSapValue(field, raw, header);
     });
-    if (kind.startsWith('FISCAL_RULES_') && data.has_st == null) data.has_st = document.getElementById('sapImportHasSt').value === 'true';
+    if (kind.startsWith('FISCAL_RULES_') && data.has_st == null) {
+      const stMode = document.getElementById('sapImportHasSt').value;
+      data.has_st = stMode === 'auto' ? !(kind === 'FISCAL_RULES_PR' && String(data.destination_state || '').toUpperCase() === 'SC') : stMode === 'true';
+    }
     if (kind.startsWith('STOCK_') && data.general_available_qty != null) {
-      const display = String(source[sapNormalizeHeader(Object.keys(mapping).find((header) => mapping[header] === 'general_available_qty') || '')] || '');
+      const display = String(source[sapColumnKey(Object.keys(mapping).find((header) => mapping[header] === 'general_available_qty') || '')] || '');
       data.general_available_capped = display.includes('+'); data.source_display_value = display;
     }
     return { row_number: index + 2, raw: source, data };
   }).filter((row) => Object.keys(row.data).length > 1 || row.data.ncm);
+  const requiresCode = ['COMMERCIAL_PRODUCTS','SAP_ITEM_MASTER','STOCK_PR','STOCK_SP','BASE_PRICE_PR','BASE_PRICE_SP'].includes(kind);
+  sapImportState.ignoredRows = requiresCode ? normalizedRows.filter((row) => !String(row.data.product_code || '').trim()).length : 0;
+  return requiresCode ? normalizedRows.filter((row) => String(row.data.product_code || '').trim()) : normalizedRows;
 }
 
 function normalizeSapValue(field, raw, header) {
@@ -289,6 +304,7 @@ function normalizeSapValue(field, raw, header) {
     const number = sapDecimal(raw); return number == null ? null : (String(header).includes('%') || Math.abs(number) > 1 ? number / 100 : number);
   }
   if (field === 'has_st') return ['1','true','sim','s','com st'].includes(String(raw).trim().toLowerCase());
+  if (field === 'last_purchase_date') return sapDate(raw);
   if (field === 'ncm' || field === 'cest') return String(raw).replace(/\D/g, '');
   return String(raw).trim();
 }
@@ -321,7 +337,7 @@ async function approveAndCommitSapImport() {
     sapImportState.preview = result;
     renderSapServerPreview(result);
     const batch = result.batch || {};
-    message.textContent = `IMPORTAÇÃO CONCLUÍDA — afetados: ${result.affected || 0}; lote: ${batch.id || sapImportState.batchId}.`;
+    message.textContent = `IMPORTAÇÃO CONCLUÍDA — afetados: ${result.affected || 0}; ignorados sem chave: ${sapImportState.ignoredRows || 0}; lote: ${batch.id || sapImportState.batchId}.`;
   } catch (error) { console.error(error); message.textContent = error.message || 'Commit rejeitado; nenhuma alteração parcial foi mantida.'; }
 }
 
@@ -346,7 +362,10 @@ async function renderFiscalPendingPanel() {
     target.innerHTML = `<section class="panel"><div class="panel-header"><div><h2>Pendências fiscais</h2><p>Produtos e rotas que impedem cálculo confiável.</p></div>
       <button class="btn btn-secondary" id="exportFiscalPending">Exportar CSV</button></div>
       <div class="import-summary"><div><strong>${summary.products_without_ncm || 0}</strong><span>sem NCM</span></div><div><strong>${summary.products_without_cest || 0}</strong><span>sem CEST</span></div>
-      <div><strong>${summary.products_without_ipi || 0}</strong><span>sem IPI</span></div><div><strong>${summary.rules_incomplete || 0}</strong><span>regras incompletas</span></div></div>
+      <div><strong>${summary.products_without_ipi || 0}</strong><span>sem IPI</span></div><div><strong>${summary.rules_incomplete || 0}</strong><span>regras incompletas</span></div>
+      <div><strong>${summary.products_without_price_pr || 0}</strong><span>sem preço PR</span></div><div><strong>${summary.products_without_price_sp || 0}</strong><span>sem preço SP</span></div>
+      <div><strong>${summary.products_without_stock_pr || 0}</strong><span>sem estoque PR</span></div><div><strong>${summary.products_without_stock_sp || 0}</strong><span>sem estoque SP</span></div>
+      <div><strong>${summary.fiscal_source_rows_rejected || 0}</strong><span>linhas fiscais rejeitadas</span></div></div>
       <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>NCM</th><th>CEST</th><th>Rota</th><th>Status</th></tr></thead>
       <tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.codigo)}</td><td>${escapeHtml(row.descricao)}</td><td>${escapeHtml(row.ncm)}</td><td>${escapeHtml(row.cest)}</td><td>${escapeHtml(row.route)}</td><td>${escapeHtml(row.status)}</td></tr>`).join('')}</tbody></table></div></section>`;
     document.getElementById('exportFiscalPending').addEventListener('click', () => downloadCsv('pendencias-fiscais.csv', rows));
@@ -389,7 +408,11 @@ function exportCommercialList(type) {
   const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), `LISTA ${route}`); XLSX.writeFile(workbook, `lista-${route}.xlsx`);
 }
 
-function sapNormalizeHeader(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function sapColumnKey(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function sapNormalizeHeader(value) { return sapColumnKey(String(value || '').replace(/\s+\[\d+\]$/, '')); }
+function sapUniqueHeaders(headers) { const counts = {}; return headers.map((header) => { const key = sapNormalizeHeader(header); counts[key] = (counts[key] || 0) + 1; return counts[key] === 1 ? header : `${header} [${counts[key]}]`; }); }
+function sapCellText(value) { return value instanceof Date && !Number.isNaN(value.valueOf()) ? value.toISOString().slice(0, 10) : String(value == null ? '' : value).trim(); }
 function sapDecimal(value) { const text = String(value == null ? '' : value).replace(/[^0-9,.-]/g, ''); if (!text) return null; const normalized = text.includes(',') ? (text.includes('.') ? text.replace(/\./g, '').replace(',', '.') : text.replace(',', '.')) : text; const number = Number(normalized); return Number.isFinite(number) ? number : null; }
+function sapDate(value) { const text = String(value || '').trim(); if (!text) return null; if (/^\d{5}(?:\.\d+)?$/.test(text)) { const date = new Date(Date.UTC(1899, 11, 30) + Number(text) * 86400000); return date.toISOString().slice(0, 10); } const match = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/); if (match) return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`; return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null; }
 async function sapSha256(buffer) { const digest = await crypto.subtle.digest('SHA-256', buffer); return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
 function sapCompactJson(value) { if (!value) return '—'; const entries = Object.entries(value).filter(([, item]) => item != null && !['search_vector','search_text','raw_data'].includes(item)); return JSON.stringify(Object.fromEntries(entries.slice(0, 16)), null, 2); }
