@@ -93,7 +93,7 @@ function renderFiscalTaxRuleResults(rows) {
               <td>${formatPercent(row.ipi_percent)}</td>
               <td>${formatPercent(row.pis_percent)}</td>
               <td>${formatPercent(row.cofins_percent)}</td>
-              <td>${formatPercent(row.icms_st_percent)}<small>MVA ${formatPercent(row.mva_percent)}</small></td>
+              <td>${row.has_st ? formatPercent(row.icms_st_percent) : 'SEM ST'}<small>MVA ${formatPercent(row.mva_percent)}</small></td>
               <td>${escapeHtml(formatDateOnly(row.effective_from))}<small>${escapeHtml(row.effective_to ? 'ate ' + formatDateOnly(row.effective_to) : 'sem fim')}</small></td>
               <td><span class="status-pill ${row.active ? 'ok' : 'warn'}">${row.active ? 'Ativa' : 'Inativa'}</span></td>
               <td>
@@ -148,6 +148,10 @@ function showFiscalTaxRuleEditor(row = {}) {
       <label class="span-1">FCP %<input id="taxRuleFcp" type="number" min="0" step="0.0001" value="${escapeHtml(row.fcp_percent || 0)}"></label>
       <label class="span-1">ICMS-ST %<input id="taxRuleIcmsSt" type="number" min="0" step="0.0001" value="${escapeHtml(row.icms_st_percent || 0)}"></label>
       <label class="span-1">MVA %<input id="taxRuleMva" type="number" min="0" step="0.0001" value="${escapeHtml(row.mva_percent || 0)}"></label>
+      <label class="span-1">ST<select id="taxRuleHasSt"><option value="true"${row.has_st !== false ? ' selected' : ''}>Com ST</option><option value="false"${row.has_st === false ? ' selected' : ''}>Sem ST</option></select></label>
+      <label class="span-2">CEST<input id="taxRuleCest" maxlength="10" value="${escapeHtml(row.cest || '')}"></label>
+      <label class="span-1">CFOP<input id="taxRuleCfop" maxlength="6" value="${escapeHtml(row.cfop || '')}"></label>
+      <label class="span-1">CST/CSOSN<input id="taxRuleCst" maxlength="8" value="${escapeHtml(row.cst_code || '')}"></label>
       <label class="span-2">Inicio<input id="taxRuleEffectiveFrom" type="date" required value="${escapeHtml(row.effective_from || todayDateInput())}"></label>
       <label class="span-2">Fim<input id="taxRuleEffectiveTo" type="date" value="${escapeHtml(row.effective_to || '')}"></label>
       <label class="span-2">Status
@@ -196,6 +200,10 @@ function readFiscalTaxRuleForm() {
     fcp_percent: document.getElementById('taxRuleFcp').value,
     icms_st_percent: document.getElementById('taxRuleIcmsSt').value,
     mva_percent: document.getElementById('taxRuleMva').value,
+    has_st: document.getElementById('taxRuleHasSt').value === 'true',
+    cest: document.getElementById('taxRuleCest').value,
+    cfop: document.getElementById('taxRuleCfop').value,
+    cst_code: document.getElementById('taxRuleCst').value,
     effective_from: document.getElementById('taxRuleEffectiveFrom').value,
     effective_to: document.getElementById('taxRuleEffectiveTo').value,
     active: document.getElementById('taxRuleActive').value === 'true',

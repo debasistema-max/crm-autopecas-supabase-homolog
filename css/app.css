@@ -3,6 +3,54 @@
   overflow-x: hidden;
 }
 
+.import-center-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.import-mapping-grid label {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft, #f8fafc);
+}
+
+.import-json {
+  max-width: 360px;
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.product-route-prices {
+  grid-column: 1 / -1;
+  margin-top: 18px;
+}
+
+.fiscal-inline-status {
+  color: var(--primary, #1d4ed8);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .import-center-tabs .btn { flex: 1 1 45%; }
+  .import-mapping-grid { grid-template-columns: 1fr; }
+  .import-json { max-width: 220px; }
+}
+
 .app-page * {
   box-sizing: border-box;
 }

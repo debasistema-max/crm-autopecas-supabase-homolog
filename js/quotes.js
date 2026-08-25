@@ -325,7 +325,7 @@ function addProductToQuote(product, forcedQuantity = null) {
   if (existing) {
     existing.quantidade += quantity;
   } else {
-    quoteItems.push({
+    const item = {
       codigo: product.codigo,
       descricao: product.descricao,
       marca: product.marca,
@@ -334,8 +334,29 @@ function addProductToQuote(product, forcedQuantity = null) {
       preco_sem_imposto: Number(product.preco_sem_imposto || 0),
       preco: Number(product.preco || 0),
       quantidade: quantity,
-      desconto_percentual: 0
-    });
+      desconto_percentual: 0,
+      fiscal_status: 'CALCULANDO'
+    };
+    quoteItems.push(item);
+    hydrateQuoteItemCommercialPrice(item);
+  }
+  renderQuoteCart();
+}
+
+async function hydrateQuoteItemCommercialPrice(item) {
+  try {
+    const origin = document.getElementById('quoteRegion')?.value || 'PR';
+    const destination = document.getElementById('quoteBillingState')?.value || origin;
+    const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination);
+    item.fiscal_status = result.status;
+    item.preco_sem_imposto = Number(result.base_price || 0);
+    item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
+    if (result.final_price != null) item.preco = Number(result.final_price);
+    item.commercial_availability = result.availability;
+    item.commercial_available_qty = result.source_display_value || result.available_qty;
+    item.fiscal_warnings = result.warnings || [];
+  } catch (error) {
+    item.fiscal_status = 'FALHA_CALCULO'; item.fiscal_warnings = [error.message || 'Falha no motor fiscal'];
   }
   renderQuoteCart();
 }
@@ -493,7 +514,9 @@ function renderSapQuoteItemsTable(items) {
       <tr>
         <td>${index + 1}</td>
         <td class="sap-code">${escapeHtml(item.codigo)}</td>
-        <td>${escapeHtml(item.descricao || '')}</td>
+        <td>${escapeHtml(item.descricao || '')}
+          <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}${item.fiscal_warnings?.length ? ' · ' + escapeHtml(item.fiscal_warnings.join(', ')) : ''}</small></td>
         <td>${escapeHtml(item.marca || '')}</td>
         <td>${escapeHtml(item.aplicacao || '')}</td>
         <td>UN</td>
@@ -1199,7 +1222,7 @@ function renderDocumentFiscalRow(item) {
   const status = formatFiscalStatus(item.fiscal_status);
   const ncm = details.ncm || '-';
   const rule = item.fiscal_tax_rule_id
-    ? [details.uf_origem, details.uf_destino, details.customer_type].filter(Boolean).join(' -> ')
+    ? [details.origin_state || details.uf_origem, details.destination_state || details.uf_destino, details.customer_type].filter(Boolean).join(' -> ')
     : '-';
   return `
     <tr>
@@ -1219,7 +1242,16 @@ function formatFiscalStatus(status) {
     CALCULATED: 'Calculado',
     MISSING_NCM: 'Sem NCM',
     MISSING_RULE: 'Sem regra',
-    LEGACY_PRICE: 'Preco legado'
+    LEGACY_PRICE: 'Preço legado',
+    OK: 'OK',
+    OK_SEM_ST: 'OK - SEM ST',
+    NCM_AUSENTE: 'NCM ausente',
+    PRECO_AUSENTE: 'Preço ausente',
+    REGRA_FISCAL_AUSENTE: 'Regra fiscal ausente',
+    REGRA_FISCAL_INCOMPLETA: 'Regra fiscal incompleta',
+    PRODUTO_NAO_LOCALIZADO: 'Produto não localizado',
+    ESTOQUE_NAO_IMPORTADO: 'Estoque não importado',
+    CALCULANDO: 'Calculando...'
   };
   return labels[status] || status || 'Preco legado';
 }

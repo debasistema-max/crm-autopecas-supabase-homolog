@@ -345,7 +345,7 @@ function addProductToOrder(product, forcedQuantity = null) {
   if (existing) {
     existing.quantidade += quantity;
   } else {
-    orderItems.push({
+    const item = {
       codigo: product.codigo,
       descricao: product.descricao,
       marca: product.marca,
@@ -355,8 +355,29 @@ function addProductToOrder(product, forcedQuantity = null) {
       preco: Number(product.preco || 0),
       quantidade: quantity,
       desconto_percentual: 0,
-      branch_stock: product.branch_stock || null
-    });
+      branch_stock: product.branch_stock || null,
+      fiscal_status: 'CALCULANDO'
+    };
+    orderItems.push(item);
+    hydrateOrderItemCommercialPrice(item);
+  }
+  renderCart();
+}
+
+async function hydrateOrderItemCommercialPrice(item) {
+  try {
+    const origin = document.getElementById('orderRegion')?.value || 'PR';
+    const destination = document.getElementById('orderBillingState')?.value || origin;
+    const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination);
+    item.fiscal_status = result.status;
+    item.preco_sem_imposto = Number(result.base_price || 0);
+    item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
+    if (result.final_price != null) item.preco = Number(result.final_price);
+    item.commercial_availability = result.availability;
+    item.commercial_available_qty = result.source_display_value || result.available_qty;
+    item.fiscal_warnings = result.warnings || [];
+  } catch (error) {
+    item.fiscal_status = 'FALHA_CALCULO'; item.fiscal_warnings = [error.message || 'Falha no motor fiscal'];
   }
   renderCart();
 }
@@ -529,7 +550,9 @@ function renderSapOrderItemsTable(items) {
       <tr>
         <td>${index + 1}</td>
         <td class="sap-code">${escapeHtml(item.codigo)}</td>
-        <td>${escapeHtml(item.descricao || '')}${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}</td>
+        <td>${escapeHtml(item.descricao || '')}${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
+          <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}${item.fiscal_warnings?.length ? ' · ' + escapeHtml(item.fiscal_warnings.join(', ')) : ''}</small></td>
         <td>${escapeHtml(item.marca || '')}</td>
         <td>${escapeHtml(item.aplicacao || '')}</td>
         <td>UN</td>

@@ -5,7 +5,7 @@ const MODULES = {
   stockTransfers: { title: 'Transferencias', domain: 'orders', permission: 'pedidos', render: renderStockTransfers },
   quoteReports: { title: 'Cotacoes', domain: 'quotes', permission: ['cotacoes', 'nova_cotacao'], render: renderQuotationsReport },
   partners: { title: 'Parceiros de Negocios', domain: 'customers', permission: 'parceiros', render: renderBusinessPartners },
-  sap: { title: 'Importacao SAP', domain: 'imports', permission: 'alimentacao', render: renderSapImport },
+  sap: { title: 'Importações', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], render: renderImportCenter },
   cadastros: { title: 'Cadastros', domain: 'customers', permission: 'cadastros', render: renderCadastrosClientes },
   portalCadastros: { title: 'Portal Clientes', domain: 'customers', permission: 'usuarios', adminOnly: true, render: renderPortalCadastrosControle },
   companySettings: { title: 'Configuracoes da Empresa', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderCompanySettings },

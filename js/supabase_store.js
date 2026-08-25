@@ -318,7 +318,7 @@ async function supabaseListProducts(params = {}) {
   const offset = Math.max(Number(params.offset || 0), 0);
   let query = supabaseClient
     .from('products')
-    .select('codigo, descricao, marca, aplicacao, ano, ncm, ipi, preco_sem_imposto, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar')
+    .select('codigo, descricao, marca, aplicacao, ano, ncm, cest, ipi, ipi_rate, ipi_defined, origin_code, origin_description, material_group, fiscal_group, preco_sem_imposto, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar')
     .order('codigo', { ascending: true })
     .range(offset, offset + limit - 1);
 
@@ -1857,4 +1857,87 @@ function formatProductImportLookupError(error, chunk = []) {
     error?.details ? `Detalhes: ${error.details}` : '',
     error?.hint ? `Dica: ${error.hint}` : ''
   ].filter(Boolean).join(' '));
+}
+
+async function supabaseGetProductCommercialPrice(productCode, originBranch, destinationUf) {
+  const { data, error } = await supabaseClient.rpc('get_product_commercial_price', {
+    product_code: productCode,
+    origin_branch: originBranch,
+    destination_uf: destinationUf
+  });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabaseGetProductRoutePrices(productCode) {
+  const { data, error } = await supabaseClient.rpc('get_product_route_prices', { product_code: productCode });
+  if (error) throw error;
+  return data || [];
+}
+
+async function supabaseCreateSapImportBatch(payload) {
+  const { data, error } = await supabaseClient.rpc('create_sap_import_batch', { payload });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabaseStageSapImportRows(batchId, rows, onProgress) {
+  const chunks = chunkArray(rows, 200);
+  let result = {};
+  for (let index = 0; index < chunks.length; index += 1) {
+    const { data, error } = await supabaseClient.rpc('stage_sap_import_rows', {
+      batch_id: batchId,
+      rows: chunks[index]
+    });
+    if (error) throw error;
+    result = data || {};
+    if (onProgress) onProgress({ done: Math.min((index + 1) * 200, rows.length), total: rows.length });
+  }
+  return result;
+}
+
+async function supabaseValidateSapImportBatch(batchId) {
+  const { data, error } = await supabaseClient.rpc('validate_sap_import_batch', { batch_id: batchId });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabasePreviewSapImportBatch(batchId, page = 1, pageSize = 50) {
+  const { data, error } = await supabaseClient.rpc('preview_sap_import_batch', {
+    batch_id: batchId,
+    page,
+    page_size: pageSize
+  });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabaseApproveSapImportBatch(batchId) {
+  const { data, error } = await supabaseClient.rpc('approve_sap_import_batch', { batch_id: batchId });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabaseCommitSapImportBatch(batchId) {
+  const { data, error } = await supabaseClient.rpc('commit_sap_import_batch', { batch_id: batchId });
+  if (error) throw error;
+  return data || {};
+}
+
+async function supabaseListSapImportBatches(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('list_sap_import_batches', { filters });
+  if (error) throw error;
+  return data || { rows: [] };
+}
+
+async function supabaseGetFiscalPending(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('get_fiscal_pending', { filters });
+  if (error) throw error;
+  return data || { summary: {}, rows: [] };
+}
+
+async function supabaseGenerateCommercialList(route, filters = {}) {
+  const { data, error } = await supabaseClient.rpc('generate_commercial_list', { route, filters });
+  if (error) throw error;
+  return data || { rows: [] };
 }
