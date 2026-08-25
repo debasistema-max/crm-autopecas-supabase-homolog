@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Consulta CNPJ</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <output id="normalizationProbe" hidden></output>
+  <output id="lookupProbe" hidden></output>
+  <main class="content" id="smokeTarget"></main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/cnpj_lookup.js"></script>
+  <script>
+    const cnpjMockPayload = { ok: true, data: {
+      fonte: 'brasilapi', cnpj: '19131243000197', razao_social: 'EMPRESA TESTE CNPJ LTDA', nome_fantasia: 'EMPRESA TESTE',
+      ddd_telefone_1: '1130303030', email: 'cadastro@empresa.test', uf: 'SP', municipio: 'SAO PAULO',
+      descricao_tipo_de_logradouro: 'AVENIDA', logradouro: 'PAULISTA', numero: '1000', bairro: 'BELA VISTA', cep: '01310100'
+    }};
+    window.fetch = async () => new Response(JSON.stringify(cnpjMockPayload), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    document.getElementById('normalizationProbe').value = JSON.stringify(normalizeBusinessRegistryData(cnpjMockPayload, 'teste'));
+    async function supabaseListBusinessClients() { return []; }
+    async function supabaseListBusinessCarriers() { return []; }
+    async function supabaseSaveBusinessClient() { return {}; }
+    async function supabaseSaveBusinessCarrier() { return {}; }
+  </script>
+  <script src="../js/cadastros.js"></script>
+  <script src="../js/partners.js"></script>
+  <script>
+    fetchBusinessRegistryByCnpj('19131243000197').then((data) => {
+      document.getElementById('lookupProbe').value = JSON.stringify(data);
+    });
+    renderBusinessPartners(document.getElementById('smokeTarget'));
+  </script>
+</body>
+</html>

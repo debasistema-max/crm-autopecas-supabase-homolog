@@ -62,6 +62,8 @@ async function renderClientsTab(target) {
     `;
     document.getElementById('partnerClientForm').addEventListener('submit', savePartnerClient);
     document.getElementById('partnerClientClearButton').addEventListener('click', clearPartnerClientForm);
+    document.getElementById('partnerClientCnpjLookup').addEventListener('click', () => lookupPartnerCnpj('client'));
+    document.getElementById('partnerClientCnpj').addEventListener('blur', formatPartnerCnpjInput);
     document.getElementById('partnerClientSearchButton').addEventListener('click', () => renderClientsTab(target));
     document.getElementById('partnerClientSearch').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') renderClientsTab(target);
@@ -79,7 +81,9 @@ function renderClientForm() {
       <label class="span-3">Codigo SAP<input id="partnerClientSap"></label>
       <label class="span-5">Razao social / Nome<input id="partnerClientName" required></label>
       <label class="span-4">Nome fantasia<input id="partnerClientFantasy"></label>
-      <label class="span-3">CNPJ<input id="partnerClientCnpj"></label>
+      <label class="span-4">CNPJ
+        <span class="cnpj-lookup-control"><input id="partnerClientCnpj" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00"><button class="btn btn-secondary" id="partnerClientCnpjLookup" type="button">Consultar</button></span>
+      </label>
       <label class="span-3">Telefone<input id="partnerClientPhone"></label>
       <label class="span-3">Email<input id="partnerClientEmail" type="email"></label>
       <label class="span-2">UF<input id="partnerClientState" maxlength="2"></label>
@@ -359,6 +363,8 @@ async function renderCarriersTab(target) {
     `;
     document.getElementById('partnerCarrierForm').addEventListener('submit', savePartnerCarrier);
     document.getElementById('partnerCarrierClearButton').addEventListener('click', clearPartnerCarrierForm);
+    document.getElementById('partnerCarrierCnpjLookup').addEventListener('click', () => lookupPartnerCnpj('carrier'));
+    document.getElementById('partnerCarrierCnpj').addEventListener('blur', formatPartnerCnpjInput);
     document.getElementById('partnerCarrierSearchButton').addEventListener('click', () => renderCarriersTab(target));
     bindCarrierEditButtons();
   } catch (error) {
@@ -371,7 +377,9 @@ function renderCarrierForm() {
     <form id="partnerCarrierForm" class="field-grid">
       <input id="partnerCarrierId" type="hidden">
       <label class="span-5">Transportadora<input id="partnerCarrierName" required></label>
-      <label class="span-3">CNPJ<input id="partnerCarrierCnpj"></label>
+      <label class="span-4">CNPJ
+        <span class="cnpj-lookup-control"><input id="partnerCarrierCnpj" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00"><button class="btn btn-secondary" id="partnerCarrierCnpjLookup" type="button">Consultar</button></span>
+      </label>
       <label class="span-3">Telefone<input id="partnerCarrierPhone"></label>
       <label class="span-3">Email<input id="partnerCarrierEmail" type="email"></label>
       <label class="span-2">UF<input id="partnerCarrierState" maxlength="2"></label>
@@ -464,5 +472,43 @@ async function savePartnerCarrier(event) {
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;
+  }
+}
+
+function formatPartnerCnpjInput(event) {
+  event.target.value = formatCnpj(event.target.value);
+}
+
+function setPartnerLookupField(id, value) {
+  const element = document.getElementById(id);
+  if (element && value) element.value = value;
+}
+
+async function lookupPartnerCnpj(kind) {
+  const isClient = kind === 'client';
+  const prefix = isClient ? 'partnerClient' : 'partnerCarrier';
+  const button = document.getElementById(`${prefix}CnpjLookup`);
+  const input = document.getElementById(`${prefix}Cnpj`);
+  const message = document.getElementById(`${prefix}Message`);
+  button.disabled = true;
+  message.style.color = 'var(--muted)';
+  message.textContent = 'Consultando CNPJ gratuitamente...';
+  try {
+    const company = await fetchBusinessRegistryByCnpj(input.value);
+    input.value = formatCnpj(company.cnpj || input.value);
+    setPartnerLookupField(`${prefix}Name`, company.legal_name);
+    if (isClient) setPartnerLookupField('partnerClientFantasy', company.trade_name);
+    setPartnerLookupField(`${prefix}Phone`, company.phone);
+    setPartnerLookupField(`${prefix}Email`, company.email);
+    setPartnerLookupField(`${prefix}State`, company.state);
+    setPartnerLookupField(`${prefix}City`, company.city);
+    setPartnerLookupField(`${prefix}Address`, company.address);
+    message.style.color = 'var(--success)';
+    message.textContent = `Dados encontrados via ${company.source || 'consulta pública'}. Confira antes de salvar.`;
+  } catch (error) {
+    message.style.color = 'var(--accent)';
+    message.textContent = `${error.message || 'Não foi possível consultar o CNPJ.'} O preenchimento manual continua disponível.`;
+  } finally {
+    button.disabled = false;
   }
 }

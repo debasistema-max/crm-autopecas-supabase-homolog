@@ -1008,6 +1008,17 @@ td input {
   align-items: end;
 }
 
+.cnpj-lookup-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.cnpj-lookup-control .btn {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
 .btn,
 button,
 input,
