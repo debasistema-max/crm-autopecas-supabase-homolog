@@ -212,6 +212,11 @@ async function renderCreateQuotation(container) {
     renderQuoteCart();
     document.getElementById('quoteSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para obter precos do estado selecionado.</div>';
   });
+  document.getElementById('quoteUsage').addEventListener('change', () => {
+    quoteItems = [];
+    renderQuoteCart();
+    document.getElementById('quoteSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para recalcular os impostos conforme a utilizacao.</div>';
+  });
   document.getElementById('saveQuoteButton').addEventListener('click', saveCurrentQuote);
   document.getElementById('closeQuoteButton').addEventListener('click', () => {
     if (hasUnsavedQuoteDraft() && !window.confirm('Existem alteracoes nao salvas. Deseja sair?')) return;
@@ -241,6 +246,7 @@ async function renderCreateQuotation(container) {
 function applyQuoteDraft(draft) {
   if (!draft) return;
   document.getElementById('quoteRegion').value = draft.regiao || 'PR';
+  document.getElementById('quoteUsage').value = /^consumo$/i.test(draft.customer_type || draft.tipo_cliente || '') ? 'Consumo' : 'Revenda';
   document.getElementById('quoteBillingState').value = draft.estado || '';
   document.getElementById('quoteClientSapCode').value = draft.codigo_sap_cliente || '';
   document.getElementById('quoteCnpj').value = formatCnpj(draft.cnpj || '');
@@ -347,7 +353,8 @@ async function hydrateQuoteItemCommercialPrice(item) {
   try {
     const origin = document.getElementById('quoteRegion')?.value || 'PR';
     const destination = document.getElementById('quoteBillingState')?.value || origin;
-    const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination);
+    const customerType = document.getElementById('quoteUsage')?.value || 'Revenda';
+    const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination, customerType);
     item.fiscal_status = result.status;
     item.preco_sem_imposto = Number(result.base_price || 0);
     item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
@@ -562,6 +569,7 @@ async function saveCurrentQuote() {
       sessionId: getSessionId(),
       regiao: document.getElementById('quoteRegion').value,
       cliente_estado: document.getElementById('quoteBillingState').value,
+      customer_type: document.getElementById('quoteUsage').value.toUpperCase(),
       codigo_sap_cliente: document.getElementById('quoteClientSapCode').value,
       cliente: document.getElementById('quoteClient').value,
       cnpj: document.getElementById('quoteCnpj').value,
@@ -1278,12 +1286,14 @@ function formatFiscalWarnings(warnings) {
 
 function formatFiscalBreakdown(details) {
   if (!details || typeof details !== 'object' || !details.route) return 'Memória fiscal aguardando cálculo.';
+  const legacyResale = details.calculation_profile === 'LEGACY_REVENDA';
   const parts = [
+    legacyResale ? 'Perfil Revenda (portal atual)' : null,
     `Rota ${String(details.route).replace('-', '→')}`,
     `IPI ${details.ipi_amount == null ? 'não definido' : money(Number(details.ipi_amount))}`,
-    `ICMS próprio ${details.own_icms_amount == null ? 'não definido' : money(Number(details.own_icms_amount))}`,
+    `ICMS próprio ${details.own_icms_amount == null ? 'não definido' : money(Number(details.own_icms_amount))}${details.own_icms_included_in_total === false ? ' (referência, não somado)' : ''}`,
     `ICMS-ST ${details.icms_st_amount == null ? 'não definido' : money(Number(details.icms_st_amount))}`
-  ];
+  ].filter(Boolean);
   if (details.pis_amount != null) parts.push(`PIS ${money(Number(details.pis_amount))}`);
   if (details.cofins_amount != null) parts.push(`COFINS ${money(Number(details.cofins_amount))}`);
   if (details.fcp_amount != null) parts.push(`FCP ${money(Number(details.fcp_amount))}`);

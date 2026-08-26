@@ -93,7 +93,7 @@ function renderFiscalTaxRuleResults(rows) {
               <td>${formatPercent(row.ipi_percent)}</td>
               <td>${formatPercent(row.pis_percent)}</td>
               <td>${formatPercent(row.cofins_percent)}</td>
-              <td>${row.has_st ? formatPercent(row.icms_st_percent) : 'SEM ST'}<small>MVA ${formatPercent(row.mva_percent)}</small></td>
+              <td>${row.has_st ? formatPercent(row.icms_st_percent) : 'SEM ST'}<small>MVA ${formatPercent(row.mva_percent)}</small><small>Revenda: ${escapeHtml(formatResaleCalculationProfile(row))}</small></td>
               <td>${escapeHtml(formatDateOnly(row.effective_from))}<small>${escapeHtml(row.effective_to ? 'ate ' + formatDateOnly(row.effective_to) : 'sem fim')}</small></td>
               <td><span class="status-pill ${row.active ? 'ok' : 'warn'}">${row.active ? 'Ativa' : 'Inativa'}</span></td>
               <td>
@@ -149,6 +149,14 @@ function showFiscalTaxRuleEditor(row = {}) {
       <label class="span-1">ICMS-ST %<input id="taxRuleIcmsSt" type="number" min="0" step="0.0001" value="${escapeHtml(row.icms_st_percent || 0)}"></label>
       <label class="span-1">MVA %<input id="taxRuleMva" type="number" min="0" step="0.0001" value="${escapeHtml(row.mva_percent || 0)}"></label>
       <label class="span-1">ST<select id="taxRuleHasSt"><option value="true"${row.has_st !== false ? ' selected' : ''}>Com ST</option><option value="false"${row.has_st === false ? ' selected' : ''}>Sem ST</option></select></label>
+      <label class="span-3">Cálculo para Revenda
+        <select id="taxRuleResaleMethod">
+          <option value="MVA_ST"${row.resale_calculation_method !== 'RATE_DIFFERENCE' ? ' selected' : ''}>Lista fiscal (MVA/ST)</option>
+          <option value="RATE_DIFFERENCE"${row.resale_calculation_method === 'RATE_DIFFERENCE' ? ' selected' : ''}>Compatível com portal atual</option>
+        </select>
+      </label>
+      <label class="span-2">ICMS-ST efetivo Revenda %<input id="taxRuleResaleIcmsSt" type="number" min="0" max="100" step="0.000001" placeholder="Automático" value="${row.resale_icms_st_rate == null ? '' : escapeHtml(Number(row.resale_icms_st_rate) * 100)}"></label>
+      <label class="span-2">Somar ICMS próprio na Revenda<select id="taxRuleResaleOwnIcms"><option value="false"${row.resale_include_own_icms !== true ? ' selected' : ''}>Não</option><option value="true"${row.resale_include_own_icms === true ? ' selected' : ''}>Sim</option></select></label>
       <label class="span-2">CEST<input id="taxRuleCest" maxlength="10" value="${escapeHtml(row.cest || '')}"></label>
       <label class="span-1">CFOP<input id="taxRuleCfop" maxlength="6" value="${escapeHtml(row.cfop || '')}"></label>
       <label class="span-1">CST/CSOSN<input id="taxRuleCst" maxlength="8" value="${escapeHtml(row.cst_code || '')}"></label>
@@ -201,6 +209,9 @@ function readFiscalTaxRuleForm() {
     icms_st_percent: document.getElementById('taxRuleIcmsSt').value,
     mva_percent: document.getElementById('taxRuleMva').value,
     has_st: document.getElementById('taxRuleHasSt').value === 'true',
+    resale_calculation_method: document.getElementById('taxRuleResaleMethod').value,
+    resale_icms_st_percent: document.getElementById('taxRuleResaleIcmsSt').value,
+    resale_include_own_icms: document.getElementById('taxRuleResaleOwnIcms').value === 'true',
     cest: document.getElementById('taxRuleCest').value,
     cfop: document.getElementById('taxRuleCfop').value,
     cst_code: document.getElementById('taxRuleCst').value,
@@ -209,6 +220,12 @@ function readFiscalTaxRuleForm() {
     active: document.getElementById('taxRuleActive').value === 'true',
     notes: document.getElementById('taxRuleNotes').value
   };
+}
+
+function formatResaleCalculationProfile(row) {
+  if (row.resale_calculation_method !== 'RATE_DIFFERENCE') return 'lista MVA/ST';
+  const rate = row.resale_icms_st_rate == null ? 'diferença de alíquotas' : formatPercent(Number(row.resale_icms_st_rate) * 100);
+  return `portal atual (${rate}${row.resale_include_own_icms ? ', soma ICMS próprio' : ', sem somar ICMS próprio'})`;
 }
 
 async function importFiscalTaxRulesFromText(event) {

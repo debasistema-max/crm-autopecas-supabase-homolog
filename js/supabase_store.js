@@ -1859,11 +1859,12 @@ function formatProductImportLookupError(error, chunk = []) {
   ].filter(Boolean).join(' '));
 }
 
-async function supabaseGetProductCommercialPrice(productCode, originBranch, destinationUf) {
+async function supabaseGetProductCommercialPrice(productCode, originBranch, destinationUf, customerType = 'GERAL') {
   const { data, error } = await supabaseClient.rpc('get_product_commercial_price', {
     product_code: productCode,
     origin_branch: originBranch,
-    destination_uf: destinationUf
+    destination_uf: destinationUf,
+    customer_type: String(customerType || 'GERAL').trim().toUpperCase()
   });
   if (error) throw error;
   return data || {};

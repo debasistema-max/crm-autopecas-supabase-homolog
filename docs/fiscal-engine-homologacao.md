@@ -58,6 +58,23 @@ preco_final = base + tributos + frete + seguro + outras despesas
 
 Quando `has_st=false`, ICMS-ST é zero e o status é `OK_SEM_ST`. PIS, COFINS e FCP não recebem valores presumidos: ausência de definição gera pendência/aviso. Valores são calculados com `numeric`, mantidos com seis casas no snapshot e exibidos com duas no frontend.
 
+### Perfil comercial de Revenda
+
+As listas comerciais continuam usando o perfil `PRICE_LIST_MVA`, que reproduz a planilha de referência. Cotações e pedidos cuja utilização principal seja `REVENDA` podem usar o perfil configurável `LEGACY_REVENDA`, compatível com a composição observada no portal atual da empresa.
+
+Para regras configuradas como `RATE_DIFFERENCE`:
+
+```text
+IPI = base * aliquota_ipi
+ICMS-ST Revenda = base * aliquota_efetiva_revenda
+tributos cobrados = IPI + ICMS-ST + impostos/despesas efetivamente definidos
+preco_final = base + tributos cobrados
+```
+
+O ICMS próprio permanece na memória de cálculo como referência, mas só integra o total quando `resale_include_own_icms=true`. Se a alíquota efetiva não estiver configurada, o fallback é `ICMS interno - ICMS interestadual`. A tela administrativa de impostos permite alterar o método, a alíquota efetiva e a inclusão do ICMS próprio sem mudança de código.
+
+Regressão observada no portal atual para o produto `7175526020`, NCM `8708.94.83`, SP→SP, Revenda: base R$ 580,00; IPI R$ 18,85; ICMS-ST R$ 81,17; final R$ 680,02. A lista SP→SP do mesmo produto permanece em R$ 816,10.
+
 ## Segurança
 
 - Vendedor: consulta preço, estoque e usa o motor em cotações/pedidos.
