@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Memória fiscal</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <main class="content">
+    <section class="panel">
+      <div class="sap-tab-tools">
+        <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
+        <output id="smokeResult">Executando...</output>
+      </div>
+      <div id="quoteSmoke" class="sap-items-wrap"></div>
+      <div id="orderSmoke" class="sap-items-wrap"></div>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script>function formatBranchAvailability() { return ''; }</script>
+  <script src="../js/orders.js"></script>
+  <script src="../js/quotes.js"></script>
+  <script>
+    const fiscalDetails = {
+      route: 'PR-PR', base_price: 580, ipi_amount: 18.85, own_icms_amount: 69.60,
+      icms_st_amount: 149.681503, pis_amount: null, cofins_amount: null, fcp_amount: null,
+      total_taxes: 238.131503, final_price: 818.131503
+    };
+    const smokeItem = {
+      codigo: '7175526020', descricao: 'CAIXA DIR.HID.(S/PV) TYT.HLX 05-15', marca: 'TOYOTA', aplicacao: 'HILUX / SW4',
+      preco_sem_imposto: 580, tributos: 238.131503, preco: 818.131503, quantidade: 1, desconto_percentual: 0,
+      fiscal_status: 'OK', fiscal_details: fiscalDetails, commercial_availability: 'DISPONIVEL', commercial_available_qty: '50+',
+      fiscal_warnings: ['PIS_NAO_DEFINIDO', 'COFINS_NAO_DEFINIDO', 'FCP_NAO_DEFINIDO']
+    };
+    document.getElementById('quoteSmoke').innerHTML = renderSapQuoteItemsTable([smokeItem]);
+    document.getElementById('orderSmoke').innerHTML = renderSapOrderItemsTable([smokeItem]);
+    const text = document.body.textContent;
+    const passed = [
+      'Rota PR→PR', 'IPI R$ 18,85', 'ICMS próprio R$ 69,60', 'ICMS-ST R$ 149,68',
+      'PIS sem alíquota na fonte SAP (não incluído)', 'R$ 818,13'
+    ].every((value) => text.includes(value));
+    document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+    document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+  </script>
+</body>
+</html>

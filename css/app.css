@@ -45,6 +45,34 @@
   font-weight: 700;
 }
 
+.fiscal-auto-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.fiscal-auto-indicator strong {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #0f766e;
+}
+
+.fiscal-breakdown {
+  color: #334155;
+  font-weight: 600;
+}
+
+.fiscal-warning {
+  color: #9a5b00;
+  font-weight: 600;
+}
+
 @media (max-width: 760px) {
   .import-center-tabs .btn { flex: 1 1 45%; }
   .import-mapping-grid { grid-template-columns: 1fr; }

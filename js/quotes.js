@@ -68,7 +68,7 @@ async function renderCreateQuotation(container) {
           </div>
           <div class="sap-tab-panel" data-sap-panel="items">
             <div class="sap-tab-tools">
-              <label class="sap-checkbox"><input type="checkbox" checked> Simular impostos</label>
+              <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
               <span id="quoteCount">0 itens</span>
             </div>
             <div id="quoteItems" class="sap-items-wrap"></div>
@@ -352,6 +352,7 @@ async function hydrateQuoteItemCommercialPrice(item) {
     item.preco_sem_imposto = Number(result.base_price || 0);
     item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
     if (result.final_price != null) item.preco = Number(result.final_price);
+    item.fiscal_details = result;
     item.commercial_availability = result.availability;
     item.commercial_available_qty = result.source_display_value || result.available_qty;
     item.fiscal_warnings = result.warnings || [];
@@ -516,7 +517,9 @@ function renderSapQuoteItemsTable(items) {
         <td class="sap-code">${escapeHtml(item.codigo)}</td>
         <td>${escapeHtml(item.descricao || '')}
           <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
-          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}${item.fiscal_warnings?.length ? ' · ' + escapeHtml(item.fiscal_warnings.join(', ')) : ''}</small></td>
+          <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
+          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
+          ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}</td>
         <td>${escapeHtml(item.marca || '')}</td>
         <td>${escapeHtml(item.aplicacao || '')}</td>
         <td>UN</td>
@@ -1066,7 +1069,7 @@ function showDocumentEditForm(kind, row) {
           </div>
           <div class="sap-tab-panel" data-sap-panel="edit-items">
             <div class="sap-tab-tools">
-              <label class="sap-checkbox"><input type="checkbox" checked disabled> Simular impostos</label>
+              <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos preservados no documento</span>
               <span id="${kind}EditCount">0 itens</span>
             </div>
             <div id="${kind}EditItems" class="sap-items-wrap"></div>
@@ -1254,6 +1257,37 @@ function formatFiscalStatus(status) {
     CALCULANDO: 'Calculando...'
   };
   return labels[status] || status || 'Preco legado';
+}
+
+function formatFiscalWarnings(warnings) {
+  const labels = {
+    PIS_NAO_DEFINIDO: 'PIS sem alíquota na fonte SAP (não incluído)',
+    COFINS_NAO_DEFINIDO: 'COFINS sem alíquota na fonte SAP (não incluído)',
+    FCP_NAO_DEFINIDO: 'FCP sem alíquota na fonte SAP (não incluído)',
+    IPI_AUSENTE: 'IPI ausente',
+    CEST_AUSENTE: 'CEST ausente',
+    ICMS_INTERESTADUAL_AUSENTE: 'ICMS interestadual ausente',
+    ICMS_INTERNO_AUSENTE: 'ICMS interno ausente',
+    MVA_AUSENTE: 'MVA ausente',
+    ESTOQUE_NAO_IMPORTADO: 'Estoque da filial não importado'
+  };
+  return (Array.isArray(warnings) ? warnings : [])
+    .map((warning) => labels[warning] || warning)
+    .join(' · ');
+}
+
+function formatFiscalBreakdown(details) {
+  if (!details || typeof details !== 'object' || !details.route) return 'Memória fiscal aguardando cálculo.';
+  const parts = [
+    `Rota ${String(details.route).replace('-', '→')}`,
+    `IPI ${details.ipi_amount == null ? 'não definido' : money(Number(details.ipi_amount))}`,
+    `ICMS próprio ${details.own_icms_amount == null ? 'não definido' : money(Number(details.own_icms_amount))}`,
+    `ICMS-ST ${details.icms_st_amount == null ? 'não definido' : money(Number(details.icms_st_amount))}`
+  ];
+  if (details.pis_amount != null) parts.push(`PIS ${money(Number(details.pis_amount))}`);
+  if (details.cofins_amount != null) parts.push(`COFINS ${money(Number(details.cofins_amount))}`);
+  if (details.fcp_amount != null) parts.push(`FCP ${money(Number(details.fcp_amount))}`);
+  return parts.join(' · ');
 }
 
 function formatFiscalNcm(value) {

@@ -68,7 +68,7 @@ async function renderOrders(container) {
           </div>
           <div class="sap-tab-panel" data-sap-panel="items">
             <div class="sap-tab-tools">
-              <label class="sap-checkbox"><input type="checkbox" checked> Simular impostos</label>
+              <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
               <span id="cartCount">0 itens</span>
             </div>
             <div id="cartItems" class="sap-items-wrap"></div>
@@ -373,6 +373,7 @@ async function hydrateOrderItemCommercialPrice(item) {
     item.preco_sem_imposto = Number(result.base_price || 0);
     item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
     if (result.final_price != null) item.preco = Number(result.final_price);
+    item.fiscal_details = result;
     item.commercial_availability = result.availability;
     item.commercial_available_qty = result.source_display_value || result.available_qty;
     item.fiscal_warnings = result.warnings || [];
@@ -552,7 +553,9 @@ function renderSapOrderItemsTable(items) {
         <td class="sap-code">${escapeHtml(item.codigo)}</td>
         <td>${escapeHtml(item.descricao || '')}${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
           <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
-          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}${item.fiscal_warnings?.length ? ' · ' + escapeHtml(item.fiscal_warnings.join(', ')) : ''}</small></td>
+          <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
+          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
+          ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}</td>
         <td>${escapeHtml(item.marca || '')}</td>
         <td>${escapeHtml(item.aplicacao || '')}</td>
         <td>UN</td>
