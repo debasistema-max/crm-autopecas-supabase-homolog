@@ -20,6 +20,19 @@
   preenchimento e formatação dos campos;
 - a página de smoke usa somente dados locais simulados e não grava no Supabase.
 
+## Evidência da Fase 2 — entrega 2
+
+- criação de Cotação e Pedido inspecionada em 320, 360, 375, 390, 430, 768,
+  1024 e 1440 px;
+- nenhum overflow da página detectado nos 16 cenários;
+- nenhum botão visível abaixo de 44 px nos breakpoints mobile;
+- abas Itens e Frete/Pagamento validadas com `aria-selected` sincronizado;
+- item fiscal `6111032201`, PR→PR, validado com base de R$ 232,00, tributos de
+  R$ 115,85446 e preço final de R$ 347,85446;
+- Cotação e Pedido obrigatoriamente recebem o mesmo preço no smoke;
+- `tests/ui-commercial-documents-smoke.html` não salva documentos nem acessa o
+  Supabase.
+
 ## Antes de publicar homologação
 
 1. verificar worktree e diff;

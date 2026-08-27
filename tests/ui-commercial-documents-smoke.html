@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Cotacao e pedido</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <output id="smokeResult" hidden>Executando</output>
+  <main class="content">
+    <div id="quoteSmoke"></div>
+    <div id="orderSmoke"></div>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script>
+    async function loadCompanySettings() { return {}; }
+    function formatCompanyBranchLabel() { return 'International Parts Service do Brasil Ltda'; }
+    function getStoredSession() { return { nome: 'Administrador Homologacao' }; }
+    function getSessionId() { return 'smoke-session'; }
+    function openModule() {}
+    function formatDateInput(value) { return new Date(value).toLocaleDateString('pt-BR'); }
+    function formatCnpj(value) { return String(value || ''); }
+    function formatBranchAvailability() { return 'Filial PR: DISPONIVEL 50+'; }
+    async function supabaseSearchProducts() { return []; }
+    async function supabaseGetProductCommercialPrice(productCode, origin, destination) {
+      return {
+        product_code: productCode,
+        route: `${origin}-${destination}`,
+        ncm: '8512.20.11',
+        base_price: 232,
+        mva_rate: 0.8778,
+        ipi_amount: 22.62,
+        own_icms_amount: 27.84,
+        icms_st_amount: 65.39446,
+        pis_amount: null,
+        cofins_amount: null,
+        fcp_amount: null,
+        total_taxes: 115.85446,
+        total_expenses: 0,
+        final_price: 347.85446,
+        availability: 'DISPONIVEL',
+        available_qty: 50,
+        source_display_value: '50+',
+        status: 'OK',
+        warnings: ['PIS_NAO_DEFINIDO', 'COFINS_NAO_DEFINIDO', 'FCP_NAO_DEFINIDO']
+      };
+    }
+  </script>
+  <script src="../js/orders.js"></script>
+  <script src="../js/quotes.js"></script>
+  <script>
+    (async () => {
+      await renderCreateQuotation(document.getElementById('quoteSmoke'));
+      await renderOrders(document.getElementById('orderSmoke'));
+      document.getElementById('quoteBillingState').value = 'PR';
+      document.getElementById('orderBillingState').value = 'PR';
+      const product = {
+        codigo: '6111032201', descricao: 'FAROL AUXILIAR DIREITO', marca: 'IPS', aplicacao: 'HILUX 2016+',
+        ncm: '85122011', preco_sem_imposto: 232, preco: 232, branch_stock: { PR: 50 }
+      };
+      addProductToQuote(product, 1);
+      addProductToOrder(product, 1);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const quotePrice = Number(quoteItems[0] && quoteItems[0].preco);
+      const orderPrice = Number(orderItems[0] && orderItems[0].preco);
+      const passed = Math.abs(quotePrice - 347.85446) < 0.000001
+        && Math.abs(orderPrice - quotePrice) < 0.000001
+        && quoteItems[0].fiscal_status === 'OK'
+        && orderItems[0].fiscal_status === 'OK';
+      const selected = new URLSearchParams(location.search).get('doc') || 'quote';
+      document.getElementById('quoteSmoke').hidden = selected !== 'quote';
+      document.getElementById('orderSmoke').hidden = selected !== 'order';
+      document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+      document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+      CrmUi.observeResponsiveTables(document.querySelector('main'));
+    })();
+  </script>
+</body>
+</html>

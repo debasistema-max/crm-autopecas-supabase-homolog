@@ -11,14 +11,21 @@ async function renderOrders(container) {
   const companySettings = await loadCompanySettings();
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
-    <section class="sap-document">
+    <div class="module-page commercial-operation-page">
+      ${CrmUi.renderPageHeader(
+        'Novo pedido',
+        'Confirme cliente, rota fiscal, estoque da filial e condicoes antes de salvar.',
+        '',
+        'Comercial'
+      )}
+    <section class="sap-document commercial-document" data-document-kind="order">
       <div class="sap-titlebar">
         <div class="sap-title"><span class="sap-title-icon">#</span><h2>Pedido de venda</h2></div>
-        <strong>No. Novo</strong>
+        <strong class="sap-document-number">No. Novo</strong>
       </div>
       <div class="sap-window">
-        <section class="sap-section">
-          <h3>Dados gerais</h3>
+        <section class="sap-section sap-general-section">
+          <div class="sap-section-heading"><div><h3>Dados gerais</h3><p>Cliente, filial faturadora, destino e condicoes principais.</p></div></div>
           <div class="sap-form-grid">
             <div class="sap-form-left">
               <label>Filial
@@ -28,7 +35,7 @@ async function renderOrders(container) {
                 <label>Cliente | CPF/CNPJ
                   <input id="orderClientSapCode" type="text" placeholder="Codigo SAP">
                 </label>
-                <button class="sap-mini-button" id="orderCadastroSearchButton" type="button" title="Buscar cliente">&#128269;</button>
+                <button class="sap-mini-button" id="orderCadastroSearchButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
                 <label>
                   <input id="orderCnpj" type="text" placeholder="CNPJ">
                 </label>
@@ -37,7 +44,7 @@ async function renderOrders(container) {
               <label>Buscar cliente
                 <span class="sap-search-field">
                   <input id="orderCadastroSearch" type="search" placeholder="Codigo SAP, CNPJ, protocolo ou empresa">
-                  <button class="sap-search-button" id="orderCadastroSearchSubmitButton" type="button" title="Buscar cliente">&#128269;</button>
+                  <button class="sap-search-button" id="orderCadastroSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
                 </span>
               </label>
               <label>Pessoa de contato<input id="orderPhone" type="text"></label>
@@ -57,16 +64,16 @@ async function renderOrders(container) {
             </div>
           </div>
           <div id="orderCadastroResults" class="sap-search-results">
-            <div class="empty-state compact-state">Clientes e cadastros aprovados aparecem aqui para preencher o pedido.</div>
+            ${CrmUi.renderState('empty', 'Nenhum cliente selecionado', 'Pesquise por codigo SAP, CNPJ ou nome da empresa.')}
           </div>
         </section>
 
         <section class="sap-section sap-tabs-section">
-          <div class="sap-tabs">
-            <button class="is-active" type="button" data-sap-tab="items">Itens</button>
-            <button type="button" data-sap-tab="freight">Frete / Pagamento</button>
+          <div class="sap-tabs" role="tablist" aria-label="Etapas do pedido">
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Itens</button>
+            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Frete / Pagamento</button>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="items">
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="items">
             <div class="sap-tab-tools">
               <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
               <span id="cartCount">0 itens</span>
@@ -97,7 +104,7 @@ async function renderOrders(container) {
                     <button class="btn btn-ghost" id="orderClearProductButton" type="button">Limpar</button>
                   </div>
                 </form>
-                <div id="orderSearchResults" class="sap-product-results"><div class="empty-state compact-state">Pesquise para adicionar itens ao pedido.</div></div>
+                <div id="orderSearchResults" class="sap-product-results">${CrmUi.renderState('empty', 'Pesquise um produto', 'Use codigo, EAN, nome ou grupo para adicionar itens.')}</div>
               </div>
               <div class="sap-totals" id="cartTotals"></div>
             </div>
@@ -122,7 +129,7 @@ async function renderOrders(container) {
               </div>
             </div>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="freight" hidden>
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="freight" hidden>
             <div class="sap-freight-grid">
               <label>Tipo de envio
                 <select id="orderShippingType">
@@ -134,13 +141,13 @@ async function renderOrders(container) {
               <label>Codigo transportadora
                 <span class="sap-search-field">
                   <input id="orderCarrierSearch" type="search">
-                  <button class="sap-search-button" id="orderCarrierCodeSearchButton" type="button">...</button>
+                  <button class="sap-search-button" id="orderCarrierCodeSearchButton" type="button" aria-label="Buscar transportadora por codigo">...</button>
                 </span>
               </label>
               <label>Nome transportadora
                 <span class="sap-search-field">
                   <input id="orderCarrier" type="text">
-                  <button class="sap-search-button" id="orderCarrierNameSearchButton" type="button">...</button>
+                  <button class="sap-search-button" id="orderCarrierNameSearchButton" type="button" aria-label="Buscar transportadora por nome">...</button>
                 </span>
               </label>
               <label>Cond. de pagamento
@@ -156,7 +163,7 @@ async function renderOrders(container) {
             <input id="orderCarrierAddress" type="hidden">
             <input id="orderNotes" type="hidden">
             <div id="orderCarrierResults" class="sap-search-results">
-              <div class="empty-state compact-state">Transportadoras cadastradas aparecem aqui.</div>
+              ${CrmUi.renderState('empty', 'Nenhuma transportadora selecionada', 'Pesquise pelo codigo ou nome quando o envio exigir transportadora.')}
             </div>
           </div>
         </section>
@@ -167,6 +174,7 @@ async function renderOrders(container) {
         <p id="orderMessage" class="form-message"></p>
       </div>
     </section>
+    </div>
   `;
 
   bindSapTabs(container);
@@ -278,7 +286,9 @@ function bindSapTabs(scope) {
       const tab = button.dataset.sapTab;
       const tabRoot = button.closest('.sap-tabs-section');
       tabRoot.querySelectorAll('[data-sap-tab]').forEach((item) => {
-        item.classList.toggle('is-active', item.dataset.sapTab === tab);
+        const active = item.dataset.sapTab === tab;
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-selected', String(active));
       });
       tabRoot.querySelectorAll('[data-sap-panel]').forEach((panel) => {
         panel.hidden = panel.dataset.sapPanel !== tab;

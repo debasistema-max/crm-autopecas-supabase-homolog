@@ -11,14 +11,21 @@ async function renderCreateQuotation(container) {
   const companySettings = await loadCompanySettings();
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
-    <section class="sap-document">
+    <div class="module-page commercial-operation-page">
+      ${CrmUi.renderPageHeader(
+        'Nova cotacao',
+        'Selecione o cliente, confirme a rota fiscal e monte os itens da operacao.',
+        '',
+        'Comercial'
+      )}
+    <section class="sap-document commercial-document" data-document-kind="quotation">
       <div class="sap-titlebar">
         <div class="sap-title"><span class="sap-title-icon">#</span><h2>Cotacao de venda</h2></div>
-        <strong>No. Novo</strong>
+        <strong class="sap-document-number">No. Novo</strong>
       </div>
       <div class="sap-window">
-        <section class="sap-section">
-          <h3>Dados gerais</h3>
+        <section class="sap-section sap-general-section">
+          <div class="sap-section-heading"><div><h3>Dados gerais</h3><p>Cliente, filial faturadora, destino e condicoes principais.</p></div></div>
           <div class="sap-form-grid">
             <div class="sap-form-left">
               <label>Filial
@@ -28,7 +35,7 @@ async function renderCreateQuotation(container) {
                 <label>Cliente | CPF/CNPJ
                   <input id="quoteClientSapCode" type="text" placeholder="Codigo SAP">
                 </label>
-                <button class="sap-mini-button" id="quoteClientSearchButton" type="button" title="Buscar cliente">&#128269;</button>
+                <button class="sap-mini-button" id="quoteClientSearchButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
                 <label>
                   <input id="quoteCnpj" type="text" placeholder="CNPJ">
                 </label>
@@ -37,7 +44,7 @@ async function renderCreateQuotation(container) {
               <label>Buscar cliente
                 <span class="sap-search-field">
                   <input id="quoteClientSearch" type="search" placeholder="Codigo SAP, CNPJ, protocolo ou empresa">
-                  <button class="sap-search-button" id="quoteClientSearchSubmitButton" type="button" title="Buscar cliente">&#128269;</button>
+                  <button class="sap-search-button" id="quoteClientSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
                 </span>
               </label>
               <label>Pessoa de contato<input id="quotePhone" type="text"></label>
@@ -57,16 +64,16 @@ async function renderCreateQuotation(container) {
             </div>
           </div>
           <div id="quoteClientResults" class="sap-search-results">
-            <div class="empty-state compact-state">Clientes aparecem aqui para preencher a cotacao.</div>
+            ${CrmUi.renderState('empty', 'Nenhum cliente selecionado', 'Pesquise por codigo SAP, CNPJ ou nome da empresa.')}
           </div>
         </section>
 
         <section class="sap-section sap-tabs-section">
-          <div class="sap-tabs">
-            <button class="is-active" type="button" data-sap-tab="items">Itens</button>
-            <button type="button" data-sap-tab="freight">Frete / Pagamento</button>
+          <div class="sap-tabs" role="tablist" aria-label="Etapas da cotacao">
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Itens</button>
+            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Frete / Pagamento</button>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="items">
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="items">
             <div class="sap-tab-tools">
               <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
               <span id="quoteCount">0 itens</span>
@@ -97,7 +104,7 @@ async function renderCreateQuotation(container) {
                     <button class="btn btn-ghost" id="quoteClearProductButton" type="button">Limpar</button>
                   </div>
                 </form>
-                <div id="quoteSearchResults" class="sap-product-results"><div class="empty-state compact-state">Pesquise para adicionar itens a cotacao.</div></div>
+                <div id="quoteSearchResults" class="sap-product-results">${CrmUi.renderState('empty', 'Pesquise um produto', 'Use codigo, EAN, nome ou grupo para adicionar itens.')}</div>
               </div>
               <div class="sap-totals" id="quoteTotals"></div>
             </div>
@@ -122,7 +129,7 @@ async function renderCreateQuotation(container) {
               </div>
             </div>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="freight" hidden>
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="freight" hidden>
             <div class="sap-freight-grid">
               <label>Tipo de envio
                 <select id="quoteShippingType">
@@ -134,13 +141,13 @@ async function renderCreateQuotation(container) {
               <label>Codigo transportadora
                 <span class="sap-search-field">
                   <input id="quoteCarrierSearch" type="search">
-                  <button class="sap-search-button" id="quoteCarrierCodeSearchButton" type="button">...</button>
+                  <button class="sap-search-button" id="quoteCarrierCodeSearchButton" type="button" aria-label="Buscar transportadora por codigo">...</button>
                 </span>
               </label>
               <label>Nome transportadora
                 <span class="sap-search-field">
                   <input id="quoteCarrier" type="text">
-                  <button class="sap-search-button" id="quoteCarrierNameSearchButton" type="button">...</button>
+                  <button class="sap-search-button" id="quoteCarrierNameSearchButton" type="button" aria-label="Buscar transportadora por nome">...</button>
                 </span>
               </label>
               <label>Cond. de pagamento
@@ -156,7 +163,7 @@ async function renderCreateQuotation(container) {
             <input id="quoteCarrierAddress" type="hidden">
             <input id="quoteNotes" type="hidden">
             <div id="quoteCarrierResults" class="sap-search-results">
-              <div class="empty-state compact-state">Transportadoras cadastradas aparecem aqui.</div>
+              ${CrmUi.renderState('empty', 'Nenhuma transportadora selecionada', 'Pesquise pelo codigo ou nome quando o envio exigir transportadora.')}
             </div>
           </div>
         </section>
@@ -167,6 +174,7 @@ async function renderCreateQuotation(container) {
         <p id="quoteMessage" class="form-message"></p>
       </div>
     </section>
+    </div>
   `;
 
   bindSapTabs(container);

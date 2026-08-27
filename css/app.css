@@ -1925,6 +1925,269 @@ textarea {
   color: #fff;
 }
 
+.commercial-operation-page {
+  width: 100%;
+}
+
+.commercial-document .sap-titlebar {
+  min-height: 54px;
+  padding: 10px 16px;
+  border-color: var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--surface);
+}
+
+.commercial-document .sap-title h2 {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.commercial-document .sap-title-icon {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.commercial-document .sap-document-number {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.commercial-document .sap-window {
+  border-color: var(--line);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.commercial-document .sap-section {
+  padding: 18px;
+}
+
+.commercial-document .sap-section + .sap-section {
+  border-top: 1px solid var(--line);
+}
+
+.sap-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.commercial-document .sap-section-heading h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.sap-section-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.commercial-document .sap-form-grid {
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.commercial-document .sap-form-left,
+.commercial-document .sap-form-right {
+  gap: 8px;
+}
+
+.commercial-document .sap-form-left label,
+.commercial-document .sap-form-right label,
+.commercial-document .sap-add-form label {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.commercial-document .sap-form-left input,
+.commercial-document .sap-form-left select,
+.commercial-document .sap-form-right input,
+.commercial-document .sap-form-right select,
+.commercial-document .sap-add-form input,
+.commercial-document .sap-add-form select {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.commercial-document input[readonly] {
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.commercial-document .sap-mini-button,
+.commercial-document .sap-search-button {
+  position: relative;
+  min-height: 38px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: transparent;
+  font-size: 0;
+}
+
+.commercial-document .sap-mini-button::before,
+.commercial-document .sap-search-button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translate(-65%, -65%);
+}
+
+.commercial-document .sap-mini-button::after,
+.commercial-document .sap-search-button::after {
+  content: "";
+  position: absolute;
+  top: 58%;
+  left: 58%;
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: #fff;
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+.commercial-document .sap-search-field {
+  gap: 6px;
+}
+
+.commercial-document .sap-tabs-section {
+  padding-top: 18px;
+}
+
+.commercial-document .sap-tabs {
+  gap: 4px;
+  border-bottom-color: var(--line);
+}
+
+.commercial-document .sap-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 0 18px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.commercial-document .sap-tabs button:hover,
+.commercial-document .sap-tabs button.is-active {
+  background: var(--surface-soft);
+  color: var(--primary-strong);
+}
+
+.commercial-document .sap-tabs button.is-active {
+  box-shadow: inset 0 -3px var(--primary);
+}
+
+.commercial-document .sap-tab-panel {
+  min-height: 360px;
+  border-color: var(--line);
+  padding: 14px;
+}
+
+.commercial-document .sap-tab-tools {
+  min-height: 34px;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.commercial-document .sap-items-wrap {
+  border-color: var(--line);
+  border-radius: 7px;
+  box-shadow: inset -14px 0 18px -20px rgba(16, 28, 40, 0.55);
+}
+
+.commercial-document .sap-items-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-soft);
+}
+
+.commercial-document .sap-items-table td,
+.commercial-document .sap-items-table th {
+  border-color: var(--line);
+}
+
+.commercial-document .sap-items-table input {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.commercial-document .sap-remove-button {
+  width: 34px;
+  height: 34px;
+  line-height: 1;
+}
+
+.commercial-document .sap-totals {
+  width: min(100%, 360px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.commercial-document .sap-grand-total {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.commercial-document .sap-grand-total strong {
+  color: var(--primary-strong);
+  font-size: 15px;
+}
+
+.commercial-document .ui-state {
+  min-height: 104px;
+  padding: 14px;
+  box-shadow: none;
+}
+
+.commercial-document .sap-footer-actions {
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.commercial-document .sap-footer-actions .btn {
+  min-height: 42px;
+  border-radius: 6px;
+  padding-inline: 18px;
+  font-size: 13px;
+}
+
+.commercial-document .sap-footer-actions .btn-primary {
+  background: var(--primary);
+}
+
 .import-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2885,7 +3148,17 @@ button:disabled {
   .sap-tabs button {
     white-space: nowrap;
     flex: 1 1 132px;
-    min-height: 40px;
+    min-height: 46px;
+  }
+  .commercial-document .sap-document-number {
+    font-size: 12px;
+  }
+  .commercial-document .sap-section-heading {
+    margin-bottom: 12px;
+  }
+  .commercial-document .sap-tab-tools {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .sap-footer-actions {
     flex-wrap: wrap;
