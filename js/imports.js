@@ -60,24 +60,34 @@ const sapImportState = { workbook: null, sheet: null, headers: [], sourceRows: [
 
 async function renderImportCenter(container) {
   container.innerHTML = `
-    <section class="panel import-center">
-      <div class="panel-header"><div><h2>Central de Importações</h2><p>Upload → detecção → validação → preview → confirmação transacional.</p></div></div>
-      <div class="import-center-tabs">
-        <button class="btn btn-primary" data-import-tab="new">Nova importação</button>
-        <button class="btn btn-ghost" data-import-tab="history">Histórico</button>
-        <button class="btn btn-ghost" data-import-tab="pending">Pendências fiscais</button>
-        <button class="btn btn-ghost" data-import-tab="lists">Listas comerciais</button>
-      </div>
-    </section>
-    <div id="importCenterContent"></div>`;
+    <div class="module-page import-workspace">
+      ${CrmUi.renderPageHeader(
+        'Central de Importacoes',
+        'Receba arquivos SAP com staging, validacao, preview, auditoria e commit transacional.',
+        '',
+        'Operacao'
+      )}
+      <section class="panel import-center">
+        <div class="section-heading"><div><h3>Area de trabalho</h3><p>Escolha a operacao sem perder a rastreabilidade dos lotes.</p></div></div>
+        <div class="import-center-tabs" role="tablist" aria-label="Areas da Central de Importacoes">
+          <button class="btn btn-primary" type="button" role="tab" aria-selected="true" data-import-tab="new">Nova importação</button>
+          <button class="btn btn-ghost" type="button" role="tab" aria-selected="false" data-import-tab="history">Histórico</button>
+          <button class="btn btn-ghost" type="button" role="tab" aria-selected="false" data-import-tab="pending">Pendências fiscais</button>
+          <button class="btn btn-ghost" type="button" role="tab" aria-selected="false" data-import-tab="lists">Listas comerciais</button>
+        </div>
+      </section>
+      <div id="importCenterContent" class="import-center-content" role="tabpanel" aria-live="polite"></div>
+    </div>`;
   container.querySelectorAll('[data-import-tab]').forEach((button) => button.addEventListener('click', () => openImportCenterTab(button.dataset.importTab)));
   await openImportCenterTab('new');
 }
 
 async function openImportCenterTab(tab) {
   document.querySelectorAll('[data-import-tab]').forEach((button) => {
-    button.classList.toggle('btn-primary', button.dataset.importTab === tab);
-    button.classList.toggle('btn-ghost', button.dataset.importTab !== tab);
+    const active = button.dataset.importTab === tab;
+    button.classList.toggle('btn-primary', active);
+    button.classList.toggle('btn-ghost', !active);
+    button.setAttribute('aria-selected', String(active));
   });
   if (tab === 'history') return renderSapImportHistory();
   if (tab === 'pending') return renderFiscalPendingPanel();
@@ -88,8 +98,16 @@ async function openImportCenterTab(tab) {
 function renderNewSapImport() {
   const target = document.getElementById('importCenterContent');
   target.innerHTML = `
-    <section class="panel">
-      <div class="field-grid">
+    <section class="panel import-input-panel">
+      <div class="section-heading"><div><h3>Nova importacao</h3><p>Selecione o tipo, a filial e a fonte. Nenhum dado e efetivado antes da confirmacao.</p></div></div>
+      <ol class="import-flow-steps" aria-label="Etapas da importacao">
+        <li data-import-step="upload"><span>1</span><strong>Upload</strong></li>
+        <li data-import-step="detection"><span>2</span><strong>Deteccao</strong></li>
+        <li data-import-step="validation"><span>3</span><strong>Validacao</strong></li>
+        <li data-import-step="preview"><span>4</span><strong>Preview</strong></li>
+        <li data-import-step="commit"><span>5</span><strong>Confirmacao</strong></li>
+      </ol>
+      <div class="field-grid import-source-grid">
         <label class="span-4">Tipo
           <select id="sapImportKind">${Object.entries(SAP_IMPORT_TYPES).map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join('')}</select>
         </label>
@@ -105,16 +123,16 @@ function renderNewSapImport() {
           <textarea id="sapImportText" placeholder="Cole aqui a tabela extraída do SAP"></textarea>
         </label>
       </div>
-      <div class="actions-row">
+      <div class="actions-row import-primary-actions">
         <button class="btn btn-primary" id="sapAnalyzeButton" type="button">Analisar arquivo</button>
         <button class="btn btn-secondary" id="sapValidateButton" type="button" disabled>Validar no staging</button>
         <button class="btn btn-primary" id="sapCommitButton" type="button" disabled>Confirmar importação</button>
-        <p class="form-message" id="sapImportMessage"></p>
+        <p class="form-message" id="sapImportMessage" aria-live="polite"></p>
       </div>
     </section>
-    <section class="panel" id="sapDetection"><div class="empty-state">Selecione um arquivo ou cole uma tabela.</div></section>
-    <section class="panel" id="sapMapping" hidden></section>
-    <section class="panel" id="sapServerPreview" hidden></section>`;
+    <section class="panel import-stage-panel" id="sapDetection">${CrmUi.renderState('empty', 'Fonte aguardando analise', 'Selecione um arquivo ou cole uma tabela extraida do SAP.')}</section>
+    <section class="panel import-stage-panel" id="sapMapping" hidden></section>
+    <section class="panel import-stage-panel" id="sapServerPreview" hidden></section>`;
   document.getElementById('sapImportFile').addEventListener('change', (event) => loadSapImportFile(event).catch((error) => {
     console.error(error); document.getElementById('sapImportMessage').textContent = error.message || 'Falha ao ler o arquivo.';
   }));
@@ -123,6 +141,19 @@ function renderNewSapImport() {
   document.getElementById('sapValidateButton').addEventListener('click', stageAndValidateSapImport);
   document.getElementById('sapCommitButton').addEventListener('click', approveAndCommitSapImport);
   document.getElementById('sapImportKind').addEventListener('change', () => renderSapColumnMapping());
+  setSapImportStage('upload');
+}
+
+function setSapImportStage(stage) {
+  const stages = ['upload', 'detection', 'validation', 'preview', 'commit'];
+  const activeIndex = stage === 'complete' ? stages.length : stages.indexOf(stage);
+  document.querySelectorAll('[data-import-step]').forEach((item) => {
+    const index = stages.indexOf(item.dataset.importStep);
+    item.classList.toggle('is-active', index === activeIndex);
+    item.classList.toggle('is-complete', index < activeIndex || stage === 'complete');
+    if (index === activeIndex) item.setAttribute('aria-current', 'step');
+    else item.removeAttribute('aria-current');
+  });
 }
 
 async function loadSapImportFile(event) {
@@ -175,7 +206,7 @@ async function analyzeSapImportInput() {
 
 function analyzeSapRows() {
   if (!sapImportState.headers.length || !sapImportState.sourceRows.length) {
-    document.getElementById('sapDetection').innerHTML = '<div class="empty-state">Cabeçalho ou linhas não encontrados.</div>';
+    document.getElementById('sapDetection').innerHTML = CrmUi.renderState('error', 'Dados nao reconhecidos', 'Cabecalho ou linhas nao foram encontrados na fonte informada.');
     return;
   }
   sapImportState.mapping = Object.fromEntries(sapImportState.headers.map((header) => [header, suggestSapField(header)]));
@@ -187,6 +218,7 @@ function analyzeSapRows() {
   sapImportState.ignoredRows = ['COMMERCIAL_PRODUCTS','SAP_ITEM_MASTER'].includes(detectedKind) && codeHeader
     ? sapImportState.sourceRows.filter((row) => !String(row[sapColumnKey(codeHeader)] || '').trim()).length : 0;
   document.getElementById('sapDetection').innerHTML = `
+    <div class="section-heading"><div><h3>Deteccao concluida</h3><p>Confira o tipo identificado e os campos obrigatorios antes do staging.</p></div></div>
     <div class="import-summary">
       <div><strong>${escapeHtml(SAP_IMPORT_TYPES[detectedKind])}</strong><span>Tipo detectado</span></div>
       <div><strong>${sapImportState.sourceRows.length}</strong><span>linhas</span></div>
@@ -195,6 +227,7 @@ function analyzeSapRows() {
       ${sapImportState.ignoredRows ? `<div><strong>${sapImportState.ignoredRows}</strong><span>separadores ignorados</span></div>` : ''}
     </div>
     ${missing.length ? `<div class="import-warnings">Ausentes: ${missing.map((field) => escapeHtml(SAP_IMPORT_FIELDS[field] || field)).join(', ')}</div>` : ''}`;
+  setSapImportStage('detection');
   renderSapColumnMapping();
 }
 
@@ -202,7 +235,7 @@ function renderSapColumnMapping() {
   if (!sapImportState.headers.length) return;
   const target = document.getElementById('sapMapping');
   target.hidden = false;
-  target.innerHTML = `<div class="panel-header"><div><h3>Mapeamento de colunas</h3><p>Revise campos ambíguos antes de enviar ao staging.</p></div></div>
+  target.innerHTML = `<div class="section-heading"><div><h3>Mapeamento de colunas</h3><p>Revise campos ambiguos antes de enviar ao staging.</p></div></div>
     <div class="import-mapping-grid">${sapImportState.headers.map((header) => `
       <label><span>${escapeHtml(header)}</span><select data-sap-map="${escapeHtml(header)}">
         <option value="">Ignorar</option>${Object.entries(SAP_IMPORT_FIELDS).map(([value, label]) => `<option value="${value}" ${sapImportState.mapping[header] === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
@@ -238,6 +271,7 @@ function detectSapImportKind(mapping, headers) {
 async function stageAndValidateSapImport() {
   const message = document.getElementById('sapImportMessage');
   try {
+    setSapImportStage('validation');
     const kind = document.getElementById('sapImportKind').value;
     const mapping = Object.fromEntries(Array.from(document.querySelectorAll('[data-sap-map]')).map((select) => [select.dataset.sapMap, select.value]));
     sapImportState.mapping = mapping;
@@ -314,7 +348,7 @@ function renderSapServerPreview(preview) {
   const batch = preview.batch || {};
   const rows = preview.rows || [];
   target.hidden = false;
-  target.innerHTML = `<div class="panel-header"><div><h3>Preview obrigatório</h3><p>Lote ${escapeHtml(batch.id || '')}</p></div></div>
+  target.innerHTML = `<div class="section-heading"><div><h3>Preview obrigatorio</h3><p>Lote ${escapeHtml(batch.id || '')}. Compare os valores antes e depois da importacao.</p></div></div>
     <div class="import-summary">
       <div><strong>${batch.total_rows || 0}</strong><span>linhas</span></div><div><strong>${batch.valid_rows || 0}</strong><span>válidas</span></div>
       <div><strong>${batch.warning_count || 0}</strong><span>avisos</span></div><div><strong>${batch.error_count || 0}</strong><span>erros</span></div>
@@ -324,6 +358,7 @@ function renderSapServerPreview(preview) {
         <td>${escapeHtml(row.normalized_code)}</td><td><pre class="import-json">${escapeHtml(sapCompactJson(row.before_data))}</pre></td>
         <td><pre class="import-json">${escapeHtml(sapCompactJson(row.after_data))}</pre></td>
         <td>${escapeHtml([...(row.errors || []), ...(row.warnings || [])].join(', '))}</td></tr>`).join('')}</tbody></table></div>`;
+  setSapImportStage(batch.state === 'COMMITTED' ? 'complete' : 'preview');
 }
 
 async function approveAndCommitSapImport() {
@@ -331,6 +366,7 @@ async function approveAndCommitSapImport() {
   const message = document.getElementById('sapImportMessage');
   button.disabled = true;
   try {
+    setSapImportStage('commit');
     message.textContent = 'Aprovando e confirmando transação...';
     await supabaseApproveSapImportBatch(sapImportState.batchId);
     const result = await supabaseCommitSapImportBatch(sapImportState.batchId);
@@ -338,47 +374,49 @@ async function approveAndCommitSapImport() {
     renderSapServerPreview(result);
     const batch = result.batch || {};
     message.textContent = `IMPORTAÇÃO CONCLUÍDA — afetados: ${result.affected || 0}; ignorados sem chave: ${sapImportState.ignoredRows || 0}; lote: ${batch.id || sapImportState.batchId}.`;
-  } catch (error) { console.error(error); message.textContent = error.message || 'Commit rejeitado; nenhuma alteração parcial foi mantida.'; }
+    setSapImportStage('complete');
+  } catch (error) { console.error(error); message.textContent = error.message || 'Commit rejeitado; nenhuma alteração parcial foi mantida.'; setSapImportStage('preview'); }
 }
 
 async function renderSapImportHistory() {
   const target = document.getElementById('importCenterContent');
-  target.innerHTML = '<section class="panel"><div class="empty-state">Carregando histórico...</div></section>';
+  target.innerHTML = `<section class="panel import-history-panel">${CrmUi.renderState('loading', 'Carregando historico', 'Consultando os lotes auditaveis da Central de Importacoes.')}</section>`;
   try {
     const result = await supabaseListSapImportBatches({ limit: 200 });
-    target.innerHTML = `<section class="panel"><div class="panel-header"><div><h2>Histórico de importações</h2><p>Arquivo, usuário, tipo, status e resultado auditável.</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Lote</th><th>Tipo</th><th>Arquivo/aba</th><th>Filial</th><th>Linhas</th><th>Status</th><th>Usuário</th></tr></thead>
+    const rows = result.rows || [];
+    target.innerHTML = `<section class="panel import-history-panel"><div class="section-heading"><div><h3>Historico de importacoes</h3><p>Arquivo, usuario, tipo, status e resultado auditavel.</p></div></div>
+      ${rows.length ? `<div class="table-wrap import-history-table-wrap"><table class="import-history-table"><thead><tr><th>Data</th><th>Lote</th><th>Tipo</th><th>Arquivo/aba</th><th>Filial</th><th>Linhas</th><th>Status</th><th>Usuario</th></tr></thead>
       <tbody>${(result.rows || []).map((row) => `<tr><td>${escapeHtml(formatDateTime(row.created_at))}</td><td>${escapeHtml(row.id)}</td><td>${escapeHtml(SAP_IMPORT_TYPES[row.import_kind] || row.import_kind)}</td>
         <td>${escapeHtml(row.original_filename || '')}<small>${escapeHtml(row.sheet_name || '')}</small></td><td>${escapeHtml(row.region || row.origin_state || '')}</td>
-        <td>${row.valid_rows || 0}/${row.total_rows || 0}</td><td><span class="status-pill">${escapeHtml(row.state)}</span></td><td>${escapeHtml(row.created_by_name || '')}</td></tr>`).join('')}</tbody></table></div></section>`;
-  } catch (error) { target.innerHTML = `<section class="panel"><div class="empty-state">${escapeHtml(error.message)}</div></section>`; }
+        <td>${row.valid_rows || 0}/${row.total_rows || 0}</td><td><span class="status-pill">${escapeHtml(row.state)}</span></td><td>${escapeHtml(row.created_by_name || '')}</td></tr>`).join('')}</tbody></table></div>` : CrmUi.renderState('empty', 'Nenhum lote encontrado', 'As importacoes analisadas aparecerao aqui com seu status e responsavel.')}</section>`;
+  } catch (error) { target.innerHTML = `<section class="panel import-history-panel">${CrmUi.renderState('error', 'Nao foi possivel carregar o historico', error.message)}</section>`; }
 }
 
 async function renderFiscalPendingPanel() {
   const target = document.getElementById('importCenterContent');
-  target.innerHTML = '<section class="panel"><div class="empty-state">Analisando pendências...</div></section>';
+  target.innerHTML = `<section class="panel fiscal-pending-panel">${CrmUi.renderState('loading', 'Analisando pendencias fiscais', 'Consultando produtos, precos, estoques e rotas incompletas.')}</section>`;
   try {
     const data = await supabaseGetFiscalPending({ limit: 1000 }); const summary = data.summary || {}; const rows = data.rows || [];
-    target.innerHTML = `<section class="panel"><div class="panel-header"><div><h2>Pendências fiscais</h2><p>Produtos e rotas que impedem cálculo confiável.</p></div>
+    target.innerHTML = `<section class="panel fiscal-pending-panel"><div class="section-heading"><div><h3>Pendencias fiscais</h3><p>Produtos e rotas que impedem calculo confiavel.</p></div>
       <button class="btn btn-secondary" id="exportFiscalPending">Exportar CSV</button></div>
       <div class="import-summary"><div><strong>${summary.products_without_ncm || 0}</strong><span>sem NCM</span></div><div><strong>${summary.products_without_cest || 0}</strong><span>sem CEST</span></div>
       <div><strong>${summary.products_without_ipi || 0}</strong><span>sem IPI</span></div><div><strong>${summary.rules_incomplete || 0}</strong><span>regras incompletas</span></div>
       <div><strong>${summary.products_without_price_pr || 0}</strong><span>sem preço PR</span></div><div><strong>${summary.products_without_price_sp || 0}</strong><span>sem preço SP</span></div>
       <div><strong>${summary.products_without_stock_pr || 0}</strong><span>sem estoque PR</span></div><div><strong>${summary.products_without_stock_sp || 0}</strong><span>sem estoque SP</span></div>
       <div><strong>${summary.fiscal_source_rows_rejected || 0}</strong><span>linhas fiscais rejeitadas</span></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>NCM</th><th>CEST</th><th>Rota</th><th>Status</th></tr></thead>
-      <tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.codigo)}</td><td>${escapeHtml(row.descricao)}</td><td>${escapeHtml(row.ncm)}</td><td>${escapeHtml(row.cest)}</td><td>${escapeHtml(row.route)}</td><td>${escapeHtml(row.status)}</td></tr>`).join('')}</tbody></table></div></section>`;
+      ${rows.length ? `<div class="table-wrap fiscal-pending-table-wrap"><table class="fiscal-pending-table"><thead><tr><th>Codigo</th><th>Descricao</th><th>NCM</th><th>CEST</th><th>Rota</th><th>Status</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.codigo)}</td><td>${escapeHtml(row.descricao)}</td><td>${escapeHtml(row.ncm)}</td><td>${escapeHtml(row.cest)}</td><td>${escapeHtml(row.route)}</td><td><span class="status-pill">${escapeHtml(row.status)}</span></td></tr>`).join('')}</tbody></table></div>` : CrmUi.renderState('success', 'Nenhuma pendencia listada', 'Os filtros atuais nao encontraram produtos ou rotas incompletas.')}</section>`;
     document.getElementById('exportFiscalPending').addEventListener('click', () => downloadCsv('pendencias-fiscais.csv', rows));
-  } catch (error) { target.innerHTML = `<section class="panel"><div class="empty-state">${escapeHtml(error.message)}</div></section>`; }
+  } catch (error) { target.innerHTML = `<section class="panel fiscal-pending-panel">${CrmUi.renderState('error', 'Nao foi possivel analisar as pendencias', error.message)}</section>`; }
 }
 
 function renderCommercialListsPanel() {
   const target = document.getElementById('importCenterContent');
-  target.innerHTML = `<section class="panel"><div class="panel-header"><div><h2>Listas comerciais por rota</h2><p>Geradas dinamicamente a partir da fonte fiscal.</p></div></div>
-    <div class="field-grid"><label class="span-4">Rota <select id="commercialListRoute"><option>PR-PR</option><option>SP-SP</option><option>PR-SC</option></select></label>
+  target.innerHTML = `<section class="panel commercial-list-filter-panel"><div class="section-heading"><div><h3>Listas comerciais por rota</h3><p>Geradas dinamicamente a partir de preco base, estoque da filial e motor fiscal.</p></div></div>
+    <div class="field-grid commercial-list-filters"><label class="span-4">Rota <select id="commercialListRoute"><option>PR-PR</option><option>SP-SP</option><option>PR-SC</option></select></label>
       <label class="span-4">Marca <input id="commercialListBrand"></label><label class="span-4">Grupo <input id="commercialListGroup"></label></div>
-    <div class="actions-row"><button class="btn btn-primary" id="generateCommercialList">Gerar lista</button><button class="btn btn-secondary" id="exportCommercialCsv" disabled>CSV</button>
-      <button class="btn btn-secondary" id="exportCommercialXlsx" disabled>XLSX</button></div></section><section class="panel" id="commercialListResult"><div class="empty-state">Escolha a rota.</div></section>`;
+    <div class="actions-row commercial-list-actions"><button class="btn btn-primary" id="generateCommercialList" type="button">Gerar lista</button><button class="btn btn-secondary" id="exportCommercialCsv" type="button" disabled>Exportar CSV</button>
+      <button class="btn btn-secondary" id="exportCommercialXlsx" type="button" disabled>Exportar XLSX</button></div></section><section class="panel commercial-list-result" id="commercialListResult" aria-live="polite">${CrmUi.renderState('empty', 'Escolha uma rota', 'A lista sera calculada sob demanda, sem armazenar preco fiscal como verdade absoluta.')}</section>`;
   document.getElementById('generateCommercialList').addEventListener('click', generateCommercialListFromUi);
   document.getElementById('exportCommercialCsv').addEventListener('click', () => exportCommercialList('csv'));
   document.getElementById('exportCommercialXlsx').addEventListener('click', () => exportCommercialList('xlsx'));
@@ -386,14 +424,25 @@ function renderCommercialListsPanel() {
 
 async function generateCommercialListFromUi() {
   const route = document.getElementById('commercialListRoute').value;
-  const data = await supabaseGenerateCommercialList(route, { brand: document.getElementById('commercialListBrand').value.trim(), group: document.getElementById('commercialListGroup').value.trim() });
-  sapImportState.listRows = data.rows || [];
-  document.getElementById('commercialListResult').innerHTML = `<div class="panel-header"><div><h3>Lista ${escapeHtml(route)}</h3><p>${data.count || 0} produtos</p></div></div>
-    <div class="table-wrap"><table><thead><tr><th>CÓDIGO IPS</th><th>DESCRIÇÃO</th><th>MARCA</th><th>APLICAÇÃO</th><th>ANO</th><th>PREÇO S/IMP</th><th>TRIBUTOS</th><th>PREÇO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
-    <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
-      <td>${money(row.base_price)}</td><td>${money(row.total_taxes)}</td><td>${money(row.final_price)}</td><td>${escapeHtml(row.availability)}</td><td>${escapeHtml(row.source_display_value || row.available_qty)}</td><td>${escapeHtml(row.status)}</td></tr>`).join('')}</tbody></table></div>`;
-  document.getElementById('exportCommercialCsv').disabled = !sapImportState.listRows.length;
-  document.getElementById('exportCommercialXlsx').disabled = !sapImportState.listRows.length;
+  const target = document.getElementById('commercialListResult');
+  const generateButton = document.getElementById('generateCommercialList');
+  generateButton.disabled = true;
+  target.innerHTML = CrmUi.renderState('loading', `Gerando lista ${route}`, 'Calculando preco e disponibilidade para a rota selecionada.');
+  try {
+    const data = await supabaseGenerateCommercialList(route, { brand: document.getElementById('commercialListBrand').value.trim(), group: document.getElementById('commercialListGroup').value.trim() });
+    sapImportState.listRows = data.rows || [];
+    target.innerHTML = sapImportState.listRows.length ? `<div class="section-heading"><div><h3>Lista ${escapeHtml(route)}</h3><p>${data.count || sapImportState.listRows.length} produtos. A tela exibe no maximo 500 registros; a exportacao utiliza a lista completa.</p></div></div>
+      <div class="table-wrap commercial-list-table-wrap"><table class="commercial-list-table"><thead><tr><th>CODIGO IPS</th><th>DESCRICAO</th><th>MARCA</th><th>APLICACAO</th><th>ANO</th><th>PRECO S/IMP</th><th>TRIBUTOS</th><th>PRECO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
+      <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
+        <td>${money(row.base_price)}</td><td>${money(row.total_taxes)}</td><td>${money(row.final_price)}</td><td>${escapeHtml(row.availability)}</td><td>${escapeHtml(row.source_display_value || row.available_qty)}</td><td><span class="status-pill">${escapeHtml(row.status)}</span></td></tr>`).join('')}</tbody></table></div>` : CrmUi.renderState('empty', `Lista ${route} sem produtos`, 'Revise os filtros ou verifique preco, estoque e configuracao fiscal da rota.');
+  } catch (error) {
+    sapImportState.listRows = [];
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel gerar a lista', error.message);
+  } finally {
+    generateButton.disabled = false;
+    document.getElementById('exportCommercialCsv').disabled = !sapImportState.listRows.length;
+    document.getElementById('exportCommercialXlsx').disabled = !sapImportState.listRows.length;
+  }
 }
 
 function commercialExportRows() {

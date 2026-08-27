@@ -8,6 +8,8 @@
   `?module=dashboard`, `?module=products` ou `?module=partners`;
 - smoke de relatórios e edição comercial em
   `tests/ui-document-reports-smoke.html?kind=cotacoes` e `?kind=pedidos`;
+- smoke de Transferências e Central de Importações em
+  `tests/ui-operations-control-smoke.html`;
 - regressões SQL em `supabase/tests/`;
 - inspeção responsiva nos breakpoints definidos.
 
@@ -50,6 +52,23 @@
   documento;
 - `tests/ui-document-reports-smoke.html` usa dados locais simulados e não grava
   no Supabase.
+
+## Evidência da Fase 2 — entrega 4
+
+- Transferências, nova importação, histórico, pendências fiscais e listas
+  comerciais inspecionados em 320, 360, 375, 390, 430, 768, 1024 e 1440 px;
+- nenhum overflow da página e nenhum botão visível abaixo de 44 px nos 40
+  cenários avaliados;
+- mapeamentos SAP existentes para preço, estoque, item, CEST e regras fiscais
+  permaneceram aprovados;
+- importação simulada de estoque PR preservou `50+` como quantidade 50 com
+  indicador de limite;
+- linha com disponibilidade vazia não incluiu o campo no payload normalizado;
+- staging e preview simulados foram executados, mantendo zero chamadas de
+  aprovação e zero chamadas de commit;
+- leitura de histórico, pendências e lista PR-PR validada sem gravação;
+- atualização de transferência permaneceu condicionada à ação explícita
+  `Salvar` e registrou zero chamadas durante a abertura do smoke.
 
 ## Antes de publicar homologação
 

@@ -3,36 +3,41 @@ async function renderStockTransfers(container) {
   const from = new Date(today);
   from.setDate(from.getDate() - 30);
   container.innerHTML = `
-    <section class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>Transferencias</h2>
-          <p>Solicitacoes operacionais PR -> SP vinculadas aos pedidos.</p>
+    <div class="module-page transfer-workspace">
+      ${CrmUi.renderPageHeader(
+        'Transferencias',
+        'Acompanhe solicitacoes entre filiais vinculadas aos pedidos comerciais.',
+        '',
+        'Operacao'
+      )}
+      <section class="panel transfer-filter-panel">
+        <div class="section-heading">
+          <div><h3>Pesquisa operacional</h3><p>Filtre por pedido, cliente, produto, periodo ou situacao da movimentacao.</p></div>
         </div>
-      </div>
-      <div class="field-grid">
-        <label class="span-4">Pesquisar
-          <input id="transferSearch" placeholder="Pedido, cliente, CNPJ, codigo ou produto">
-        </label>
-        <label class="span-2">De
-          <input id="transferFrom" type="date" value="${formatDateInput(from)}">
-        </label>
-        <label class="span-2">Ate
-          <input id="transferTo" type="date" value="${formatDateInput(today)}">
-        </label>
-        <label class="span-2">Status
-          <select id="transferStatus">
-            <option value="">Todos</option>
-            ${stockTransferStatuses().map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(formatStockTransferStatus(status))}</option>`).join('')}
-          </select>
-        </label>
-        <div class="span-2 actions-row align-end">
-          <button class="btn btn-primary" id="transferFilterButton" type="button">Filtrar</button>
+        <div class="field-grid transfer-filters">
+          <label class="span-4">Pesquisar
+            <input id="transferSearch" type="search" placeholder="Pedido, cliente, CNPJ, codigo ou produto">
+          </label>
+          <label class="span-2">De
+            <input id="transferFrom" type="date" value="${formatDateInput(from)}">
+          </label>
+          <label class="span-2">Ate
+            <input id="transferTo" type="date" value="${formatDateInput(today)}">
+          </label>
+          <label class="span-2">Status
+            <select id="transferStatus">
+              <option value="">Todos</option>
+              ${stockTransferStatuses().map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(formatStockTransferStatus(status))}</option>`).join('')}
+            </select>
+          </label>
+          <div class="span-2 actions-row align-end">
+            <button class="btn btn-primary" id="transferFilterButton" type="button">Filtrar</button>
+          </div>
         </div>
-      </div>
-      <p id="transferMessage" class="form-message"></p>
-    </section>
-    <section class="panel" id="transferResults"><div class="empty-state">Carregando transferencias...</div></section>
+        <p id="transferMessage" class="form-message" aria-live="polite"></p>
+      </section>
+      <section class="panel transfer-results" id="transferResults" aria-live="polite">${CrmUi.renderState('loading', 'Carregando transferencias', 'Consultando as solicitacoes do periodo selecionado.')}</section>
+    </div>
   `;
 
   document.getElementById('transferFilterButton').addEventListener('click', loadStockTransfers);
@@ -44,13 +49,13 @@ async function renderStockTransfers(container) {
 
 async function loadStockTransfers() {
   const target = document.getElementById('transferResults');
-  target.innerHTML = '<div class="empty-state">Carregando transferencias...</div>';
+  target.innerHTML = CrmUi.renderState('loading', 'Carregando transferencias', 'Consultando as solicitacoes do periodo selecionado.');
   try {
     const rows = await supabaseListStockTransferRequests(getStockTransferFilters());
     target.innerHTML = renderStockTransferResults(rows);
     bindStockTransferActions(rows);
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel carregar as transferencias', error.message);
   }
 }
 
@@ -66,18 +71,21 @@ function getStockTransferFilters() {
 }
 
 function renderStockTransferResults(rows) {
-  if (!rows.length) return '<div class="empty-state">Nenhuma solicitacao encontrada.</div>';
+  if (!rows.length) return CrmUi.renderState('empty', 'Nenhuma solicitacao encontrada', 'Ajuste o periodo, o status ou o termo pesquisado.');
   const pending = rows.filter((row) => row.status === 'PENDING').length;
   const totalQty = rows.reduce((sum, row) => sum + Number(row.requested_qty || 0), 0);
   return `
-    <div class="cards" style="margin-bottom: 16px;">
+    <div class="cards transfer-metrics">
       <article class="metric-card"><span>Solicitacoes</span><strong>${rows.length}</strong></article>
       <article class="metric-card"><span>Pendentes</span><strong>${pending}</strong></article>
       <article class="metric-card"><span>Quantidade</span><strong>${formatTransferQty(totalQty)}</strong></article>
       <article class="metric-card"><span>Ultima</span><strong>${escapeHtml(rows[0].numero_pedido || '')}</strong></article>
     </div>
-    <div class="table-wrap">
-      <table>
+    <div class="section-heading transfer-result-heading">
+      <div><h3>Solicitacoes encontradas</h3><p>${rows.length} ${rows.length === 1 ? 'movimentacao' : 'movimentacoes'} no periodo selecionado.</p></div>
+    </div>
+    <div class="table-wrap transfer-table-wrap">
+      <table class="transfer-table">
         <thead>
           <tr>
             <th>Pedido</th><th>Cliente</th><th>Produto</th><th>Origem</th><th>Destino</th><th>Qtd.</th><th>Status</th><th>Observacao</th><th></th>

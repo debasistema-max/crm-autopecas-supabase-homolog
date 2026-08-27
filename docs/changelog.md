@@ -1,5 +1,24 @@
 # Changelog técnico
 
+## 2026-08-27 — Fase 2, entrega 4: importações e transferências
+
+- Central de Importações recebeu cabeçalho, navegação semântica e indicador das
+  cinco etapas: upload, detecção, validação, preview e confirmação;
+- nova importação, histórico, pendências fiscais e listas comerciais passaram a
+  usar estados e tabelas responsivas do design system;
+- listas comerciais agora exibem loading, vazio e erro de forma explícita, sem
+  alterar a RPC que calcula preço, tributos e disponibilidade;
+- Transferências recebeu filtros, métricas, tabela e controles responsivos;
+- corrigido o comportamento visual de elementos com atributo `hidden`, evitando
+  exibição de campos e painéis condicionais;
+- criado smoke operacional que comprova que campo vazio não entra no payload
+  normalizado e que preview não aprova nem confirma um lote automaticamente;
+- nenhuma migration, RPC, RLS, transição de estoque ou permissão foi alterada.
+
+Risco remanescente: os testes de interface usam RPCs simuladas para impedir
+gravações. As regressões SQL existentes continuam sendo a evidência do commit
+atômico, idempotência e auditoria no banco.
+
 ## 2026-08-27 — Fase 2, entrega 3: relatórios e edição comercial
 
 - relatórios de cotações e pedidos passaram a usar cabeçalho, filtros, métricas,

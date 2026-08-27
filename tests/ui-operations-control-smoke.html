@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Operacao e importacoes</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <output id="smokeResult" hidden>Executando</output>
+  <main class="content" id="content" tabindex="-1"></main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script src="../js/supabase_store.js"></script>
+  <script>
+    let transferUpdateCalls = 0;
+    let approvedImportCalls = 0;
+    let committedImportCalls = 0;
+    let stagedRows = [];
+    let createdBatchPayload = null;
+
+    function formatDateInput(value) { return new Date(value).toISOString().slice(0, 10); }
+    function formatDateTime() { return '27/08/2026 10:30'; }
+    function formatCnpj(value) { return String(value || ''); }
+
+    async function supabaseListStockTransferRequests() {
+      return [{
+        id: 'transfer-1', numero_pedido: 'PED-2026-0001', created_at: '2026-08-27T13:30:00Z',
+        cliente: 'CLIENTE TESTE LTDA', cnpj: '13180109000108', product_code: '6111032201',
+        product_description: 'FAROL AUXILIAR DIREITO', product_brand: 'IPS', source_branch_code: 'PR',
+        target_branch_code: 'SP', source_available_qty: 50, target_available_qty: 0, requested_qty: 2,
+        status: 'PENDING', notes: 'Aguardando separacao', updated_at: '2026-08-27T13:30:00Z'
+      }];
+    }
+    async function supabaseUpdateStockTransferStatus() { transferUpdateCalls += 1; return {}; }
+
+    async function supabaseCreateSapImportBatch(payload) {
+      createdBatchPayload = payload;
+      return { batch_id: 'batch-smoke', duplicate: false };
+    }
+    async function supabaseStageSapImportRows(batchId, rows, progress) {
+      stagedRows = rows;
+      if (progress) progress({ done: rows.length, total: rows.length });
+      return { batch_id: batchId, staged_rows: rows.length };
+    }
+    async function supabaseValidateSapImportBatch() {
+      return {
+        batch: { id: 'batch-smoke', state: 'PREVIEWED', total_rows: 2, valid_rows: 1, warning_count: 1, error_count: 0 },
+        rows: [{
+          row_number: 2, status: 'valid', normalized_code: '6111032201', errors: [], warnings: [],
+          before_data: { sap_general_available_qty: 20 },
+          after_data: { sap_general_available_qty: 50, available_qty_capped: true, source_display_value: '50+' }
+        }]
+      };
+    }
+    async function supabasePreviewSapImportBatch() { return supabaseValidateSapImportBatch(); }
+    async function supabaseApproveSapImportBatch() { approvedImportCalls += 1; return {}; }
+    async function supabaseCommitSapImportBatch() { committedImportCalls += 1; return {}; }
+    async function supabaseListSapImportBatches() {
+      return { rows: [{ id: 'batch-smoke', created_at: '2026-08-27T13:30:00Z', import_kind: 'STOCK_PR', original_filename: 'estoque-pr.tsv', sheet_name: '', region: 'PR', valid_rows: 1, total_rows: 2, state: 'PREVIEWED', created_by_name: 'Administrador Homologacao' }] };
+    }
+    async function supabaseGetFiscalPending() {
+      return { summary: { products_without_ncm: 1, products_without_stock_sp: 1 }, rows: [{ codigo: '6111032201', descricao: 'FAROL AUXILIAR', ncm: '', cest: '', route: 'PR-PR', status: 'NCM_AUSENTE' }] };
+    }
+    async function supabaseGenerateCommercialList(route) {
+      return { count: 1, rows: [{ product_code: '6111032201', description: 'FAROL AUXILIAR', brand: 'IPS', application: 'HILUX', year: '2016+', base_price: 232, total_taxes: 115.85446, final_price: 347.85446, availability: 'DISPONIVEL', source_display_value: '50+', available_qty: 50, status: 'OK', route }] };
+    }
+  </script>
+  <script src="../js/transfers.js"></script>
+  <script src="../js/imports.js"></script>
+  <script>
+    (async () => {
+      const params = new URLSearchParams(location.search);
+      const module = params.get('module') === 'transfers' ? 'transfers' : 'imports';
+      let passed = false;
+
+      if (module === 'transfers') {
+        await renderStockTransfers(document.getElementById('content'));
+        CrmUi.observeResponsiveTables(document.getElementById('content'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        passed = Boolean(document.querySelector('.transfer-table tbody tr'))
+          && document.querySelector('[data-transfer-status="0"]').value === 'PENDING'
+          && document.querySelector('[data-transfer-notes="0"]').value === 'Aguardando separacao'
+          && transferUpdateCalls === 0;
+      } else {
+        await renderImportCenter(document.getElementById('content'));
+        const tab = params.get('tab') || 'new';
+        if (tab === 'new') {
+          document.getElementById('sapImportText').value = 'Codigo\tDescricao\tDisp. Geral\n6111032201\tFAROL AUXILIAR\t50+\n6111032202\tLANTERNA\t';
+          await analyzeSapImportInput();
+          await stageAndValidateSapImport();
+          const secondRow = stagedRows[1] && stagedRows[1].data;
+          passed = document.getElementById('sapImportKind').value === 'STOCK_PR'
+            && !document.getElementById('sapServerPreview').hidden
+            && !document.getElementById('sapCommitButton').disabled
+            && stagedRows[0].data.general_available_qty === 50
+            && stagedRows[0].data.general_available_capped === true
+            && !Object.prototype.hasOwnProperty.call(secondRow || {}, 'general_available_qty')
+            && createdBatchPayload.file_hash.length === 64
+            && approvedImportCalls === 0
+            && committedImportCalls === 0;
+        } else if (tab === 'history') {
+          await openImportCenterTab('history');
+          passed = document.getElementById('importCenterContent').textContent.includes('batch-smoke');
+        } else if (tab === 'pending') {
+          await openImportCenterTab('pending');
+          passed = document.getElementById('importCenterContent').textContent.includes('NCM_AUSENTE');
+        } else {
+          await openImportCenterTab('lists');
+          await generateCommercialListFromUi();
+          const listText = document.getElementById('commercialListResult').textContent.replace(/\s+/g, ' ');
+          passed = listText.includes('R$ 347,85') && listText.includes('50+');
+        }
+        passed = passed && approvedImportCalls === 0 && committedImportCalls === 0;
+        CrmUi.observeResponsiveTables(document.getElementById('content'));
+      }
+
+      document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+      document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+      document.documentElement.dataset.module = module;
+    })();
+  </script>
+</body>
+</html>

@@ -83,6 +83,10 @@
   box-sizing: border-box;
 }
 
+.app-page [hidden] {
+  display: none !important;
+}
+
 .app-shell {
   --sidebar-width: 248px;
   min-height: 100vh;
@@ -2289,6 +2293,231 @@ textarea {
   white-space: normal;
 }
 
+.transfer-workspace,
+.import-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.transfer-workspace > *,
+.import-workspace > *,
+.import-center-content > * {
+  min-width: 0;
+}
+
+.transfer-filter-panel,
+.import-input-panel,
+.commercial-list-filter-panel {
+  padding-bottom: 14px;
+}
+
+.transfer-filters {
+  align-items: end;
+}
+
+.transfer-filters .actions-row,
+.transfer-filters .btn {
+  width: 100%;
+}
+
+.transfer-results > .ui-state,
+.import-stage-panel > .ui-state,
+.import-history-panel > .ui-state,
+.fiscal-pending-panel > .ui-state,
+.commercial-list-result > .ui-state {
+  min-height: 190px;
+  border: 0;
+  padding: 18px;
+  box-shadow: none;
+}
+
+.transfer-metrics {
+  margin-bottom: 20px;
+}
+
+.transfer-metrics .metric-card {
+  background: var(--surface-soft);
+}
+
+.transfer-metrics .metric-card strong {
+  color: var(--text-strong);
+  font-size: clamp(20px, 2vw, 26px);
+}
+
+.transfer-result-heading {
+  margin-bottom: 10px;
+}
+
+.transfer-table-wrap,
+.import-history-table-wrap,
+.fiscal-pending-table-wrap,
+.commercial-list-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.transfer-table {
+  min-width: 1120px;
+}
+
+.transfer-table textarea {
+  min-width: 220px;
+  min-height: 68px;
+  resize: vertical;
+}
+
+.transfer-table select {
+  min-width: 150px;
+}
+
+.transfer-table thead,
+.import-history-table thead,
+.fiscal-pending-table thead,
+.commercial-list-table thead {
+  background: var(--surface-soft);
+}
+
+.import-center {
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.import-center-tabs {
+  margin: 0 -18px;
+  padding: 0 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.import-center-tabs .btn {
+  position: relative;
+  min-height: 50px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.import-center-tabs .btn:hover,
+.import-center-tabs .btn-primary {
+  background: transparent;
+  color: var(--primary-strong);
+}
+
+.import-center-tabs .btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px 0;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: var(--primary);
+}
+
+.import-center-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.import-center-content .panel + .panel {
+  margin-top: 0;
+}
+
+.import-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.import-flow-steps li {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.import-flow-steps span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.import-flow-steps strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-flow-steps li.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.import-flow-steps li.is-active span,
+.import-flow-steps li.is-complete span {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.import-flow-steps li.is-complete {
+  color: var(--text);
+}
+
+.import-source-grid textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.import-primary-actions,
+.commercial-list-actions {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.import-primary-actions .form-message {
+  flex: 1 1 280px;
+  margin: 0;
+}
+
+.import-stage-panel .section-heading,
+.import-history-panel .section-heading,
+.fiscal-pending-panel .section-heading,
+.commercial-list-result .section-heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.import-history-table,
+.fiscal-pending-table {
+  min-width: 860px;
+}
+
+.commercial-list-table {
+  min-width: 1320px;
+}
+
+.commercial-list-filters {
+  align-items: end;
+}
+
 .import-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2296,7 +2525,8 @@ textarea {
   margin-bottom: 14px;
 }
 
-.import-summary article {
+.import-summary article,
+.import-summary > div {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
@@ -3102,6 +3332,78 @@ button:disabled {
   }
   .document-edit-workspace .sap-footer-actions {
     padding-inline: 10px;
+  }
+  .transfer-results,
+  .import-stage-panel,
+  .import-history-panel,
+  .fiscal-pending-panel,
+  .commercial-list-result {
+    padding: 10px;
+  }
+  .transfer-results > .ui-state,
+  .import-stage-panel > .ui-state,
+  .import-history-panel > .ui-state,
+  .fiscal-pending-panel > .ui-state,
+  .commercial-list-result > .ui-state {
+    min-height: 150px;
+    padding: 12px;
+  }
+  .transfer-metrics {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .transfer-table-wrap,
+  .import-history-table-wrap,
+  .fiscal-pending-table-wrap,
+  .commercial-list-table-wrap {
+    border: 0;
+  }
+  .transfer-table,
+  .import-history-table,
+  .fiscal-pending-table,
+  .commercial-list-table {
+    min-width: 0;
+  }
+  .transfer-table textarea,
+  .transfer-table select {
+    min-width: 0;
+    width: 100%;
+  }
+  .import-center {
+    padding-bottom: 0;
+  }
+  .import-center-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+  .import-center-tabs .btn {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 6px;
+    font-size: 12px;
+  }
+  .import-flow-steps {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+  .import-flow-steps li {
+    flex: 0 0 112px;
+    scroll-snap-align: start;
+  }
+  .import-primary-actions .btn,
+  .commercial-list-actions .btn {
+    flex: 1 1 140px;
+  }
+  .fiscal-pending-panel .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .fiscal-pending-panel .section-heading .btn {
+    width: 100%;
   }
   .mobile-nav {
     position: fixed;
