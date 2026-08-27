@@ -7,19 +7,21 @@ let partnersState = {
 
 async function renderBusinessPartners(container) {
   container.innerHTML = `
-    <section class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>Parceiros de Negocios</h2>
-          <p>Cadastre e edite clientes e transportadoras usados nos pedidos.</p>
-        </div>
-      </div>
-      <div class="actions-row" style="margin-bottom: 16px;">
-        <button class="btn btn-primary" type="button" data-partner-tab="clientes">Clientes</button>
-        <button class="btn btn-secondary" type="button" data-partner-tab="transportadoras">Transportadoras</button>
-      </div>
-      <div id="partnersContent"><div class="empty-state">Carregando parceiros...</div></div>
-    </section>
+    <div class="module-page partner-workspace">
+      ${CrmUi.renderPageHeader(
+        'Clientes e transportadoras',
+        'Consulte, cadastre e mantenha os parceiros usados em cotacoes e pedidos.',
+        '',
+        'Comercial'
+      )}
+      <section class="panel partner-panel">
+        <nav class="partner-tabs" role="tablist" aria-label="Tipo de parceiro">
+          <button class="partner-tab is-active" type="button" role="tab" aria-selected="true" data-partner-tab="clientes">Clientes</button>
+          <button class="partner-tab" type="button" role="tab" aria-selected="false" data-partner-tab="transportadoras">Transportadoras</button>
+        </nav>
+        <div id="partnersContent" role="tabpanel" aria-live="polite">${CrmUi.renderState('loading', 'Carregando parceiros', 'Consultando cadastros autorizados para seu perfil.')}</div>
+      </section>
+    </div>
   `;
   document.querySelectorAll('[data-partner-tab]').forEach((button) => {
     button.addEventListener('click', async () => {
@@ -33,10 +35,11 @@ async function renderBusinessPartners(container) {
 async function renderPartnerTab() {
   const target = document.getElementById('partnersContent');
   if (!target) return;
-  target.innerHTML = '<div class="empty-state compact-state">Carregando...</div>';
+  target.innerHTML = CrmUi.renderState('loading', 'Carregando cadastro', 'Aguarde enquanto os dados sao consultados.');
   document.querySelectorAll('[data-partner-tab]').forEach((button) => {
     const active = button.dataset.partnerTab === partnersState.tab;
-    button.className = active ? 'btn btn-primary' : 'btn btn-secondary';
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', String(active));
   });
   if (partnersState.tab === 'transportadoras') {
     await renderCarriersTab(target);
@@ -52,12 +55,16 @@ async function renderClientsTab(target) {
     });
     partnersState.clients = rows;
     target.innerHTML = `
-      ${renderClientForm()}
-      <div class="actions-row" style="margin: 16px 0;">
-        <label>Pesquisar cliente<input id="partnerClientSearch" placeholder="Codigo SAP, CNPJ, razao social ou cidade"></label>
+      <section class="partner-editor" aria-labelledby="partnerClientEditorTitle">
+        <div class="section-heading"><div><h3 id="partnerClientEditorTitle">Cadastro de cliente</h3><p>Consulte o CNPJ gratuitamente ou preencha os dados manualmente.</p></div></div>
+        ${renderClientForm()}
+      </section>
+      <div class="partner-toolbar">
+        <label class="partner-search-field">Pesquisar cliente<input id="partnerClientSearch" type="search" placeholder="Codigo SAP, CNPJ, razao social ou cidade"></label>
         <button class="btn btn-secondary" id="partnerClientSearchButton" type="button">Pesquisar</button>
       </div>
       <section id="clientCommercialProfile" class="commercial-profile" hidden></section>
+      <div class="section-heading partner-list-heading"><div><h3>Clientes cadastrados</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} encontrado${rows.length === 1 ? '' : 's'}.</p></div></div>
       ${renderClientsTable(rows)}
     `;
     document.getElementById('partnerClientForm').addEventListener('submit', savePartnerClient);
@@ -70,7 +77,7 @@ async function renderClientsTab(target) {
     });
     bindClientButtons();
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel carregar os clientes', error.message);
   }
 }
 
@@ -103,7 +110,7 @@ function renderClientForm() {
 }
 
 function renderClientsTable(rows) {
-  if (!rows.length) return '<div class="empty-state compact-state">Nenhum cliente encontrado.</div>';
+  if (!rows.length) return CrmUi.renderState('empty', 'Nenhum cliente encontrado', 'Ajuste a pesquisa ou cadastre o primeiro cliente.');
   return `
     <div class="table-wrap compact-table">
       <table>
@@ -354,11 +361,15 @@ async function renderCarriersTab(target) {
     });
     partnersState.carriers = rows;
     target.innerHTML = `
-      ${renderCarrierForm()}
-      <div class="actions-row" style="margin: 16px 0;">
-        <label>Pesquisar transportadora<input id="partnerCarrierSearch" placeholder="Nome, CNPJ ou cidade"></label>
+      <section class="partner-editor" aria-labelledby="partnerCarrierEditorTitle">
+        <div class="section-heading"><div><h3 id="partnerCarrierEditorTitle">Cadastro de transportadora</h3><p>Consulte o CNPJ gratuitamente ou preencha os dados manualmente.</p></div></div>
+        ${renderCarrierForm()}
+      </section>
+      <div class="partner-toolbar">
+        <label class="partner-search-field">Pesquisar transportadora<input id="partnerCarrierSearch" type="search" placeholder="Nome, CNPJ ou cidade"></label>
         <button class="btn btn-secondary" id="partnerCarrierSearchButton" type="button">Pesquisar</button>
       </div>
+      <div class="section-heading partner-list-heading"><div><h3>Transportadoras cadastradas</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} encontrado${rows.length === 1 ? '' : 's'}.</p></div></div>
       ${renderCarriersTable(rows)}
     `;
     document.getElementById('partnerCarrierForm').addEventListener('submit', savePartnerCarrier);
@@ -368,7 +379,7 @@ async function renderCarriersTab(target) {
     document.getElementById('partnerCarrierSearchButton').addEventListener('click', () => renderCarriersTab(target));
     bindCarrierEditButtons();
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel carregar as transportadoras', error.message);
   }
 }
 
@@ -399,7 +410,7 @@ function renderCarrierForm() {
 }
 
 function renderCarriersTable(rows) {
-  if (!rows.length) return '<div class="empty-state compact-state">Nenhuma transportadora encontrada.</div>';
+  if (!rows.length) return CrmUi.renderState('empty', 'Nenhuma transportadora encontrada', 'Ajuste a pesquisa ou cadastre a primeira transportadora.');
   return `
     <div class="table-wrap compact-table">
       <table>

@@ -1272,6 +1272,129 @@ td input {
 .ui-state-loading .ui-state-mark { background: var(--info); }
 .ui-state-success .ui-state-mark { background: var(--success); }
 
+.module-page {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.module-page > .page-header {
+  margin-bottom: 0;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.section-heading h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.section-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dashboard-control-panel {
+  padding-bottom: 14px;
+}
+
+.dashboard-control-panel .dashboard-periods {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.partner-panel {
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.partner-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 -18px 18px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.partner-tab {
+  position: relative;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.partner-tab:hover,
+.partner-tab.is-active {
+  color: var(--primary-strong);
+}
+
+.partner-tab.is-active::after {
+  content: "";
+  position: absolute;
+  inset: auto 12px -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--primary);
+}
+
+.partner-editor {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.partner-editor .field-grid {
+  gap: 12px;
+}
+
+.partner-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 560px) auto;
+  align-items: end;
+  justify-content: start;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.partner-search-field {
+  min-width: 0;
+}
+
+.partner-list-heading {
+  margin-top: 4px;
+}
+
+.partner-workspace .ui-state,
+.product-mini-list .ui-state,
+.product-detail-panel .ui-state {
+  min-height: 132px;
+  box-shadow: none;
+}
+
+.product-search-panel .section-heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.product-insights-grid .panel-header h2 {
+  font-size: 16px;
+}
+
 @media (min-width: 981px) {
   .sidebar-collapsed .app-shell {
     --sidebar-width: 74px;
@@ -2383,6 +2506,9 @@ button:disabled {
   .product-search-actions {
     grid-column: auto;
   }
+  .partner-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
   .import-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .import-format { grid-template-columns: 1fr; }
   .mapping-grid { grid-template-columns: 1fr; }
@@ -2458,6 +2584,35 @@ button:disabled {
   .page-header-actions .btn {
     width: 100%;
   }
+  .module-page {
+    gap: 12px;
+  }
+  .section-heading {
+    margin-bottom: 12px;
+  }
+  .partner-panel {
+    padding-top: 0;
+  }
+  .partner-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+  .partner-tab {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+  .partner-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .partner-toolbar .btn {
+    width: 100%;
+  }
+  .partner-editor .actions-row .btn {
+    flex: 1 1 140px;
+  }
   .ui-state {
     min-height: 150px;
     grid-template-columns: auto minmax(0, 1fr);
@@ -2499,6 +2654,7 @@ button:disabled {
   }
   .dashboard-period-button {
     width: 100%;
+    min-height: 46px;
   }
   .dashboard-secondary-metrics,
   .dashboard-admin-metrics,
@@ -2670,6 +2826,11 @@ button:disabled {
   }
   td:last-child {
     border-bottom: 0;
+  }
+  .product-favorite {
+    width: 46px;
+    height: 46px;
+    padding: 0;
   }
   table:not(.sap-items-table) tbody td[data-label] {
     display: grid;

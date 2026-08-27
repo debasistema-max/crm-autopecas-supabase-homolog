@@ -65,14 +65,20 @@ function canViewDashboardTransfers() {
 
 function renderCommercialDashboardShell(state) {
   return `
-    <section class="panel commercial-dashboard">
-      <div class="panel-header dashboard-header">
-        <div>
-          <h2>Inicio Comercial</h2>
-          <p data-dashboard-scope>Indicadores do periodo selecionado.</p>
+    <div class="module-page dashboard-workspace">
+      ${CrmUi.renderPageHeader(
+        'Visao comercial',
+        'Acompanhe vendas, cotacoes e desempenho da operacao no periodo selecionado.',
+        '<button class="btn btn-secondary" type="button" data-dashboard-refresh>Atualizar indicadores</button>',
+        'Comercial'
+      )}
+      <section class="panel commercial-dashboard dashboard-control-panel">
+        <div class="section-heading">
+          <div>
+            <h3>Periodo e escopo</h3>
+            <p data-dashboard-scope>Indicadores do periodo selecionado.</p>
+          </div>
         </div>
-        <button class="btn btn-secondary" type="button" data-dashboard-refresh>Atualizar</button>
-      </div>
       <div class="dashboard-periods" role="group" aria-label="Periodo do dashboard">
         ${renderDashboardPeriodButton('today', 'Hoje', state.period)}
         ${renderDashboardPeriodButton('7d', '7 dias', state.period)}
@@ -105,9 +111,10 @@ function renderCommercialDashboardShell(state) {
           </select>
         </label>
       </form>
-    </section>
-    <div data-dashboard-result aria-live="polite">
-      <div class="empty-state">Carregando inicio...</div>
+      </section>
+      <div data-dashboard-result aria-live="polite">
+        ${CrmUi.renderState('loading', 'Carregando indicadores', 'Estamos consolidando os dados comerciais do periodo.')}
+      </div>
     </div>
   `;
 }
@@ -176,7 +183,7 @@ async function loadCommercialDashboard(container, state) {
   const refreshButton = container.querySelector('[data-dashboard-refresh]');
   refreshButton.disabled = true;
   refreshButton.textContent = 'Atualizando...';
-  result.innerHTML = '<div class="empty-state">Carregando inicio...</div>';
+  result.innerHTML = CrmUi.renderState('loading', 'Atualizando indicadores', 'Consultando os dados comerciais do periodo selecionado.');
 
   try {
     validateDashboardPeriod(state.dateFrom, state.dateTo);
@@ -189,18 +196,16 @@ async function loadCommercialDashboard(container, state) {
     syncDashboardScope(container, data);
     result.innerHTML = renderCommercialDashboard(data);
   } catch (error) {
-    result.innerHTML = `
-      <section class="panel">
-        <div class="empty-state dashboard-error-state">
-          <strong>${escapeHtml(error.message || 'Nao foi possivel carregar o dashboard.')}</strong>
-          <button class="btn btn-secondary" type="button" data-dashboard-retry>Tentar novamente</button>
-        </div>
-      </section>
-    `;
+    result.innerHTML = CrmUi.renderState(
+      'error',
+      'Nao foi possivel carregar o dashboard',
+      error.message || 'Verifique sua conexao e tente novamente.',
+      '<button class="btn btn-secondary" type="button" data-dashboard-retry>Tentar novamente</button>'
+    );
     result.querySelector('[data-dashboard-retry]').addEventListener('click', () => loadCommercialDashboard(container, state));
   } finally {
     refreshButton.disabled = false;
-    refreshButton.textContent = 'Atualizar';
+    refreshButton.textContent = 'Atualizar indicadores';
   }
 }
 

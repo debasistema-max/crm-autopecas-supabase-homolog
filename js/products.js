@@ -9,14 +9,15 @@ const productState = {
 
 async function renderProducts(container) {
   container.innerHTML = `
-    <section class="product-shell">
+    <section class="module-page product-shell">
+      ${CrmUi.renderPageHeader(
+        'Catalogo de produtos',
+        'Localize itens, confira disponibilidade, preco por filial e dados comerciais.',
+        '',
+        'Catalogo'
+      )}
       <section class="panel product-search-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Produtos</h2>
-            <p>Busca rapida por codigo, OEM, similares, aplicacoes, montadoras, marca, linha e grupo.</p>
-          </div>
-        </div>
+        <div class="section-heading"><div><h3>Pesquisa e filtros</h3><p>Busque por codigo, OEM, similar, aplicacao, montadora, marca, linha ou grupo.</p></div></div>
         <form id="productSearchForm" class="product-search-grid">
           <label class="product-search-main">Pesquisa inteligente
             <input id="productTerm" type="search" placeholder="Codigo, OEM, similar, veiculo, marca ou aplicacao" autocomplete="off">
@@ -49,20 +50,20 @@ async function renderProducts(container) {
       <section class="product-insights-grid">
         <section class="panel">
           <div class="panel-header"><div><h2>Recentemente consultados</h2><p>Ultimos produtos abertos neste usuario.</p></div></div>
-          <div id="productRecentList" class="product-mini-list"><div class="empty-state compact-state">Carregando recentes...</div></div>
+          <div id="productRecentList" class="product-mini-list">${CrmUi.renderState('loading', 'Carregando recentes', 'Consultando seu historico.')}</div>
         </section>
         <section class="panel">
           <div class="panel-header"><div><h2>Mais vendidos</h2><p>Ranking calculado por itens de pedidos.</p></div></div>
-          <div id="productTopList" class="product-mini-list"><div class="empty-state compact-state">Carregando ranking...</div></div>
+          <div id="productTopList" class="product-mini-list">${CrmUi.renderState('loading', 'Carregando ranking', 'Consolidando os itens mais vendidos.')}</div>
         </section>
       </section>
 
       <section class="product-layout">
         <section class="panel" id="productResults">
-          <div class="empty-state">Digite para pesquisar ou gere uma lista geral.</div>
+          ${CrmUi.renderState('empty', 'Comece uma pesquisa', 'Digite um termo, escolha filtros ou gere a lista geral.')}
         </section>
         <aside class="panel product-detail-panel" id="productDetail">
-          <div class="empty-state compact-state">Selecione um produto para ver foto, OEM, similares, aplicacoes e historicos.</div>
+          ${CrmUi.renderState('empty', 'Selecione um produto', 'Veja foto, OEM, similares, aplicacoes, estoque e historico.')}
         </aside>
       </section>
     </section>
@@ -133,8 +134,8 @@ function clearProductFilters() {
   document.getElementById('productOemFilter').checked = false;
   document.getElementById('productPhotoFilter').checked = false;
   document.getElementById('productFavoritesFilter').checked = false;
-  document.getElementById('productResults').innerHTML = '<div class="empty-state">Digite para pesquisar ou gere uma lista geral.</div>';
-  document.getElementById('productDetail').innerHTML = '<div class="empty-state compact-state">Selecione um produto para ver foto, OEM, similares, aplicacoes e historicos.</div>';
+  document.getElementById('productResults').innerHTML = CrmUi.renderState('empty', 'Comece uma pesquisa', 'Digite um termo, escolha filtros ou gere a lista geral.');
+  document.getElementById('productDetail').innerHTML = CrmUi.renderState('empty', 'Selecione um produto', 'Veja foto, OEM, similares, aplicacoes, estoque e historico.');
   document.getElementById('productMessage').textContent = '';
   productState.results = [];
   productState.selected = null;
@@ -143,14 +144,14 @@ function clearProductFilters() {
 async function searchProductsInto(target, params, onAdd) {
   const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
   if (!hasQuery) {
-    if (!params.silentEmpty) target.innerHTML = '<div class="empty-state">Digite um termo para pesquisar.</div>';
+    if (!params.silentEmpty) target.innerHTML = CrmUi.renderState('empty', 'Informe o que deseja localizar', 'Pesquise por codigo, OEM, marca, veiculo ou aplicacao.');
     return;
   }
-  target.innerHTML = '<div class="empty-state">Pesquisando produtos...</div>';
+  target.innerHTML = CrmUi.renderState('loading', 'Pesquisando produtos', 'Aplicando os filtros comerciais selecionados.');
   try {
     const products = await supabaseSearchProducts(Object.assign({}, params, { context: onAdd ? 'pedido' : 'produtos' }));
     if (!products.length) {
-      target.innerHTML = '<div class="empty-state">Nenhum produto encontrado.</div>';
+      target.innerHTML = CrmUi.renderState('empty', 'Nenhum produto encontrado', 'Revise o termo ou remova alguns filtros.');
       return;
     }
     if (onAdd) {
@@ -161,7 +162,7 @@ async function searchProductsInto(target, params, onAdd) {
     target.innerHTML = renderProductCatalog(products, params);
     bindProductCatalog(products, params);
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel pesquisar os produtos', error.message);
   }
 }
 

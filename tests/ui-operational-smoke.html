@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Modulos operacionais</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <main class="content" id="smokeTarget"></main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script>
+    const sampleProducts = [
+      { codigo: '6111032201', descricao: 'FAROL AUXILIAR DIREITO', marca: 'IPS', montadora: 'TOYOTA', linha: 'ILUMINACAO', aplicacao: 'HILUX 2016+', estoque: 'DISPONIVEL 50+', preco: 347.85, preco_sp: 346.79 },
+      { codigo: '7175526020', descricao: 'CAIXA DE DIRECAO HIDRAULICA', marca: 'TOYOTA', montadora: 'TOYOTA', linha: 'DIRECAO', aplicacao: 'HILUX / SW4', estoque: 'CONFIRMAR', preco: 680.02, preco_sp: 680.02 },
+      { codigo: '87089483', descricao: 'TERMINAL DE DIRECAO', marca: 'NAKATA', montadora: 'FIAT', linha: 'SUSPENSAO', aplicacao: 'STRADA / PALIO', estoque: 'DISPONIVEL', preco: 128.40, preco_sp: 128.40 }
+    ];
+
+    async function supabaseGetCommercialDashboardSummary() {
+      return {
+        meta: { fallback: false, version: 'smoke' },
+        access: { scope: 'all', can_filter_seller: false, can_view_seller_ranking: false, can_view_stock: false, can_view_imports: false },
+        kpis: { orders_count: 38, orders_value: 126480.32, quotations_count: 67, quotations_value: 198430.11, pending_quotations: 12, approved_quotations: 31, conversion_rate: 46.27, average_ticket: 3328.43, active_clients: 24, products_sold: 183, converted_quotations: 31 },
+        orders: { by_status: [{ status: 'APROVADO', count: 31, total_value: 108300.10 }] },
+        quotations: { by_status: [{ status: 'ENVIADA', count: 36, total_value: 102220.40 }] },
+        rankings: { sellers: [], products: [], clients: [] },
+        abc_curve: [], series: [], sellers: []
+      };
+    }
+    async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO'], grupos: ['AUTOPECAS'], montadoras: ['FIAT', 'TOYOTA'] }; }
+    async function supabaseListProductFavorites() { return ['6111032201']; }
+    async function supabaseListRecentProducts() { return sampleProducts.slice(0, 2); }
+    async function supabaseGetTopSellingProducts() { return sampleProducts.map((item, index) => Object.assign({ quantidade_vendida: 24 - index * 5 }, item)); }
+    async function supabaseSearchProducts() { return sampleProducts; }
+    async function supabaseListBusinessClients() {
+      return [{ id: '1', nome: 'INTERNATIONAL PARTS SERVICE DO BRASIL LTDA', nome_fantasia: 'IPS BRASIL', cnpj: '13180109000108', codigo_sap_cliente: '1', cidade: 'CURITIBA', estado: 'PR', telefone: '4130864388', email: 'comercial@ips.test', ativo: true }];
+    }
+    async function supabaseListBusinessCarriers() { return []; }
+    async function supabaseSaveBusinessClient() { return {}; }
+    async function supabaseSaveBusinessCarrier() { return {}; }
+    function formatCnpj(value) {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 14);
+      return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    }
+  </script>
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/products.js"></script>
+  <script src="../js/partners.js"></script>
+  <script>
+    const target = document.getElementById('smokeTarget');
+    const moduleName = new URLSearchParams(location.search).get('module') || 'dashboard';
+    if (moduleName === 'products') renderProducts(target).then(() => runProductSearch({ listaGeral: true }));
+    else if (moduleName === 'partners') renderBusinessPartners(target);
+    else renderDashboard(target);
+    CrmUi.observeResponsiveTables(target);
+  </script>
+</body>
+</html>
