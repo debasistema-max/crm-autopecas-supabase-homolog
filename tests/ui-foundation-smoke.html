@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Fundação visual</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <div class="app-shell">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Fechar menu"></button>
+    <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+      <div class="sidebar-header">
+        <a class="sidebar-brand" href="#" aria-label="Ir para o início">
+          <img src="../assets/logo-neutral.svg" alt="" class="sidebar-logo">
+          <span class="sidebar-brand-copy"><strong>Nova Empresa</strong><small>CRM Comercial</small></span>
+        </a>
+      </div>
+      <nav class="side-nav" aria-label="Módulos">
+        <section class="nav-group" data-nav-group><h2 class="nav-group-label">Comercial</h2>
+          <button class="nav-item is-active" data-module="dashboard" type="button"><span class="nav-icon" aria-hidden="true">IN</span><span class="nav-label">Início</span></button>
+          <button class="nav-item" data-module="partners" type="button"><span class="nav-icon" aria-hidden="true">CL</span><span class="nav-label">Parceiros</span></button>
+        </section>
+        <section class="nav-group" data-nav-group><h2 class="nav-group-label">Operação</h2>
+          <button class="nav-item" data-module="sap" type="button"><span class="nav-icon" aria-hidden="true">IM</span><span class="nav-label">Importações</span></button>
+        </section>
+      </nav>
+      <div class="sidebar-footer"><button class="sidebar-collapse" id="sidebarCollapseButton" type="button"><span class="sidebar-collapse-icon">‹</span><span class="sidebar-collapse-label">Recolher menu</span></button></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar"><button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button><div class="topbar-title"><p class="topbar-kicker" id="pageContext">Comercial</p><h1 id="pageTitle">Início</h1></div><div class="topbar-user"><span class="topbar-user-copy"><strong id="userName">Administrador Homologação</strong><small id="userRole">ADMIN</small></span><button class="btn btn-ghost" id="logoutButton" type="button">Sair</button></div></header>
+      <main class="content" id="content">
+        <header class="page-header"><div><p class="page-header-eyebrow">Operação diária</p><h2>Visão geral</h2><p>Fundação visual compartilhada do CRM.</p></div><div class="page-header-actions"><button class="btn btn-primary" type="button">Nova cotação</button><button class="btn btn-secondary" type="button">Novo pedido</button></div></header>
+        <section class="panel"><div class="panel-header"><div><h2>Pedidos recentes</h2><p>Tabela genérica com adaptação mobile.</p></div></div><div class="table-wrap"><table><thead><tr><th>Número</th><th>Cliente</th><th>Filial</th><th>Total</th><th>Status</th></tr></thead><tbody><tr><td>000123</td><td>Cliente demonstração</td><td>SP</td><td>R$ 680,02</td><td><span class="status-pill ok">Aprovado</span></td></tr></tbody></table></div></section>
+      </main>
+    </section>
+  </div>
+  <script src="../js/components/ui.js"></script>
+  <script>
+    function getStoredSession() { return { nome: 'Administrador Homologação', perfil: 'ADMIN', modules: [] }; }
+    function getSessionId() { return 'smoke'; }
+    async function validateCurrentSession() { return getStoredSession(); }
+    async function loadCompanySettings() { return {}; }
+    async function supabaseLogout() {}
+    function clearStoredSession() {}
+    async function renderDashboard() {}
+    async function renderProducts() {}
+    async function renderOrdersReport() {}
+    async function renderStockTransfers() {}
+    async function renderQuotationsReport() {}
+    async function renderBusinessPartners() {}
+    async function renderImportCenter() {}
+    async function renderCadastrosClientes() {}
+    async function renderPortalCadastrosControle() {}
+    async function renderCompanySettings() {}
+    async function renderFiscalTaxRules() {}
+    async function renderUsers() {}
+    async function renderLogs() {}
+  </script>
+  <script src="../js/app.js"></script>
+  <script>
+    setTimeout(() => {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td>000124</td><td>Cliente dinâmico</td><td>PR</td><td>R$ 347,85</td><td><span class="status-pill info">Em análise</span></td>';
+      document.querySelector('tbody').appendChild(row);
+    }, 20);
+  </script>
+</body>
+</html>

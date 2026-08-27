@@ -1,18 +1,45 @@
 :root {
-  --bg: #f4f6f8;
+  color-scheme: light;
+  --bg: #f3f5f7;
   --surface: #ffffff;
-  --surface-2: #eef2f6;
-  --text: #17212b;
-  --muted: #667485;
-  --line: #d9e0e7;
-  --primary: #0d6b5f;
-  --primary-strong: #074f47;
-  --accent: #c63f2d;
-  --warning: #b87900;
-  --success: #168454;
-  --shadow: 0 18px 45px rgba(16, 28, 40, 0.12);
-  --radius: 8px;
-  --font: Arial, Helvetica, sans-serif;
+  --surface-subtle: #f8fafb;
+  --surface-2: #edf1f4;
+  --surface-inverse: #172630;
+  --text: #17232d;
+  --text-strong: #0f1b24;
+  --muted: #647281;
+  --muted-strong: #4d5b68;
+  --line: #d7dee5;
+  --line-strong: #c4ced7;
+  --border: var(--line);
+  --surface-soft: var(--surface-subtle);
+  --primary: #0b6f62;
+  --primary-strong: #07564d;
+  --primary-soft: #e5f3f0;
+  --danger: #b83227;
+  --danger-soft: #fcebea;
+  --accent: var(--danger);
+  --warning: #9b6500;
+  --warning-soft: #fff3d8;
+  --success: #137a4d;
+  --success-soft: #e6f5ed;
+  --info: #2a607d;
+  --info-soft: #e8f2f8;
+  --focus-ring: 0 0 0 3px rgba(11, 111, 98, 0.16);
+  --shadow-sm: 0 1px 2px rgba(16, 28, 40, 0.05);
+  --shadow-md: 0 8px 24px rgba(16, 28, 40, 0.08);
+  --shadow: var(--shadow-md);
+  --radius-sm: 5px;
+  --radius: 7px;
+  --radius-lg: 10px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 * { box-sizing: border-box; }
@@ -22,6 +49,9 @@ body {
   font-family: var(--font);
   color: var(--text);
   background: var(--bg);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
 button, input, select, textarea {
@@ -30,6 +60,23 @@ button, input, select, textarea {
 
 a { color: inherit; }
 
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .btn {
   min-height: 40px;
   border: 1px solid transparent;
@@ -37,6 +84,7 @@ a { color: inherit; }
   padding: 0 16px;
   cursor: pointer;
   font-weight: 700;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn:disabled {
@@ -50,6 +98,12 @@ a { color: inherit; }
 }
 
 .btn-primary:hover { background: var(--primary-strong); }
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible {
+  box-shadow: var(--focus-ring);
+}
 
 .btn-secondary {
   color: var(--primary-strong);
@@ -95,7 +149,7 @@ textarea {
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(13, 107, 95, 0.13);
+  box-shadow: var(--focus-ring);
 }
 
 .form-message {
@@ -129,3 +183,16 @@ input:focus, select:focus, textarea:focus {
 
 .status-pill.ok { color: var(--success); background: #e9f7f0; }
 .status-pill.warn { color: var(--warning); background: #fff4dc; }
+.status-pill.error { color: var(--danger); background: var(--danger-soft); }
+.status-pill.info { color: var(--info); background: var(--info-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

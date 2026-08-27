@@ -1,18 +1,20 @@
 const MODULES = {
-  dashboard: { title: 'Inicio', domain: 'dashboard', permission: 'dashboard', render: renderDashboard },
-  products: { title: 'Produtos', domain: 'products', permission: 'produtos', render: renderProducts },
-  ordersReport: { title: 'Pedidos', domain: 'orders', permission: ['pedidos', 'novo_pedido'], render: renderOrdersReport },
-  stockTransfers: { title: 'Transferencias', domain: 'orders', permission: 'pedidos', render: renderStockTransfers },
-  quoteReports: { title: 'Cotacoes', domain: 'quotes', permission: ['cotacoes', 'nova_cotacao'], render: renderQuotationsReport },
-  partners: { title: 'Parceiros de Negocios', domain: 'customers', permission: 'parceiros', render: renderBusinessPartners },
-  sap: { title: 'Importações', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], render: renderImportCenter },
-  cadastros: { title: 'Cadastros', domain: 'customers', permission: 'cadastros', render: renderCadastrosClientes },
-  portalCadastros: { title: 'Portal Clientes', domain: 'customers', permission: 'usuarios', adminOnly: true, render: renderPortalCadastrosControle },
-  companySettings: { title: 'Configuracoes da Empresa', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderCompanySettings },
-  taxRules: { title: 'Impostos', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderFiscalTaxRules },
-  users: { title: 'Usuarios', domain: 'users', permission: 'usuarios', render: renderUsers },
-  logs: { title: 'Logs', domain: 'reports', permission: 'logs', render: renderLogs }
+  dashboard: { title: 'Início', section: 'Comercial', domain: 'dashboard', permission: 'dashboard', render: renderDashboard },
+  products: { title: 'Produtos', section: 'Catálogo', domain: 'products', permission: 'produtos', render: renderProducts },
+  ordersReport: { title: 'Pedidos', section: 'Comercial', domain: 'orders', permission: ['pedidos', 'novo_pedido'], render: renderOrdersReport },
+  stockTransfers: { title: 'Transferências', section: 'Operação', domain: 'orders', permission: 'pedidos', render: renderStockTransfers },
+  quoteReports: { title: 'Cotações', section: 'Comercial', domain: 'quotes', permission: ['cotacoes', 'nova_cotacao'], render: renderQuotationsReport },
+  partners: { title: 'Parceiros de negócios', section: 'Comercial', domain: 'customers', permission: 'parceiros', render: renderBusinessPartners },
+  sap: { title: 'Importações', section: 'Operação', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], render: renderImportCenter },
+  cadastros: { title: 'Cadastros', section: 'Operação', domain: 'customers', permission: 'cadastros', render: renderCadastrosClientes },
+  portalCadastros: { title: 'Portal de clientes', section: 'Operação', domain: 'customers', permission: 'usuarios', adminOnly: true, render: renderPortalCadastrosControle },
+  companySettings: { title: 'Configurações da empresa', section: 'Sistema', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderCompanySettings },
+  taxRules: { title: 'Fiscal', section: 'Sistema', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderFiscalTaxRules },
+  users: { title: 'Usuários', section: 'Gestão', domain: 'users', permission: 'usuarios', render: renderUsers },
+  logs: { title: 'Logs', section: 'Gestão', domain: 'reports', permission: 'logs', render: renderLogs }
 };
+
+const SIDEBAR_PREFERENCE_KEY = 'crm.sidebar.collapsed.v1';
 
 const MODULE_ALIASES = {
   customers: { module: 'partners' },
@@ -50,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function bootstrapAppShell() {
   applySessionToShell();
+  setupSidebarCollapse();
   document.getElementById('logoutButton').addEventListener('click', logoutCurrentUser);
   document.getElementById('menuButton').addEventListener('click', () => {
     toggleMobileMenu();
@@ -69,6 +72,7 @@ function bootstrapAppShell() {
 
   setupNavigation();
   setupMobileNavigation();
+  CrmUi.observeResponsiveTables(document.getElementById('content'));
   const initialHash = location.hash.replace('#', '') || 'dashboard';
   const initial = getModuleRoute(initialHash);
   openModule(MODULES[initial.module] ? initialHash : 'dashboard');
@@ -76,6 +80,8 @@ function bootstrapAppShell() {
 
 function applySessionToShell() {
   document.getElementById('userName').textContent = currentSession.nome || currentSession.usuario || 'Usuario';
+  const role = document.getElementById('userRole');
+  if (role) role.textContent = String(currentSession.perfil || 'Usuário').toUpperCase();
   loadCompanySettings().catch((error) => console.warn(error));
 }
 
@@ -101,7 +107,42 @@ function applyNavigationVisibility() {
     const blockedByAdmin = !!(module && module.adminOnly && !isCurrentUserAdmin());
     button.hidden = blockedByPermission || blockedByAdmin;
   });
+  document.querySelectorAll('[data-nav-group]').forEach((group) => {
+    group.hidden = !Array.from(group.querySelectorAll('.nav-item')).some((button) => !button.hidden);
+  });
   applyMobileNavigationVisibility();
+}
+
+function setupSidebarCollapse() {
+  const button = document.getElementById('sidebarCollapseButton');
+  if (!button) return;
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(SIDEBAR_PREFERENCE_KEY) === 'true';
+  } catch (error) {
+    console.warn('Preferência do menu não pôde ser restaurada.', error);
+  }
+  setSidebarCollapsed(collapsed);
+  button.addEventListener('click', () => setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'), true));
+}
+
+function setSidebarCollapsed(collapsed, persist = false) {
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+  const button = document.getElementById('sidebarCollapseButton');
+  if (button) {
+    button.setAttribute('aria-pressed', String(collapsed));
+    button.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+    const label = button.querySelector('.sidebar-collapse-label');
+    const icon = button.querySelector('.sidebar-collapse-icon');
+    if (label) label.textContent = collapsed ? 'Expandir menu' : 'Recolher menu';
+    if (icon) icon.textContent = collapsed ? '›' : '‹';
+  }
+  if (!persist) return;
+  try {
+    localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(collapsed));
+  } catch (error) {
+    console.warn('Preferência do menu não pôde ser salva.', error);
+  }
 }
 
 function applyMobileNavigationVisibility() {
@@ -130,25 +171,38 @@ async function openModule(name) {
   toggleMobileMenu(false);
 
   if (module.adminOnly && !isCurrentUserAdmin()) {
-    content.innerHTML = '<div class="empty-state">Voce nao tem permissao para acessar este modulo.</div>';
+    content.innerHTML = CrmUi.renderState('error', 'Acesso não permitido', 'Seu perfil não possui permissão para acessar este módulo.');
     content.focus();
     return;
   }
 
   if (!hasModuleAccess(module, allowed)) {
-    content.innerHTML = '<div class="empty-state">Voce nao tem permissao para acessar este modulo.</div>';
+    content.innerHTML = CrmUi.renderState('error', 'Acesso não permitido', 'Seu perfil não possui permissão para acessar este módulo.');
     content.focus();
     return;
   }
 
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('is-active', item.dataset.module === moduleName));
+  document.querySelectorAll('.nav-item').forEach((item) => {
+    const active = item.dataset.module === moduleName;
+    item.classList.toggle('is-active', active);
+    if (active) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
   document.querySelectorAll('[data-mobile-module]').forEach((item) => item.classList.toggle('is-active', item.dataset.mobileModule === moduleName));
   document.getElementById('pageTitle').textContent = module.title;
+  const context = document.getElementById('pageContext');
+  if (context) context.textContent = module.section || 'CRM Comercial';
   if (location.hash !== `#${moduleName}`) {
     history.replaceState(null, '', `#${moduleName}`);
   }
 
-  await module.render(content, { action: route.action });
+  try {
+    await module.render(content, { action: route.action });
+    CrmUi.enhanceResponsiveTables(content);
+  } catch (error) {
+    console.error(`Falha ao carregar o módulo ${moduleName}.`, error);
+    content.innerHTML = CrmUi.renderState('error', 'Não foi possível carregar esta área', error.message || 'Tente novamente em instantes.');
+  }
   content.focus();
 }
 

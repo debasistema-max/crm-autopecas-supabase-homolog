@@ -4,43 +4,65 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nova Empresa | CRM</title>
-  <link rel="stylesheet" href="css/theme.css?v=20260701-5">
-  <link rel="stylesheet" href="css/app.css?v=20260826-1">
+  <link rel="stylesheet" href="css/theme.css?v=20260826-2">
+  <link rel="stylesheet" href="css/app.css?v=20260826-2">
 </head>
 <body class="app-page">
   <div class="app-shell">
     <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Fechar menu"></button>
-    <aside class="sidebar" id="sidebar">
-      <a class="sidebar-brand" href="#dashboard" aria-label="Inicio">
-        <img src="assets/logo-neutral.svg" alt="" class="sidebar-logo" data-company-logo>
-        <span data-company-name>Nova Empresa</span>
-      </a>
+    <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+      <div class="sidebar-header">
+        <a class="sidebar-brand" href="#dashboard" aria-label="Ir para o início">
+          <img src="assets/logo-neutral.svg" alt="" class="sidebar-logo" data-company-logo>
+          <span class="sidebar-brand-copy"><strong data-company-name>Nova Empresa</strong><small>CRM Comercial</small></span>
+        </a>
+      </div>
       <nav class="side-nav" aria-label="Modulos">
-        <button class="nav-item is-active" data-module="dashboard">Inicio</button>
-        <button class="nav-item" data-module="products">Produtos</button>
-        <button class="nav-item" data-module="ordersReport">Pedidos</button>
-        <button class="nav-item" data-module="stockTransfers">Transferencias</button>
-        <button class="nav-item" data-module="quoteReports">Cotacoes</button>
-        <button class="nav-item" data-module="partners">Parceiros</button>
-        <button class="nav-item" data-module="sap">Importações</button>
-        <button class="nav-item" data-module="cadastros">Cadastros</button>
-        <button class="nav-item" data-module="portalCadastros">Portal Clientes</button>
-        <button class="nav-item" data-module="companySettings">Configuracoes da Empresa</button>
-        <button class="nav-item" data-module="taxRules">Impostos</button>
-        <button class="nav-item" data-module="users">Usuarios</button>
-        <button class="nav-item" data-module="logs">Logs</button>
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Comercial</h2>
+          <button class="nav-item is-active" data-module="dashboard" title="Início"><span class="nav-icon" aria-hidden="true">IN</span><span class="nav-label">Início</span></button>
+          <button class="nav-item" data-module="partners" title="Clientes e transportadoras"><span class="nav-icon" aria-hidden="true">CL</span><span class="nav-label">Parceiros</span></button>
+          <button class="nav-item" data-module="quoteReports" title="Cotações"><span class="nav-icon" aria-hidden="true">CT</span><span class="nav-label">Cotações</span></button>
+          <button class="nav-item" data-module="ordersReport" title="Pedidos"><span class="nav-icon" aria-hidden="true">PD</span><span class="nav-label">Pedidos</span></button>
+        </section>
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Catálogo</h2>
+          <button class="nav-item" data-module="products" title="Produtos"><span class="nav-icon" aria-hidden="true">PR</span><span class="nav-label">Produtos</span></button>
+        </section>
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Operação</h2>
+          <button class="nav-item" data-module="stockTransfers" title="Transferências"><span class="nav-icon" aria-hidden="true">TR</span><span class="nav-label">Transferências</span></button>
+          <button class="nav-item" data-module="sap" title="Importações"><span class="nav-icon" aria-hidden="true">IM</span><span class="nav-label">Importações</span></button>
+          <button class="nav-item" data-module="cadastros" title="Cadastros"><span class="nav-icon" aria-hidden="true">CD</span><span class="nav-label">Cadastros</span></button>
+          <button class="nav-item" data-module="portalCadastros" title="Portal de clientes"><span class="nav-icon" aria-hidden="true">PC</span><span class="nav-label">Portal de clientes</span></button>
+        </section>
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Gestão</h2>
+          <button class="nav-item" data-module="users" title="Usuários"><span class="nav-icon" aria-hidden="true">US</span><span class="nav-label">Usuários</span></button>
+          <button class="nav-item" data-module="logs" title="Logs"><span class="nav-icon" aria-hidden="true">LG</span><span class="nav-label">Logs</span></button>
+        </section>
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Sistema</h2>
+          <button class="nav-item" data-module="companySettings" title="Configurações da empresa"><span class="nav-icon" aria-hidden="true">CF</span><span class="nav-label">Configurações</span></button>
+          <button class="nav-item" data-module="taxRules" title="Configuração fiscal"><span class="nav-icon" aria-hidden="true">FI</span><span class="nav-label">Fiscal</span></button>
+        </section>
       </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-collapse" id="sidebarCollapseButton" type="button" aria-label="Recolher menu" aria-pressed="false">
+          <span class="sidebar-collapse-icon" aria-hidden="true">‹</span><span class="sidebar-collapse-label">Recolher menu</span>
+        </button>
+      </div>
     </aside>
 
     <section class="workspace">
       <header class="topbar">
         <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button>
-        <div>
-          <p class="topbar-kicker">Operacao Comercial</p>
+        <div class="topbar-title">
+          <p class="topbar-kicker" id="pageContext">Comercial</p>
           <h1 id="pageTitle">Inicio</h1>
         </div>
         <div class="topbar-user">
-          <span id="userName">Usuario</span>
+          <span class="topbar-user-copy"><strong id="userName">Usuário</strong><small id="userRole">Perfil</small></span>
           <button class="btn btn-ghost" id="logoutButton" type="button">Sair</button>
         </div>
       </header>
@@ -74,6 +96,7 @@
   <script src="js/quotes.js?v=20260826-2"></script>
   <script src="js/tax_rules.js?v=20260826-2"></script>
   <script src="js/users.js?v=20260815-1"></script>
-  <script src="js/app.js?v=20260815-5"></script>
+  <script src="js/components/ui.js?v=20260826-1"></script>
+  <script src="js/app.js?v=20260826-1"></script>
 </body>
 </html>
