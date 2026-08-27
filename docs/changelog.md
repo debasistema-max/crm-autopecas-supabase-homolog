@@ -1,5 +1,24 @@
 # Changelog técnico
 
+## 2026-08-27 — Fase 2, entrega 3: relatórios e edição comercial
+
+- relatórios de cotações e pedidos passaram a usar cabeçalho, filtros, métricas,
+  estados e tabelas do design system;
+- edição de documentos foi integrada ao layout comercial responsivo sem alterar
+  as rotinas existentes de salvar, efetivar, cancelar, duplicar ou converter;
+- memória fiscal histórica passou a identificar explicitamente o snapshot e a
+  exibir a composição disponível de IPI, ICMS próprio e ICMS-ST;
+- abertura de cotação e pedido possui regressão que garante ausência de novo
+  cálculo fiscal e ausência de mutações no banco;
+- corrigida contenção de largura das tabelas no grid, eliminando overflow entre
+  320 e 1440 px;
+- controles touch da edição passaram a respeitar no mínimo 44 px;
+- nenhuma migration, RPC, permissão, status ou fórmula fiscal foi alterada.
+
+Risco remanescente: a edição continua refletindo apenas os campos fiscais já
+armazenados no snapshot. Documentos legados sem detalhes fiscais permanecem
+identificados como preço legado e não recebem valores presumidos.
+
 ## 2026-08-27 — Fase 2, entrega 2: cotações e pedidos
 
 - criação de cotação e pedido passou a usar cabeçalho e estados do design system;

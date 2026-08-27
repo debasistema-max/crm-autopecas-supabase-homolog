@@ -2188,6 +2188,107 @@ textarea {
   background: var(--primary);
 }
 
+.document-report-filter-panel {
+  padding-bottom: 14px;
+}
+
+.document-report-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.document-report-page > * {
+  min-width: 0;
+}
+
+.document-report-filters {
+  align-items: end;
+}
+
+.document-report-filters .actions-row,
+.document-report-filters .btn {
+  width: 100%;
+}
+
+.document-report-toolbar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.document-report-toolbar .form-message {
+  flex: 1;
+  margin: 0;
+}
+
+.document-report-results {
+  min-width: 0;
+}
+
+.document-report-results > .ui-state {
+  min-height: 220px;
+  border: 0;
+  padding: 18px;
+  box-shadow: none;
+}
+
+.document-report-metrics {
+  margin-bottom: 20px;
+}
+
+.document-report-metrics .metric-card {
+  background: var(--surface-soft);
+}
+
+.document-report-metrics .metric-card strong {
+  color: var(--text-strong);
+  font-size: clamp(20px, 2vw, 26px);
+}
+
+.document-report-result-heading {
+  margin-bottom: 10px;
+}
+
+.document-report-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.document-report-table {
+  min-width: 980px;
+}
+
+.document-report-table thead {
+  background: var(--surface-soft);
+}
+
+.document-report-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.document-edit-panel[hidden] {
+  display: none;
+}
+
+.document-edit-workspace .sap-window {
+  overflow: hidden;
+}
+
+.document-edit-workspace .sap-footer-actions {
+  padding-inline: 4px;
+}
+
+.fiscal-row-breakdown {
+  max-width: 360px;
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.45;
+  white-space: normal;
+}
+
 .import-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2795,6 +2896,15 @@ button:disabled {
   .sap-tab-panel {
     min-height: auto;
   }
+  .commercial-document .sap-tabs button,
+  .commercial-document .sap-footer-actions .btn {
+    min-height: 46px;
+  }
+  .commercial-document .sap-remove-button {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -2962,6 +3072,36 @@ button:disabled {
   }
   .metric-card strong {
     font-size: 22px;
+  }
+  .document-report-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .document-report-toolbar .btn {
+    width: 100%;
+  }
+  .document-report-results {
+    padding: 10px;
+  }
+  .document-report-results > .ui-state {
+    min-height: 160px;
+    padding: 12px;
+  }
+  .document-report-metrics {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .document-report-table-wrap {
+    border: 0;
+  }
+  .document-report-table {
+    min-width: 0;
+  }
+  .document-report-table tbody td:last-child {
+    padding-top: 12px;
+  }
+  .document-edit-workspace .sap-footer-actions {
+    padding-inline: 10px;
   }
   .mobile-nav {
     position: fixed;

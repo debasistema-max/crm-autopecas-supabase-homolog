@@ -796,41 +796,47 @@ function renderDocumentReportShell(kind) {
   const from = new Date(today);
   from.setDate(from.getDate() - 30);
   return `
-    <section class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>${title}</h2>
-          <p>Relatorio de ${title.toLowerCase()} por periodo, cliente, vendedor e status.</p>
+    <div class="module-page document-report-page">
+      ${CrmUi.renderPageHeader(
+        title,
+        `Acompanhe ${title.toLowerCase()} por periodo, cliente, vendedor e status.`,
+        canCreate ? `<button class="btn btn-primary" id="${kind}NewButton" type="button">${createLabel}</button>` : '',
+        'Comercial'
+      )}
+      <section class="panel document-report-filter-panel">
+        <div class="section-heading">
+          <div><h3>Filtros do relatorio</h3><p>Localize rapidamente por numero, cliente, CNPJ, SAP, vendedor ou situacao.</p></div>
         </div>
-        ${canCreate ? `<button class="btn btn-primary" id="${kind}NewButton" type="button">${createLabel}</button>` : ''}
-      </div>
-      ${canReport ? `<div class="field-grid">
-        <label class="span-4">Pesquisar
-          <input id="${kind}Search" placeholder="${numberLabel}, cliente, CNPJ, SAP ou vendedor">
-        </label>
-        <label class="span-2">De
-          <input id="${kind}From" type="date" value="${formatDateInput(from)}">
-        </label>
-        <label class="span-2">Ate
-          <input id="${kind}To" type="date" value="${formatDateInput(today)}">
-        </label>
-        <label class="span-2">Status
-          <select id="${kind}Status">
-            <option value="">Todos</option>
-            ${documentStatusOptions(kind).map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('')}
-          </select>
-        </label>
-        <div class="span-2 actions-row align-end">
-          <button class="btn btn-primary" id="${kind}FilterButton" type="button">Filtrar</button>
+        ${canReport ? `<div class="field-grid document-report-filters">
+          <label class="span-4">Pesquisar
+            <input id="${kind}Search" type="search" placeholder="${numberLabel}, cliente, CNPJ, SAP ou vendedor">
+          </label>
+          <label class="span-2">De
+            <input id="${kind}From" type="date" value="${formatDateInput(from)}">
+          </label>
+          <label class="span-2">Ate
+            <input id="${kind}To" type="date" value="${formatDateInput(today)}">
+          </label>
+          <label class="span-2">Status
+            <select id="${kind}Status">
+              <option value="">Todos</option>
+              ${documentStatusOptions(kind).map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('')}
+            </select>
+          </label>
+          <div class="span-2 actions-row align-end">
+            <button class="btn btn-primary" id="${kind}FilterButton" type="button">Filtrar</button>
+          </div>
         </div>
-      </div>
-      <div class="actions-row" style="margin-top: 12px;">
-        <button class="btn btn-secondary" id="${kind}ExportButton" type="button">Baixar CSV</button>
-        <p id="${kind}Message" class="form-message"></p>
-      </div>` : `<p id="${kind}Message" class="form-message">Use o botao ${createLabel} para criar um novo documento.</p>`}
-    </section>
-    <section class="panel" id="${kind}EditPanel" hidden></section>
-    <section class="panel" id="${kind}Results">${canReport ? `<div class="empty-state">Carregando ${title.toLowerCase()}...</div>` : `<div class="empty-state">Voce nao tem permissao para consultar o relatorio de ${title.toLowerCase()}.</div>`}</section>
+        <div class="document-report-toolbar">
+          <button class="btn btn-secondary" id="${kind}ExportButton" type="button">Baixar CSV</button>
+          <p id="${kind}Message" class="form-message" aria-live="polite"></p>
+        </div>` : `<div id="${kind}Message">${CrmUi.renderState('empty', 'Consulta nao autorizada', `Use o botao ${createLabel} para criar um novo documento.`)}</div>`}
+      </section>
+      <section class="document-edit-panel" id="${kind}EditPanel" hidden></section>
+      <section class="panel document-report-results" id="${kind}Results" aria-live="polite">${canReport
+        ? CrmUi.renderState('loading', `Carregando ${title.toLowerCase()}`, 'Consultando os documentos do periodo selecionado.')
+        : CrmUi.renderState('error', 'Acesso nao permitido', `Voce nao tem permissao para consultar o relatorio de ${title.toLowerCase()}.`)}</section>
+    </div>
   `;
 }
 
@@ -877,10 +883,10 @@ async function loadDocumentReport(kind) {
   const target = document.getElementById(`${kind}Results`);
   const reportPermission = kind === 'pedidos' ? 'pedidos' : 'cotacoes';
   if (!userHasModulePermission(reportPermission)) {
-    target.innerHTML = `<div class="empty-state">Voce nao tem permissao para consultar este relatorio.</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Acesso nao permitido', 'Voce nao tem permissao para consultar este relatorio.');
     return;
   }
-  target.innerHTML = '<div class="empty-state">Carregando relatorio...</div>';
+  target.innerHTML = CrmUi.renderState('loading', 'Carregando relatorio', 'Consultando os documentos do periodo selecionado.');
   try {
     const filters = getDocumentFilters(kind);
     const rows = kind === 'pedidos'
@@ -890,23 +896,26 @@ async function loadDocumentReport(kind) {
     target.innerHTML = renderDocumentReport(kind, rows);
     bindDocumentEditButtons(kind, rows);
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel carregar o relatorio', error.message);
   }
 }
 
 function renderDocumentReport(kind, rows) {
-  if (!rows.length) return '<div class="empty-state">Nenhum registro encontrado.</div>';
+  if (!rows.length) return CrmUi.renderState('empty', 'Nenhum registro encontrado', 'Ajuste o periodo ou remova alguns filtros.');
   const numberKey = kind === 'pedidos' ? 'numero_pedido' : 'numero_cotacao';
   const total = rows.reduce((sum, row) => sum + Number(row.total || 0), 0);
   return `
-    <div class="cards" style="margin-bottom: 16px;">
+    <div class="cards document-report-metrics">
       <article class="metric-card"><span>Registros</span><strong>${rows.length}</strong></article>
       <article class="metric-card"><span>Total</span><strong>${money(total)}</strong></article>
       <article class="metric-card"><span>Ticket medio</span><strong>${money(total / rows.length)}</strong></article>
       <article class="metric-card"><span>Ultimo</span><strong>${escapeHtml(rows[0][numberKey] || '')}</strong></article>
     </div>
-    <div class="table-wrap">
-      <table>
+    <div class="section-heading document-report-result-heading">
+      <div><h3>Documentos encontrados</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} no periodo e filtros selecionados.</p></div>
+    </div>
+    <div class="table-wrap document-report-table-wrap">
+      <table class="document-report-table">
         <thead>
           <tr>
             <th>Numero</th><th>Data</th><th>Cliente</th><th>SAP</th><th>Vendedor</th><th>Status</th>${kind === 'pedidos' ? '<th>Transferencia</th>' : ''}<th>Total</th><th></th>
@@ -1037,14 +1046,14 @@ function showDocumentEditForm(kind, row) {
   window[`${kind}EditDirty`] = false;
   panel.hidden = false;
   panel.innerHTML = `
-    <section class="sap-document">
+    <section class="sap-document commercial-document document-edit-workspace">
       <div class="sap-titlebar">
         <div class="sap-title"><span class="sap-title-icon">#</span><h2>${title}</h2></div>
-        <strong>No. ${escapeHtml(row[numberKey] || '')}</strong>
+        <strong class="sap-document-number">No. ${escapeHtml(row[numberKey] || '')}</strong>
       </div>
       <div class="sap-window">
         <section class="sap-section">
-          <h3>Dados gerais</h3>
+          <div class="sap-section-heading"><div><h3>Dados gerais</h3><p>Dados preservados do cliente, filial e situacao deste documento.</p></div></div>
           <div class="sap-form-grid">
             <div class="sap-form-left">
               <label>Filial<input type="text" value="${escapeHtml(branchLabel)}" readonly></label>
@@ -1073,17 +1082,17 @@ function showDocumentEditForm(kind, row) {
             </div>
           </div>
         </section>
-        ${kind === 'pedidos' ? `<section class="sap-section" id="${kind}TransferPanel"><h3>Transferencias</h3><div class="empty-state compact-state">Carregando transferencias vinculadas...</div></section>` : ''}
+        ${kind === 'pedidos' ? `<section class="sap-section" id="${kind}TransferPanel"><div class="sap-section-heading"><div><h3>Transferencias</h3><p>Solicitacoes vinculadas a este pedido.</p></div></div>${CrmUi.renderState('loading', 'Carregando transferencias', 'Consultando movimentacoes vinculadas.')}</section>` : ''}
         <section class="sap-section">
-          <h3>Fiscal</h3>
+          <div class="sap-section-heading"><div><h3>Memoria fiscal</h3><p>Snapshot preservado no momento da criacao do documento; esta abertura nao recalcula impostos.</p></div></div>
           ${renderDocumentFiscalPanel(window[`${kind}EditingItems`] || [])}
         </section>
         <section class="sap-section sap-tabs-section">
-          <div class="sap-tabs">
-            <button class="is-active" type="button" data-sap-tab="edit-items">Itens</button>
-            <button type="button" data-sap-tab="edit-freight">Frete / Pagamento</button>
+          <div class="sap-tabs" role="tablist" aria-label="Detalhes do documento">
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="edit-items">Itens</button>
+            <button type="button" role="tab" aria-selected="false" data-sap-tab="edit-freight">Frete / Pagamento</button>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="edit-items">
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="edit-items">
             <div class="sap-tab-tools">
               <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos preservados no documento</span>
               <span id="${kind}EditCount">0 itens</span>
@@ -1105,14 +1114,12 @@ function showDocumentEditForm(kind, row) {
                     <button class="btn btn-primary" id="${kind}EditProductSearchButton" type="button">Buscar</button>
                   </div>
                 </div>
-                <div id="${kind}EditProductResults" class="sap-product-results">
-                  <div class="empty-state compact-state">Pesquise para adicionar novos itens.</div>
-                </div>
+                <div id="${kind}EditProductResults" class="sap-product-results">${CrmUi.renderState('empty', 'Pesquise um produto', 'Use codigo, EAN, nome ou grupo para adicionar itens.')}</div>
               </div>
               <div class="sap-totals" id="${kind}EditTotals"></div>
             </div>
           </div>
-          <div class="sap-tab-panel" data-sap-panel="edit-freight" hidden>
+          <div class="sap-tab-panel" role="tabpanel" data-sap-panel="edit-freight" hidden>
             <div class="sap-freight-grid">
               <label>Tipo de envio<input type="text" value="PAGO DESTINATARIO" readonly></label>
               <label>Codigo transportadora<input type="text" value="${escapeHtml(row.transportadora_cnpj || '')}" readonly></label>
@@ -1158,16 +1165,17 @@ function showDocumentEditForm(kind, row) {
 async function loadOrderTransferPanel(orderId, panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
+  const heading = '<div class="sap-section-heading"><div><h3>Transferencias</h3><p>Solicitacoes vinculadas a este pedido.</p></div></div>';
   try {
     const rows = await supabaseListOrderTransferRequests(orderId);
-    panel.innerHTML = '<h3>Transferencias</h3>' + renderOrderTransferPanelRows(rows);
+    panel.innerHTML = heading + renderOrderTransferPanelRows(rows);
   } catch (error) {
-    panel.innerHTML = `<h3>Transferencias</h3><div class="empty-state compact-state">${escapeHtml(error.message)}</div>`;
+    panel.innerHTML = heading + CrmUi.renderState('error', 'Nao foi possivel carregar as transferencias', error.message);
   }
 }
 
 function renderOrderTransferPanelRows(rows) {
-  if (!rows.length) return '<div class="empty-state compact-state">Nenhuma transferencia vinculada a este pedido.</div>';
+  if (!rows.length) return CrmUi.renderState('empty', 'Nenhuma transferencia vinculada', 'Este pedido nao possui solicitacoes de transferencia.');
   return `
     <div class="table-wrap compact-table">
       <table>
@@ -1213,15 +1221,19 @@ function normalizeDocumentItems(items) {
 function renderDocumentFiscalPanel(items) {
   const rows = Array.isArray(items) ? items : [];
   if (!rows.length) return '<div class="empty-state compact-state">Nenhum item para analise fiscal.</div>';
-  const calculated = rows.filter((item) => item.fiscal_status === 'CALCULATED').length;
-  const missingNcm = rows.filter((item) => item.fiscal_status === 'MISSING_NCM').length;
-  const missingRule = rows.filter((item) => item.fiscal_status === 'MISSING_RULE').length;
+  const calculatedStatuses = ['CALCULATED', 'OK', 'OK_SEM_ST'];
+  const missingNcmStatuses = ['MISSING_NCM', 'NCM_AUSENTE'];
+  const missingRuleStatuses = ['MISSING_RULE', 'REGRA_FISCAL_AUSENTE', 'REGRA_FISCAL_INCOMPLETA'];
+  const calculated = rows.filter((item) => calculatedStatuses.includes(item.fiscal_status)).length;
+  const missingNcm = rows.filter((item) => missingNcmStatuses.includes(item.fiscal_status)).length;
+  const missingRule = rows.filter((item) => missingRuleStatuses.includes(item.fiscal_status)).length;
+  const knownStatuses = calculatedStatuses.concat(missingNcmStatuses, missingRuleStatuses);
   return `
     <div class="import-summary">
       <article><span>Calculados</span><strong>${calculated}</strong></article>
       <article><span>Sem NCM</span><strong>${missingNcm}</strong></article>
       <article><span>Sem regra</span><strong>${missingRule}</strong></article>
-      <article><span>Preco legado</span><strong>${rows.filter((item) => !['CALCULATED', 'MISSING_NCM', 'MISSING_RULE'].includes(item.fiscal_status)).length}</strong></article>
+      <article><span>Preco legado</span><strong>${rows.filter((item) => !knownStatuses.includes(item.fiscal_status)).length}</strong></article>
     </div>
     <div class="table-wrap compact-table">
       <table>
@@ -1247,7 +1259,7 @@ function renderDocumentFiscalRow(item) {
     <tr>
       <td><strong>${escapeHtml(item.codigo || '')}</strong><small>${escapeHtml(item.descricao || '')}</small></td>
       <td>${escapeHtml(formatFiscalNcm(ncm))}</td>
-      <td><span class="status-pill">${escapeHtml(status)}</span></td>
+      <td><span class="status-pill">${escapeHtml(status)}</span><small class="fiscal-row-breakdown">${escapeHtml(formatFiscalBreakdown(details))}</small></td>
       <td>${item.preco_sem_imposto_unitario == null ? '-' : money(item.preco_sem_imposto_unitario)}</td>
       <td>${item.imposto_unitario == null ? '-' : money(item.imposto_unitario)}</td>
       <td>${money(item.preco)}</td>

@@ -6,6 +6,8 @@
 - smoke pages em `tests/` para fiscal, importações e consulta CNPJ;
 - smoke operacional em `tests/ui-operational-smoke.html`, selecionável por
   `?module=dashboard`, `?module=products` ou `?module=partners`;
+- smoke de relatórios e edição comercial em
+  `tests/ui-document-reports-smoke.html?kind=cotacoes` e `?kind=pedidos`;
 - regressões SQL em `supabase/tests/`;
 - inspeção responsiva nos breakpoints definidos.
 
@@ -32,6 +34,22 @@
 - Cotação e Pedido obrigatoriamente recebem o mesmo preço no smoke;
 - `tests/ui-commercial-documents-smoke.html` não salva documentos nem acessa o
   Supabase.
+
+## Evidência da Fase 2 — entrega 3
+
+- relatórios e edição de Cotações e Pedidos inspecionados em 320, 360, 375,
+  390, 430, 768, 1024 e 1440 px;
+- nenhum overflow da página detectado nos 16 cenários;
+- nenhum botão visível abaixo de 44 px até 980 px;
+- tabela responsiva, filtros, métricas e abas da edição validados;
+- snapshot do produto `6111032201` validado com NCM `8512.20.11`, base de
+  R$ 232,00, tributos de R$ 115,85446 e preço final de R$ 347,85446;
+- memória validada com IPI de R$ 22,62, ICMS próprio de R$ 27,84 e ICMS-ST de
+  R$ 65,39446;
+- o teste exige zero chamadas de recálculo fiscal e zero mutações ao abrir o
+  documento;
+- `tests/ui-document-reports-smoke.html` usa dados locais simulados e não grava
+  no Supabase.
 
 ## Antes de publicar homologação
 
