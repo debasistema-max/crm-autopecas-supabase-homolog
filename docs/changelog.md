@@ -25,8 +25,10 @@
 - Pendências: versionamento imutável, classificação de componentes tributários
   ausentes, validação legal do perfil `LEGACY_REVENDA` e recuperação do baseline
   001–042 continuam na Fase 5B/5C.
-- Publicação do frontend: pendente de autorização explícita, pois o commit local
-  anterior inclui o relatório de auditoria com detalhes de segurança.
+- Publicação do frontend: concluída após autorização explícita. O workflow
+  `pages-build-deployment` 33703217362 terminou com sucesso; login público abriu
+  sem erro de console e os assets publicados confirmaram a Central de
+  Importações, seleção explícita de ST e remoção do importador fiscal direto.
 
 ## 2026-09-02 — Fase 4: auditoria fiscal
 

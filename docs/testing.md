@@ -150,3 +150,10 @@ Verificações adicionais:
 - `authenticated` mantém `EXECUTE` conforme regressão SQL;
 - as três migrations respondem `ALREADY_APPLIED` no histórico da homologação;
 - os valores fiscais esperados permaneceram inalterados.
+
+Após autorização explícita, os commits foram publicados no GitHub de
+homologação. O workflow `pages-build-deployment` 33703217362 terminou com
+sucesso. O smoke público confirmou a tela de login sem erros de console e os
+assets publicados contêm `taxRuleOpenImportCenter` e “Selecione explicitamente”,
+sem as rotinas removidas `importFiscalTaxRulesFromText` e “Automático: PR→SC sem
+ST”.
