@@ -1,5 +1,31 @@
 # Changelog técnico
 
+## 2026-09-02 — Fase 4: auditoria fiscal
+
+- Motivo: mapear integralmente regras, fórmulas, importações, seleção de preço,
+  snapshots, segurança e evidências legais antes de modificar o motor fiscal.
+- Antes: a documentação descrevia a implementação e os casos de regressão, mas
+  não classificava riscos nem separava equivalência com planilha de validação
+  tributária.
+- Depois: `fiscal-audit.md` registra arquitetura, fórmulas, dependências,
+  duplicações, riscos priorizados, golden cases e plano seguro para a engine v3.
+- Banco alterado: não. Migration: nenhuma. Dados fiscais: nenhum valor alterado.
+- Verificação real somente leitura: `get_product_commercial_price` e
+  `get_fiscal_pending` responderam anonimamente na homologação; o perfil
+  `LEGACY_REVENDA` ativo também foi confirmado.
+- Testes locais: 7/7 contratos estáticos e 25/25 verificações de sintaxe
+  JavaScript aprovados; regressões SQL não foram executadas no banco vivo.
+- Riscos bloqueantes: execução anônima de RPCs, fallback de preço legado em
+  documento fiscal inválido, perfil de revenda inferido de um caso, histórico
+  mutável e baseline 001–042 ausente do Git.
+- Planilha: hash confirmado; releitura estruturada independente ficou pendente
+  porque a ferramenta obrigatória não concluiu a importação. Nenhuma biblioteca
+  alternativa foi usada e o XLSX não foi alterado.
+- Fontes legais: somente documentos oficiais de Senado/Planalto, Receita
+  Federal, SEFAZ-SC e SEFAZ-SP. Cenários não certificados foram marcados
+  `REQUIRES_FISCAL_VALIDATION`.
+- Produção: não acessada e não alterada.
+
 ## 2026-09-02 — Fase 3: administração, login e regressão mobile
 
 - Motivo: preparar formulários e tabelas administrativas para mobile/tablet.

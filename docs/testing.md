@@ -98,3 +98,22 @@ cinco etapas sem submissão e 48 regressões dos módulos já entregues.
 
 A matriz e os limites da evidência estão em [mobile-audit.md](mobile-audit.md).
 O teste de roles simulado não comprova RLS ou permissões reais do Supabase.
+
+## Fase 4 — evidência da auditoria fiscal
+
+- `node --test tests/static-ui-contracts.test.cjs`: 7/7 aprovados;
+- `node --check`: 25 arquivos JavaScript aprovados;
+- o hash SHA-256 da planilha recebida coincide com o golden test versionado;
+- regressões SQL existentes foram revisadas, mas não reexecutadas contra o banco
+  vivo nesta fase de auditoria;
+- consultas somente leitura confirmaram os casos PR→PR e SP→SP Revenda na
+  homologação;
+- teste sem sessão confirmou acesso anônimo indevido a
+  `get_product_commercial_price` e `get_fiscal_pending`;
+- PIS, COFINS e FCP permaneceram nulos, porém o status retornado foi `OK`;
+- nenhuma função de escrita foi chamada e nenhum dado foi alterado;
+- a releitura estruturada direta do XLSX permanece pendente: a ferramenta
+  obrigatória não concluiu a importação e foi interrompida sem editar o arquivo.
+
+O relatório detalhado e a matriz de riscos estão em
+[fiscal-audit.md](fiscal-audit.md).
