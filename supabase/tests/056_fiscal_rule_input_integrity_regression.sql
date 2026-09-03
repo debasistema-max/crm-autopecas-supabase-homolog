@@ -39,13 +39,22 @@ begin
     raise exception 'ZERO_EXPLICITO_NAO_FOI_PRESERVADO: %', zero_rule;
   end if;
 
+  perform public.transition_fiscal_tax_rule(
+    (first_rule->>'id')::uuid,'VALIDATED','Validação isolada do teste 056.',
+    'REFERENCIA_OFICIAL_DE_TESTE_SEM_VALOR_LEGAL'
+  );
+  perform public.transition_fiscal_tax_rule(
+    (first_rule->>'id')::uuid,'ACTIVE','Ativação isolada do teste 056.',null
+  );
+
   begin
-    perform public.save_fiscal_tax_rule(jsonb_build_object(
-      'ncm', '99999991', 'uf_origem', 'AC', 'uf_destino', 'AL',
-      'operation_type', 'VENDA', 'customer_type', 'TESTE_056',
-      'has_st', false, 'icms_percent', 12,
-      'effective_from', '2026-06-01', 'effective_to', '2027-01-01', 'active', true
-    ));
+    insert into public.fiscal_tax_rules(
+      ncm,uf_origem,uf_destino,operation_type,customer_type,
+      has_st,icms_percent,effective_from,effective_to,active,lifecycle_status,source
+    ) values(
+      '99999991','AC','AL','VENDA','TESTE_056',false,12,
+      '2026-06-01','2027-01-01',true,'REVIEW_REQUIRED','TEST'
+    );
   exception when exclusion_violation then
     conflict_blocked := sqlerrm like '%REGRA_FISCAL_CONFLITANTE%';
   end;

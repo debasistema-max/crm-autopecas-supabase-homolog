@@ -1,3 +1,12 @@
+const FISCAL_RULE_STATUS_LABELS = {
+  DRAFT: 'Rascunho',
+  VALIDATED: 'Validada',
+  ACTIVE: 'Ativa validada',
+  REVIEW_REQUIRED: 'Revisão necessária',
+  EXPIRED: 'Expirada',
+  DISABLED: 'Desativada'
+};
+
 async function renderFiscalTaxRules(container) {
   container.innerHTML = `
     <section class="panel admin-panel">
@@ -14,14 +23,20 @@ async function renderFiscalTaxRules(container) {
         <label class="span-2">UF destino
           <input id="taxRuleFilterUf" maxlength="2" placeholder="SP">
         </label>
-        <label class="span-2">Status
+        <label class="span-2">Uso no cálculo
           <select id="taxRuleFilterActive">
             <option value="">Todos</option>
-            <option value="true">Ativos</option>
-            <option value="false">Inativos</option>
+            <option value="true">Em uso</option>
+            <option value="false">Fora de uso</option>
           </select>
         </label>
-        <div class="span-5 actions-row align-end">
+        <label class="span-2">Ciclo de vida
+          <select id="taxRuleFilterLifecycle">
+            <option value="">Todos</option>
+            ${Object.entries(FISCAL_RULE_STATUS_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+          </select>
+        </label>
+        <div class="span-3 actions-row align-end">
           <button class="btn btn-primary" id="taxRuleFilterButton" type="button">Filtrar</button>
           <button class="btn btn-secondary" id="taxRuleNewButton" type="button">Nova regra</button>
         </div>
@@ -63,7 +78,8 @@ function getFiscalTaxRuleFilters() {
   return {
     ncm: document.getElementById('taxRuleFilterNcm').value.trim(),
     uf_destino: document.getElementById('taxRuleFilterUf').value.trim().toUpperCase(),
-    active: document.getElementById('taxRuleFilterActive').value
+    active: document.getElementById('taxRuleFilterActive').value,
+    lifecycle_status: document.getElementById('taxRuleFilterLifecycle').value
   };
 }
 
@@ -72,34 +88,34 @@ function renderFiscalTaxRuleResults(rows) {
   return `
     <div class="cards" style="margin-bottom: 16px;">
       <article class="metric-card"><span>Regras</span><strong>${rows.length}</strong></article>
-      <article class="metric-card"><span>Ativas</span><strong>${rows.filter((row) => row.active).length}</strong></article>
-      <article class="metric-card"><span>NCMs</span><strong>${new Set(rows.map((row) => row.ncm)).size}</strong></article>
-      <article class="metric-card"><span>UF destino</span><strong>${new Set(rows.map((row) => row.uf_destino)).size}</strong></article>
+      <article class="metric-card"><span>Validadas ativas</span><strong>${rows.filter((row) => row.lifecycle_status === 'ACTIVE').length}</strong></article>
+      <article class="metric-card"><span>Revisão necessária</span><strong>${rows.filter((row) => row.lifecycle_status === 'REVIEW_REQUIRED').length}</strong></article>
+      <article class="metric-card"><span>Rascunhos</span><strong>${rows.filter((row) => row.lifecycle_status === 'DRAFT').length}</strong></article>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>NCM</th><th>Origem</th><th>Destino</th><th>ICMS</th><th>IPI</th><th>PIS</th><th>COFINS</th><th>ST/MVA</th><th>Vigencia</th><th>Status</th><th>Acoes</th>
+            <th>NCM</th><th>Rota</th><th>ICMS</th><th>IPI</th><th>PIS/COFINS</th><th>ST/MVA</th><th>Vigência</th><th>Governança</th><th>Ações</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map((row, index) => `
             <tr>
               <td><strong>${escapeHtml(formatNcm(row.ncm))}</strong><small>${escapeHtml(row.customer_type || 'GERAL')}</small></td>
-              <td>${escapeHtml(row.uf_origem || '')}</td>
-              <td>${escapeHtml(row.uf_destino || '')}</td>
+              <td><strong>${escapeHtml(row.uf_origem || '')} → ${escapeHtml(row.uf_destino || '')}</strong></td>
               <td>${formatPercent(row.icms_percent)}</td>
               <td>${formatPercent(row.ipi_percent)}</td>
-              <td>${formatPercent(row.pis_percent)}</td>
-              <td>${formatPercent(row.cofins_percent)}</td>
+              <td>${formatPercent(row.pis_percent)}<small>COFINS ${formatPercent(row.cofins_percent)}</small></td>
               <td>${row.has_st ? formatPercent(row.icms_st_percent) : 'SEM ST'}<small>MVA ${formatPercent(row.mva_percent)}</small><small>Revenda: ${escapeHtml(formatResaleCalculationProfile(row))}</small></td>
               <td>${escapeHtml(formatDateOnly(row.effective_from))}<small>${escapeHtml(row.effective_to ? 'ate ' + formatDateOnly(row.effective_to) : 'sem fim')}</small></td>
-              <td><span class="status-pill ${row.active ? 'ok' : 'warn'}">${row.active ? 'Ativa' : 'Inativa'}</span></td>
+              <td><span class="status-pill ${fiscalRuleStatusTone(row.lifecycle_status)}">${escapeHtml(fiscalRuleStatusLabel(row.lifecycle_status))}</span><small>${row.active ? 'Em uso no cálculo' : 'Fora de uso'}</small><small>${escapeHtml(row.legal_basis || 'Sem fundamento registrado')}</small></td>
               <td>
                 <div class="actions-row compact-actions">
-                  <button class="btn btn-secondary" type="button" data-tax-edit="${index}">Editar</button>
-                  <button class="btn btn-ghost" type="button" data-tax-delete="${index}">Excluir</button>
+                  ${row.active ? `<button class="btn btn-secondary" type="button" data-tax-version="${index}">Nova versão</button>` : `<button class="btn btn-secondary" type="button" data-tax-edit="${index}">Editar</button>`}
+                  ${renderFiscalRuleTransitionButton(row, index)}
+                  <button class="btn btn-ghost" type="button" data-tax-history="${index}">Histórico</button>
+                  ${row.lifecycle_status === 'DISABLED' ? '' : `<button class="btn btn-ghost" type="button" data-tax-disable="${index}">Desativar</button>`}
                 </div>
               </td>
             </tr>
@@ -114,13 +130,28 @@ function bindFiscalTaxRuleActions(rows) {
   document.querySelectorAll('[data-tax-edit]').forEach((button) => {
     button.addEventListener('click', () => showFiscalTaxRuleEditor(rows[Number(button.dataset.taxEdit)]));
   });
-  document.querySelectorAll('[data-tax-delete]').forEach((button) => {
+  document.querySelectorAll('[data-tax-version]').forEach((button) => {
+    button.addEventListener('click', () => showFiscalTaxRuleVersionCreator(rows[Number(button.dataset.taxVersion)]));
+  });
+  document.querySelectorAll('[data-tax-transition]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const row = rows[Number(button.dataset.taxTransition)];
+      showFiscalTaxRuleTransitionEditor(row, button.dataset.taxTargetStatus);
+    });
+  });
+  document.querySelectorAll('[data-tax-history]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const row = rows[Number(button.dataset.taxDelete)];
-      if (!window.confirm('Excluir esta regra fiscal?')) return;
+      const row = rows[Number(button.dataset.taxHistory)];
+      await runFiscalTaxRuleAction(button, () => showFiscalTaxRuleHistory(row));
+    });
+  });
+  document.querySelectorAll('[data-tax-disable]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const row = rows[Number(button.dataset.taxDisable)];
+      if (!window.confirm('Desativar esta regra? O histórico será preservado.')) return;
       await runFiscalTaxRuleAction(button, async () => {
         await supabaseDeleteFiscalTaxRule(row.id);
-        showFiscalTaxRuleMessage('Regra fiscal excluida.', true);
+        showFiscalTaxRuleMessage('Regra fiscal desativada. O histórico foi preservado.', true);
         await loadFiscalTaxRules();
       });
     });
@@ -132,10 +163,11 @@ function showFiscalTaxRuleEditor(row = {}) {
   editor.hidden = false;
   editor.innerHTML = `
     <div class="panel-header">
-      <div><h2>${row.id ? 'Editar regra fiscal' : 'Nova regra fiscal'}</h2><p>Cadastro administrativo para calculo fiscal futuro.</p></div>
+      <div><h2>${row.id ? 'Editar rascunho fiscal' : 'Nova regra fiscal'}</h2><p>Salvar não ativa a regra. Validação e ativação são etapas separadas e auditadas.</p></div>
     </div>
     <form id="taxRuleForm" class="field-grid">
       <input type="hidden" id="taxRuleId" value="${escapeHtml(row.id || '')}">
+      <input type="hidden" id="taxRuleSupersedesId" value="${escapeHtml(row.supersedes_rule_id || '')}">
       <label class="span-2">NCM<input id="taxRuleNcm" inputmode="numeric" maxlength="8" required value="${escapeHtml(row.ncm || '')}"></label>
       <label class="span-1">Origem<input id="taxRuleUfOrigem" maxlength="2" required value="${escapeHtml(row.uf_origem || 'PR')}"></label>
       <label class="span-1">Destino<input id="taxRuleUfDestino" maxlength="2" required value="${escapeHtml(row.uf_destino || 'SP')}"></label>
@@ -162,24 +194,17 @@ function showFiscalTaxRuleEditor(row = {}) {
       <label class="span-1">CST/CSOSN<input id="taxRuleCst" maxlength="8" value="${escapeHtml(row.cst_code || '')}"></label>
       <label class="span-2">Inicio<input id="taxRuleEffectiveFrom" type="date" required value="${escapeHtml(row.effective_from || todayDateInput())}"></label>
       <label class="span-2">Fim<input id="taxRuleEffectiveTo" type="date" value="${escapeHtml(row.effective_to || '')}"></label>
-      <label class="span-2">Status
-        <select id="taxRuleActive">
-          <option value="true"${row.active !== false ? ' selected' : ''}>Ativa</option>
-          <option value="false"${row.active === false ? ' selected' : ''}>Inativa</option>
-        </select>
-      </label>
-      <label class="span-12">Observacao<textarea id="taxRuleNotes" maxlength="500">${escapeHtml(row.notes || '')}</textarea></label>
+      <label class="span-4">Fundamento legal / referência oficial<input id="taxRuleLegalBasis" maxlength="1000" placeholder="Ex.: decreto, portaria, protocolo ou parecer validado" value="${escapeHtml(row.legal_basis || '')}"></label>
+      <label class="span-6">Motivo da alteração<textarea id="taxRuleChangeReason" maxlength="1000" required>${escapeHtml(row.change_reason || '')}</textarea></label>
+      <label class="span-6">Observação operacional<textarea id="taxRuleNotes" maxlength="500">${escapeHtml(row.notes || '')}</textarea></label>
       <div class="span-12 actions-row">
-        <button class="btn btn-primary" type="submit">Salvar regra</button>
+        <button class="btn btn-primary" type="submit">Salvar rascunho</button>
         <button class="btn btn-secondary" id="taxRuleCancelButton" type="button">Cancelar</button>
       </div>
     </form>
   `;
   document.getElementById('taxRuleForm').addEventListener('submit', saveFiscalTaxRuleFromForm);
-  document.getElementById('taxRuleCancelButton').addEventListener('click', () => {
-    editor.hidden = true;
-    editor.innerHTML = '';
-  });
+  document.getElementById('taxRuleCancelButton').addEventListener('click', closeFiscalTaxRuleEditor);
   editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -187,7 +212,7 @@ async function saveFiscalTaxRuleFromForm(event) {
   event.preventDefault();
   await runFiscalTaxRuleAction(event.submitter, async () => {
     await supabaseSaveFiscalTaxRule(readFiscalTaxRuleForm());
-    showFiscalTaxRuleMessage('Regra fiscal salva.', true);
+    showFiscalTaxRuleMessage('Rascunho fiscal salvo. Valide antes de ativar.', true);
     document.getElementById('taxRuleEditor').hidden = true;
     await loadFiscalTaxRules();
   });
@@ -217,9 +242,150 @@ function readFiscalTaxRuleForm() {
     cst_code: document.getElementById('taxRuleCst').value,
     effective_from: document.getElementById('taxRuleEffectiveFrom').value,
     effective_to: document.getElementById('taxRuleEffectiveTo').value,
-    active: document.getElementById('taxRuleActive').value === 'true',
+    legal_basis: document.getElementById('taxRuleLegalBasis').value,
+    change_reason: document.getElementById('taxRuleChangeReason').value,
+    supersedes_rule_id: document.getElementById('taxRuleSupersedesId').value,
     notes: document.getElementById('taxRuleNotes').value
   };
+}
+
+function renderFiscalRuleTransitionButton(row, index) {
+  const status = row.lifecycle_status || 'REVIEW_REQUIRED';
+  if (status === 'DRAFT') {
+    return `<button class="btn btn-primary" type="button" data-tax-transition="${index}" data-tax-target-status="VALIDATED">Validar</button>`;
+  }
+  if (status === 'VALIDATED') {
+    return `<button class="btn btn-primary" type="button" data-tax-transition="${index}" data-tax-target-status="ACTIVE">Ativar</button>`;
+  }
+  if (status === 'REVIEW_REQUIRED') {
+    return `<button class="btn btn-primary" type="button" data-tax-transition="${index}" data-tax-target-status="ACTIVE">Validar e manter ativa</button>`;
+  }
+  if (status === 'ACTIVE') {
+    return `<button class="btn btn-secondary" type="button" data-tax-transition="${index}" data-tax-target-status="REVIEW_REQUIRED">Solicitar revisão</button>`;
+  }
+  return '';
+}
+
+function fiscalRuleStatusLabel(status) {
+  return FISCAL_RULE_STATUS_LABELS[status] || 'Revisão necessária';
+}
+
+function fiscalRuleStatusTone(status) {
+  if (status === 'ACTIVE') return 'ok';
+  if (status === 'DISABLED') return 'error';
+  if (status === 'REVIEW_REQUIRED' || status === 'EXPIRED') return 'warn';
+  return 'info';
+}
+
+function showFiscalTaxRuleVersionCreator(row) {
+  const editor = document.getElementById('taxRuleEditor');
+  const minimumDate = nextDateInput(row.effective_from);
+  const suggestedDate = todayDateInput() > minimumDate ? todayDateInput() : minimumDate;
+  editor.hidden = false;
+  editor.innerHTML = `
+    <div class="panel-header">
+      <div><h2>Nova versão fiscal</h2><p>A regra em uso não será alterada. Será criado um rascunho sucessor.</p></div>
+    </div>
+    <form id="taxRuleVersionForm" class="field-grid">
+      <div class="span-4 form-message"><strong>${escapeHtml(formatNcm(row.ncm))}</strong><br>${escapeHtml(row.uf_origem)} → ${escapeHtml(row.uf_destino)} · ${escapeHtml(row.customer_type || 'GERAL')}</div>
+      <label class="span-3">Início da nova vigência<input id="taxRuleVersionDate" type="date" min="${escapeHtml(minimumDate)}" required value="${escapeHtml(suggestedDate)}"></label>
+      <label class="span-5">Motivo da nova versão<textarea id="taxRuleVersionReason" maxlength="1000" required placeholder="Descreva a alteração que será preparada."></textarea></label>
+      <div class="span-12 actions-row">
+        <button class="btn btn-primary" type="submit">Criar rascunho</button>
+        <button class="btn btn-secondary" id="taxRuleVersionCancel" type="button">Cancelar</button>
+      </div>
+    </form>`;
+  document.getElementById('taxRuleVersionForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await runFiscalTaxRuleAction(event.submitter, async () => {
+      const created = await supabaseCreateFiscalTaxRuleVersion(
+        row.id,
+        document.getElementById('taxRuleVersionDate').value,
+        document.getElementById('taxRuleVersionReason').value.trim()
+      );
+      showFiscalTaxRuleEditor(created);
+      showFiscalTaxRuleMessage('Rascunho sucessor criado. Revise os dados antes de validar.', true);
+    });
+  });
+  document.getElementById('taxRuleVersionCancel').addEventListener('click', closeFiscalTaxRuleEditor);
+  editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showFiscalTaxRuleTransitionEditor(row, targetStatus) {
+  const editor = document.getElementById('taxRuleEditor');
+  const needsLegalBasis = targetStatus === 'VALIDATED' || targetStatus === 'ACTIVE';
+  editor.hidden = false;
+  editor.innerHTML = `
+    <div class="panel-header">
+      <div><h2>${escapeHtml(fiscalRuleTransitionTitle(targetStatus))}</h2><p>${escapeHtml(formatNcm(row.ncm))} · ${escapeHtml(row.uf_origem)} → ${escapeHtml(row.uf_destino)}</p></div>
+    </div>
+    <form id="taxRuleTransitionForm" class="field-grid">
+      ${needsLegalBasis ? `<label class="span-6">Fundamento legal / referência oficial<input id="taxRuleTransitionLegalBasis" maxlength="1000" required value="${escapeHtml(row.legal_basis || '')}" placeholder="Documento oficial ou parecer fiscal validado"></label>` : '<input id="taxRuleTransitionLegalBasis" type="hidden" value="">'}
+      <label class="span-6">Motivo da transição<textarea id="taxRuleTransitionReason" maxlength="1000" required placeholder="Registre por que o status está sendo alterado."></textarea></label>
+      <div class="span-12 actions-row">
+        <button class="btn btn-primary" type="submit">Confirmar transição</button>
+        <button class="btn btn-secondary" id="taxRuleTransitionCancel" type="button">Cancelar</button>
+      </div>
+    </form>`;
+  document.getElementById('taxRuleTransitionForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await runFiscalTaxRuleAction(event.submitter, async () => {
+      await supabaseTransitionFiscalTaxRule(
+        row.id,
+        targetStatus,
+        document.getElementById('taxRuleTransitionReason').value.trim(),
+        document.getElementById('taxRuleTransitionLegalBasis').value.trim()
+      );
+      closeFiscalTaxRuleEditor();
+      showFiscalTaxRuleMessage(`Regra atualizada para ${fiscalRuleStatusLabel(targetStatus)}.`, true);
+      await loadFiscalTaxRules();
+    });
+  });
+  document.getElementById('taxRuleTransitionCancel').addEventListener('click', closeFiscalTaxRuleEditor);
+  editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function showFiscalTaxRuleHistory(row) {
+  const versions = await supabaseListFiscalTaxRuleVersions(row.id);
+  const editor = document.getElementById('taxRuleEditor');
+  editor.hidden = false;
+  editor.innerHTML = `
+    <div class="panel-header">
+      <div><h2>Histórico imutável</h2><p>${escapeHtml(formatNcm(row.ncm))} · ${escapeHtml(row.uf_origem)} → ${escapeHtml(row.uf_destino)}</p></div>
+      <button class="btn btn-secondary" id="taxRuleHistoryClose" type="button">Fechar</button>
+    </div>
+    ${versions.length ? `<div class="table-wrap"><table><thead><tr><th>Versão</th><th>Data</th><th>Evento</th><th>Status</th><th>Motivo</th><th>Fundamento</th></tr></thead><tbody>${versions.map((version) => `
+      <tr><td>${escapeHtml(version.rule_version)}</td><td>${escapeHtml(formatDateTime(version.changed_at))}</td><td>${escapeHtml(version.change_type)}</td><td><span class="status-pill ${fiscalRuleStatusTone(version.lifecycle_status)}">${escapeHtml(fiscalRuleStatusLabel(version.lifecycle_status))}</span></td><td>${escapeHtml(version.change_reason || '-')}</td><td>${escapeHtml(version.legal_basis || '-')}</td></tr>
+    `).join('')}</tbody></table></div>` : '<div class="empty-state">Nenhuma versão registrada.</div>'}`;
+  document.getElementById('taxRuleHistoryClose').addEventListener('click', closeFiscalTaxRuleEditor);
+  editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function fiscalRuleTransitionTitle(status) {
+  if (status === 'VALIDATED') return 'Validar regra fiscal';
+  if (status === 'ACTIVE') return 'Validar e ativar regra';
+  if (status === 'REVIEW_REQUIRED') return 'Solicitar revisão fiscal';
+  return `Alterar para ${fiscalRuleStatusLabel(status)}`;
+}
+
+function closeFiscalTaxRuleEditor() {
+  const editor = document.getElementById('taxRuleEditor');
+  editor.hidden = true;
+  editor.innerHTML = '';
+}
+
+function nextDateInput(value) {
+  const date = new Date(`${String(value || todayDateInput()).slice(0, 10)}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR');
 }
 
 function formatResaleCalculationProfile(row) {
@@ -269,7 +435,16 @@ function formatFiscalTaxRuleError(error) {
     MVA_OBRIGATORIA_PARA_ST: 'Informe a MVA para uma regra com ST.',
     UF_INVALIDA: 'Informe uma UF brasileira válida.',
     NCM_INVALIDO: 'Informe um NCM válido com oito dígitos.',
-    ALIQUOTA_FORA_DA_FAIXA: 'Revise as alíquotas: há um percentual fora da faixa aceita.'
+    CEST_INVALIDO: 'Informe um CEST válido com sete dígitos.',
+    ALIQUOTA_FORA_DA_FAIXA: 'Revise as alíquotas: há um percentual fora da faixa aceita.',
+    REGRA_FISCAL_ATIVA_IMUTAVEL: 'Uma regra em uso não pode ser editada. Crie uma nova versão.',
+    FUNDAMENTO_LEGAL_OBRIGATORIO: 'Informe o fundamento legal ou a referência oficial usada na validação.',
+    MOTIVO_OBRIGATORIO: 'Informe o motivo da alteração.',
+    NOVA_VIGENCIA_DEVE_SER_POSTERIOR: 'A nova versão deve começar depois da vigência da regra atual.',
+    VERSAO_FISCAL_JA_EXISTE_NA_DATA: 'Já existe uma versão desta regra com a data informada.',
+    VALIDACAO_FISCAL_INCOMPLETA: 'A validação precisa de responsável, data e fundamento legal.',
+    REGRA_DEVE_SER_VALIDADA_ANTES_DE_ATIVAR: 'Valide a regra antes de ativá-la.',
+    TRANSICAO_FISCAL_INVALIDA: 'Esta alteração de status não é permitida no estado atual.'
   };
   const code = Object.keys(known).find((key) => message.includes(key));
   return code ? known[code] : message;

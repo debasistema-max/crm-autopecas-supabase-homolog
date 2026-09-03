@@ -1,5 +1,28 @@
 # Changelog técnico
 
+## 2026-09-03 — Fase 5B: versionamento e ciclo de vida fiscal
+
+- Motivo: impedir alteração destrutiva de regras em uso e tornar cada mudança
+  rastreável sem declarar como validados dados vindos de SAP/planilha.
+- Banco: migrations 058–059 aplicadas somente em `mtwvxyvpnbgwgltelozw`.
+- Regras existentes: 76 preservadas, classificadas `REVIEW_REQUIRED` e copiadas
+  para 76 snapshots de baseline; alíquotas e fórmulas não foram alteradas.
+- Novas regras: nascem `DRAFT`, fora do cálculo; validação exige fundamento,
+  motivo, usuário e data; ativação é transacional.
+- Versionamento: regra ativa é imutável; sucessora recebe novo ID e encerra a
+  vigência anterior somente ao ser ativada.
+- Histórico: `fiscal_tax_rule_versions` rejeita update/delete e é consultado por
+  RPC administrativa; exclusão do painel virou desativação auditada.
+- Snapshot comercial: cotação/pedido registra status, fundamento e alerta
+  `REQUIRES_FISCAL_VALIDATION` quando usa regra legada pendente.
+- Interface: filtros de ciclo de vida, nova versão, validar/ativar, solicitar
+  revisão, desativar e consultar histórico.
+- Testes: 11/11 regressões SQL, 7/7 contratos estáticos e sintaxe JavaScript
+  aprovados. Golden cases permaneceram idênticos.
+- Risco preservado: importação que tentar sobrescrever regra ativa é bloqueada
+  no commit; levar esse diagnóstico ao preview é pendência da próxima entrega.
+- Produção: não acessada e não alterada.
+
 ## 2026-09-02 — Fase 5A: contenção fiscal e integridade
 
 - Motivo: eliminar as exposições e gravações inseguras encontradas na auditoria,

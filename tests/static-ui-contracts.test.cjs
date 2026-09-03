@@ -62,6 +62,12 @@ test('editable registration table controls have accessible names', () => {
     assert.match(source, new RegExp(`<(?:input|select|textarea) data-cadastro-${field} aria-label="[^"<]+"`));
   }
   assert.match(read('js/tax_rules.js'), /id="taxRuleOpenImportCenter"[^>]*>Abrir Central de Importações<\/button>/);
+  assert.match(read('js/tax_rules.js'), /id="taxRuleChangeReason"[^>]*required/);
+  assert.match(read('js/tax_rules.js'), /data-tax-history=/);
+  assert.match(read('js/tax_rules.js'), /data-tax-version=/);
+  assert.match(read('js/supabase_store.js'), /create_fiscal_tax_rule_version/);
+  assert.match(read('js/supabase_store.js'), /transition_fiscal_tax_rule/);
+  assert.match(read('js/supabase_store.js'), /list_fiscal_tax_rule_versions/);
 });
 
 test('administrative smoke never loads a live persistence client', () => {

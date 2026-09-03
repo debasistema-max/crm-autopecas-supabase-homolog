@@ -157,3 +157,24 @@ sucesso. O smoke público confirmou a tela de login sem erros de console e os
 assets publicados contêm `taxRuleOpenImportCenter` e “Selecione explicitamente”,
 sem as rotinas removidas `importFiscalTaxRulesFromText` e “Automático: PR→SC sem
 ST”.
+
+## Fase 5B — versionamento fiscal
+
+Em 03/09/2026, migrations 058–059 foram primeiro executadas junto das 11
+regressões dentro de uma única transação descartada. Após aprovação desse ensaio,
+foram aplicadas somente na homologação e os mesmos 11 arquivos passaram outra
+vez, cada um com `ROLLBACK`.
+
+Os testes novos comprovam histórico imutável, incremento de versão, rascunho
+fora do cálculo, fundamento obrigatório, bloqueio de edição de regra em uso,
+criação de sucessora, ativação atômica, resolução histórica, desativação sem
+delete, permissões e ausência de privilégios anônimos. A regressão 048 também
+comprova que o snapshot comercial recebe `rule_lifecycle_status` e
+`REQUIRES_FISCAL_VALIDATION`.
+
+Estado remoto verificado: 76 regras `REVIEW_REQUIRED`, 76 snapshots de baseline
+e migrations 058/059 registradas. Os três resultados da planilha não mudaram.
+
+O smoke administrativo fiscal passou em 320, 768 e 1024 px: editor de rascunho,
+rótulos, tabela responsiva e ausência de mutações automáticas foram aprovados,
+sem overflow horizontal nos três breakpoints.

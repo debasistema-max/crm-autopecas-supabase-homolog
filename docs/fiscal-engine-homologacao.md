@@ -84,7 +84,7 @@ Regressão observada no portal atual para o produto `7175526020`, NCM `8708.94.8
 
 ## Aplicação em homologação
 
-As migrations `043` a `057` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
+As migrations `043` a `059` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
 
 Testes SQL são transacionais e terminam com `ROLLBACK`, preservando a base:
 
@@ -96,7 +96,9 @@ Testes SQL são transacionais e terminam com `ROLLBACK`, preservando a base:
 - `054_resale_profile_admin_regression.sql`;
 - `055_fiscal_security_and_document_guard_regression.sql`;
 - `056_fiscal_rule_input_integrity_regression.sql`;
-- `057_partial_stock_field_mask_regression.sql`.
+- `057_partial_stock_field_mask_regression.sql`;
+- `058_fiscal_rule_versioning_foundation_regression.sql`;
+- `059_fiscal_rule_lifecycle_workflow_regression.sql`.
 
 ### Contenção aplicada na Fase 5A
 

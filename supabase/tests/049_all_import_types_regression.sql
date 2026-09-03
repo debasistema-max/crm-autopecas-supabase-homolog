@@ -51,6 +51,7 @@ begin
 
   update public.products set ncm='85122011',cest='0100100',ipi_rate=0.0975,ipi_defined=true where codigo='6111032202';
   -- Isola o teste das regras reais vigentes. O rollback restaura o estado original.
+  perform set_config('app.fiscal_transition','1',true);
   update public.fiscal_tax_rules
      set active=false
    where ncm='85122011'

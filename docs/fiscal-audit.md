@@ -34,6 +34,12 @@ golden cases não foram alterados. Permanecem bloqueantes para certificação fi
 o perfil `LEGACY_REVENDA` sem validação externa, histórico mutável, baseline
 001–042 ausente e status `OK` com componentes tributários não definidos.
 
+Na Fase 5B, `FISC-HIST-004` foi mitigado com snapshots imutáveis, ciclo de vida,
+nova versão e ativação transacional. As 76 regras legadas foram classificadas
+`REVIEW_REQUIRED`, mantendo continuidade sem simular validação. A definição real
+de `resolve_fiscal_tax_rule` foi recuperada por introspecção; o restante do
+baseline 001–042 continua pendente.
+
 ## 2. Limites e evidências
 
 ### Evidência analisada

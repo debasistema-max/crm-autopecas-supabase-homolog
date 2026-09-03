@@ -704,6 +704,30 @@ async function supabaseSaveFiscalTaxRule(payload = {}) {
   return (await callCommercialRpc('save_fiscal_tax_rule', { payload })) || {};
 }
 
+async function supabaseCreateFiscalTaxRuleVersion(sourceRuleId, effectiveFrom, reason) {
+  if (!sourceRuleId || !effectiveFrom || !reason) throw new Error('Informe regra, nova vigencia e motivo.');
+  return (await callCommercialRpc('create_fiscal_tax_rule_version', {
+    source_rule_id: sourceRuleId,
+    new_effective_from: effectiveFrom,
+    reason
+  })) || {};
+}
+
+async function supabaseTransitionFiscalTaxRule(id, status, reason, legalBasis = null) {
+  if (!id || !status || !reason) throw new Error('Informe regra, status e motivo.');
+  return (await callCommercialRpc('transition_fiscal_tax_rule', {
+    target_id: id,
+    target_status: status,
+    reason,
+    legal_basis_text: legalBasis || null
+  })) || {};
+}
+
+async function supabaseListFiscalTaxRuleVersions(id) {
+  if (!id) throw new Error('Regra fiscal nao informada.');
+  return (await callCommercialRpc('list_fiscal_tax_rule_versions', { target_id: id })) || [];
+}
+
 async function supabaseDeleteFiscalTaxRule(id) {
   if (!id) throw new Error('Regra fiscal nao informada.');
   return (await callCommercialRpc('delete_fiscal_tax_rule', { target_id: id })) || {};

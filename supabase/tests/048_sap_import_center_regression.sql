@@ -62,6 +62,7 @@ begin
     where p.product_code='6111032201' and b.code='PR' and p.sale_price=232) then raise exception 'PRECO_PR_FALHOU'; end if;
 
   -- Isola o teste das regras reais vigentes. O rollback restaura o estado original.
+  perform set_config('app.fiscal_transition','1',true);
   update public.fiscal_tax_rules
      set active=false
    where ncm='85122011'
@@ -87,7 +88,10 @@ begin
     'items',jsonb_build_array(jsonb_build_object('codigo','6111032201','quantidade',1,'desconto_percentual',0))));
   v_quote_id:=(v_document->>'id')::uuid;
   if not exists(select 1 from public.quotation_items where quotation_id=v_quote_id and fiscal_status='OK'
-    and preco_sem_imposto_unitario=232 and preco_unitario=347.854460 and fiscal_rule_version is not null and fiscal_calculated_at is not null)
+    and preco_sem_imposto_unitario=232 and preco_unitario=347.854460
+    and fiscal_rule_version is not null and fiscal_calculated_at is not null
+    and fiscal_details->>'rule_lifecycle_status'='REVIEW_REQUIRED'
+    and fiscal_details->'warnings' ? 'REQUIRES_FISCAL_VALIDATION')
     then raise exception 'SNAPSHOT_COTACAO_FALHOU: %',(
       select jsonb_build_object(
         'fiscal_status',fiscal_status,'base',preco_sem_imposto_unitario,'final',preco_unitario,

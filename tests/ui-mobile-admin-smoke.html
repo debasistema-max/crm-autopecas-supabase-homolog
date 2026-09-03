@@ -77,7 +77,8 @@
       return readFixture([{ id: 'rule-smoke', ncm: '85122011', uf_origem: 'PR', uf_destino: 'PR',
         customer_type: 'GERAL', icms_percent: 12, ipi_percent: 9.75, pis_percent: null, cofins_percent: null,
         fcp_percent: null, icms_st_percent: 19.5, mva_percent: 87.78, has_st: true,
-        effective_from: '2026-08-28', active: true, notes: 'Fixture visual, nao e validacao fiscal.' }]);
+        effective_from: '2026-08-28', active: false, lifecycle_status: 'DRAFT',
+        change_reason: 'Fixture visual, nao e validacao fiscal.', notes: 'Fixture visual.' }]);
     }
     (async () => {
       const root = document.getElementById('content');
@@ -105,7 +106,9 @@
           controlsNamed: Array.from(root.querySelectorAll('input:not([type="hidden"]), select, textarea'))
             .every((control) => control.labels.length > 0 || Boolean(control.getAttribute('aria-label'))),
           fiscalEditor: moduleName !== 'fiscal' || params.get('editor') !== 'true' || (
-            document.getElementById('taxRuleNcm').value === '85122011' && document.getElementById('taxRuleMva').value === '87.78'),
+            document.getElementById('taxRuleNcm').value === '85122011'
+            && document.getElementById('taxRuleMva').value === '87.78'
+            && document.getElementById('taxRuleChangeReason').value.length > 0),
           userEditor: moduleName !== 'users' || params.get('editor') !== 'true' || (
             document.getElementById('newUserProfile').value === 'VENDEDOR' && document.getElementById('newUserPassword').value === '')
         };
