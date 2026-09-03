@@ -61,7 +61,7 @@ test('editable registration table controls have accessible names', () => {
   for (const field of ['codigo-sap', 'status', 'notes']) {
     assert.match(source, new RegExp(`<(?:input|select|textarea) data-cadastro-${field} aria-label="[^"<]+"`));
   }
-  assert.match(read('js/tax_rules.js'), /<label for="taxRuleImportText">[^<]+<\/label>/);
+  assert.match(read('js/tax_rules.js'), /id="taxRuleOpenImportCenter"[^>]*>Abrir Central de Importações<\/button>/);
 });
 
 test('administrative smoke never loads a live persistence client', () => {

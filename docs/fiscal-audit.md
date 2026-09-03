@@ -22,6 +22,18 @@ O módulo, porém, ainda não pode ser classificado como uma engine fiscal valid
 
 Portanto, a próxima implementação deve começar por segurança e integridade, mantendo os cálculos atuais congelados como baseline até validação fiscal formal.
 
+### Atualização após a Fase 5A
+
+As migrations 055–057 foram aplicadas somente na homologação e mitigaram
+`FISC-SEC-001`, `FISC-INT-002`, `FISC-DATA-006`, `FISC-IMPORT-007`,
+`FISC-CONFLICT-008`, parte de `FISC-VALID-015` e `FISC-STOCK-012`. A decisão de
+ST também deixou de ser inferida como exceção PR→SC na interface de importação.
+
+Os nove testes SQL disponíveis passaram sem persistir dados. As fórmulas e os
+golden cases não foram alterados. Permanecem bloqueantes para certificação fiscal
+o perfil `LEGACY_REVENDA` sem validação externa, histórico mutável, baseline
+001–042 ausente e status `OK` com componentes tributários não definidos.
+
 ## 2. Limites e evidências
 
 ### Evidência analisada
@@ -41,10 +53,10 @@ As contagens e os valores atribuídos à planilha nesta análise vêm de evidên
 
 ### Estado aplicado da homologação
 
-- a documentação afirma migrations 001–054 aplicadas;
-- o repositório contém somente 043–054;
+- o histórico do banco confirma migrations 001–057 aplicadas;
+- o repositório contém somente 043–057;
 - o comportamento real comprova que a engine e o perfil introduzido na migration 053 estão ativos;
-- a aplicação exata da migration 054 não foi certificada por histórico de schema nesta auditoria;
+- as migrations 055–057 foram registradas e revalidadas no histórico da homologação;
 - o golden case `6111032201`, PR→PR, retornou `OK`, com preço base e regra;
 - o caso `7175526020`, SP→SP, `REVENDA`, retornou perfil `LEGACY_REVENDA`, IPI 18,85, ICMS-ST 81,170002 e final 680,020002.
 

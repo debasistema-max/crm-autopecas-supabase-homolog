@@ -84,14 +84,29 @@ Regressão observada no portal atual para o produto `7175526020`, NCM `8708.94.8
 
 ## Aplicação em homologação
 
-As migrations `043` a `052` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
+As migrations `043` a `057` pertencem exclusivamente ao projeto Supabase de homologação. Não reutilize arquivo `.env`, link do CLI ou senha do projeto de produção ao aplicá-las.
 
 Testes SQL são transacionais e terminam com `ROLLBACK`, preservando a base:
 
 - `047_fiscal_engine_regression.sql`;
 - `048_sap_import_center_regression.sql`;
 - `049_all_import_types_regression.sql`;
-- `050_reference_workbook_regression.sql`.
+- `050_reference_workbook_regression.sql`;
+- `053_legacy_resale_profile_regression.sql`;
+- `054_resale_profile_admin_regression.sql`;
+- `055_fiscal_security_and_document_guard_regression.sql`;
+- `056_fiscal_rule_input_integrity_regression.sql`;
+- `057_partial_stock_field_mask_regression.sql`.
+
+### Contenção aplicada na Fase 5A
+
+- RPCs fiscais/importação sem execução para `PUBLIC` ou `anon`;
+- documento novo com snapshot fiscal inválido é rejeitado transacionalmente;
+- regras ativas sobrepostas são bloqueadas;
+- `NULL` e zero permanecem semanticamente distintos no editor fiscal;
+- importação fiscal operacional passa obrigatoriamente pela Central de
+  Importações;
+- importação parcial de estoque não apaga colunas SAP omitidas.
 
 ## Carga da planilha de referência em 25/08/2026
 

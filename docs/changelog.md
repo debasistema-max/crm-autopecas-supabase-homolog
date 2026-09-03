@@ -1,5 +1,33 @@
 # Changelog técnico
 
+## 2026-09-02 — Fase 5A: contenção fiscal e integridade
+
+- Motivo: eliminar as exposições e gravações inseguras encontradas na auditoria,
+  sem modificar os valores ou as fórmulas fiscais congeladas como baseline.
+- Segurança: as RPCs fiscais, comerciais e de importação listadas na migration
+  055 deixaram de herdar `EXECUTE` de `PUBLIC`/`anon`; `authenticated` recebeu
+  somente a execução necessária. Teste externo sem sessão passou a responder 401.
+- Documentos: cotação/pedido com snapshot fiscal inválido agora falham dentro da
+  transação. Registros históricos sem snapshot não foram alterados.
+- Regras: UF limitada às 27 unidades federativas, alíquotas obrigatórias validadas,
+  `NULL` preservado como “não definido” e conflito de vigência ativa bloqueado
+  por trigger com trava transacional.
+- Importação: a gravação fiscal direta por linha foi removida da interface; o
+  operador é encaminhado ao fluxo staging → validação → preview → aprovação →
+  commit. A decisão de ST deve vir de uma coluna ou seleção explícita.
+- Estoque: atualização parcial originada do staging preserva todas as colunas SAP
+  ausentes na linha, mantendo a semântica de field mask.
+- Banco alterado: somente homologação `mtwvxyvpnbgwgltelozw`, migrations 055–057.
+  Produção não foi acessada.
+- Testes: 9/9 regressões SQL executadas com `ROLLBACK`, 7/7 contratos estáticos
+  e 22/22 arquivos JavaScript aprovados em verificação de sintaxe.
+- Cálculos preservados: PR→PR 347,854460; SP→SP 346,791931; PR→SC 263,900000.
+- Pendências: versionamento imutável, classificação de componentes tributários
+  ausentes, validação legal do perfil `LEGACY_REVENDA` e recuperação do baseline
+  001–042 continuam na Fase 5B/5C.
+- Publicação do frontend: pendente de autorização explícita, pois o commit local
+  anterior inclui o relatório de auditoria com detalhes de segurança.
+
 ## 2026-09-02 — Fase 4: auditoria fiscal
 
 - Motivo: mapear integralmente regras, fórmulas, importações, seleção de preço,

@@ -26,8 +26,8 @@ o contexto da operação e apresenta o resultado.
 
 ## Risco de reprodutibilidade
 
-O banco de homologação possui migrations 001–054 aplicadas, mas o repositório
-contém somente 043–054. Nenhuma migration anterior deve ser recriada por
+O banco de homologação possui migrations 001–057 aplicadas, mas o repositório
+contém somente 043–057. Nenhuma migration anterior deve ser recriada por
 suposição. O histórico deve ser recuperado ou documentado em um baseline antes
 de mudanças estruturais adicionais.
 

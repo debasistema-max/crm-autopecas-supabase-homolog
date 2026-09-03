@@ -30,8 +30,8 @@ const SAP_IMPORT_REQUIRED = {
   COMMERCIAL_PRODUCTS: ['product_code', 'description'], SAP_ITEM_MASTER: ['product_code', 'description'],
   STOCK_PR: ['product_code', 'general_available_qty'], STOCK_SP: ['product_code', 'general_available_qty'],
   BASE_PRICE_PR: ['product_code', 'base_price'], BASE_PRICE_SP: ['product_code', 'base_price'],
-  FISCAL_RULES_PR: ['ncm', 'destination_state', 'interstate_icms_rate', 'internal_icms_rate', 'mva_rate', 'ipi_rate'],
-  FISCAL_RULES_SP: ['ncm', 'destination_state', 'interstate_icms_rate', 'internal_icms_rate', 'mva_rate', 'ipi_rate']
+  FISCAL_RULES_PR: ['ncm', 'destination_state', 'interstate_icms_rate', 'internal_icms_rate', 'mva_rate', 'ipi_rate', 'has_st'],
+  FISCAL_RULES_SP: ['ncm', 'destination_state', 'interstate_icms_rate', 'internal_icms_rate', 'mva_rate', 'ipi_rate', 'has_st']
 };
 
 const SAP_HEADER_ALIASES = {
@@ -112,8 +112,8 @@ function renderNewSapImport() {
           <select id="sapImportKind">${Object.entries(SAP_IMPORT_TYPES).map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join('')}</select>
         </label>
         <label class="span-4">Filial <select id="sapImportBranch"><option>PR</option><option>SP</option></select></label>
-        <label class="span-4">Padrão de ST (listas fiscais)
-          <select id="sapImportHasSt"><option value="auto">Automático: PR→SC sem ST</option><option value="true">Com ST</option><option value="false">Sem ST</option></select>
+        <label class="span-4">ST para linhas sem coluna própria
+          <select id="sapImportHasSt"><option value="">Selecione explicitamente</option><option value="true">Com ST</option><option value="false">Sem ST</option></select>
         </label>
         <label class="span-8">Arquivo XLSX / CSV / TSV
           <input id="sapImportFile" type="file" accept=".xlsx,.xls,.csv,.tsv,.txt">
@@ -275,12 +275,16 @@ async function stageAndValidateSapImport() {
     const kind = document.getElementById('sapImportKind').value;
     const mapping = Object.fromEntries(Array.from(document.querySelectorAll('[data-sap-map]')).map((select) => [select.dataset.sapMap, select.value]));
     sapImportState.mapping = mapping;
-    const rows = normalizeSapRows(kind, mapping);
-    if (!rows.length) throw new Error('Nenhuma linha válida para staging.');
     const detected = [...new Set(Object.values(mapping).filter(Boolean))];
-    if (kind.startsWith('FISCAL_RULES_') && !detected.includes('has_st')) detected.push('has_st');
+    const explicitStMode = document.getElementById('sapImportHasSt').value;
+    if (kind.startsWith('FISCAL_RULES_') && explicitStMode && !detected.includes('has_st')) detected.push('has_st');
     const missing = (SAP_IMPORT_REQUIRED[kind] || []).filter((field) => !detected.includes(field));
     if (missing.length) throw new Error(`Mapeie os campos obrigatórios: ${missing.map((field) => SAP_IMPORT_FIELDS[field]).join(', ')}.`);
+    const rows = normalizeSapRows(kind, mapping);
+    if (!rows.length) throw new Error('Nenhuma linha válida para staging.');
+    if (kind.startsWith('FISCAL_RULES_') && rows.some((row) => row.data.has_st == null)) {
+      throw new Error('Defina explicitamente se a relação possui ST ou mapeie uma coluna ST. Para arquivos mistos, importe cada rota separadamente.');
+    }
     message.textContent = 'Calculando hash e criando lote...';
     const hash = await sapSha256(sapImportState.bytes || new TextEncoder().encode(JSON.stringify(rows)).buffer);
     const created = await supabaseCreateSapImportBatch({
@@ -319,7 +323,7 @@ function normalizeSapRows(kind, mapping) {
     });
     if (kind.startsWith('FISCAL_RULES_') && data.has_st == null) {
       const stMode = document.getElementById('sapImportHasSt').value;
-      data.has_st = stMode === 'auto' ? !(kind === 'FISCAL_RULES_PR' && String(data.destination_state || '').toUpperCase() === 'SC') : stMode === 'true';
+      if (stMode) data.has_st = stMode === 'true';
     }
     if (kind.startsWith('STOCK_') && data.general_available_qty != null) {
       const display = String(source[sapColumnKey(Object.keys(mapping).find((header) => mapping[header] === 'general_available_qty') || '')] || '');

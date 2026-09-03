@@ -31,12 +31,11 @@ async function renderFiscalTaxRules(container) {
     <section class="panel admin-panel" id="taxRuleEditor" hidden></section>
     <section class="panel admin-panel">
       <div class="panel-header">
-        <div><h2>Importar relacao</h2><p>Cole CSV/TSV com cabecalho para cadastrar varias regras.</p></div>
+        <div><h2>Importar regras fiscais</h2><p>Use a Central de Importações para validar, revisar e confirmar o lote de forma transacional.</p></div>
       </div>
-      <label for="taxRuleImportText">Dados da relacao fiscal</label>
-      <textarea id="taxRuleImportText" placeholder="ncm;uf_origem;uf_destino;icms;ipi;pis;cofins;fcp;mva_st;icms_st;tipo_cliente;vigencia_inicio"></textarea>
-      <div class="actions-row" style="margin-top: 10px;">
-        <button class="btn btn-secondary" id="taxRuleImportButton" type="button">Importar texto</button>
+      <p class="form-message">A importação direta por linha foi desativada porque podia deixar um lote parcialmente gravado.</p>
+      <div class="actions-row">
+        <button class="btn btn-secondary" id="taxRuleOpenImportCenter" type="button">Abrir Central de Importações</button>
       </div>
     </section>
     <section class="panel admin-panel" id="taxRuleResults"><div class="empty-state">Carregando regras fiscais...</div></section>
@@ -44,7 +43,7 @@ async function renderFiscalTaxRules(container) {
 
   document.getElementById('taxRuleFilterButton').addEventListener('click', loadFiscalTaxRules);
   document.getElementById('taxRuleNewButton').addEventListener('click', () => showFiscalTaxRuleEditor());
-  document.getElementById('taxRuleImportButton').addEventListener('click', importFiscalTaxRulesFromText);
+  document.getElementById('taxRuleOpenImportCenter').addEventListener('click', () => openModule('sap'));
   await loadFiscalTaxRules();
 }
 
@@ -142,13 +141,13 @@ function showFiscalTaxRuleEditor(row = {}) {
       <label class="span-1">Destino<input id="taxRuleUfDestino" maxlength="2" required value="${escapeHtml(row.uf_destino || 'SP')}"></label>
       <label class="span-2">Operacao<input id="taxRuleOperationType" value="${escapeHtml(row.operation_type || 'VENDA')}"></label>
       <label class="span-2">Tipo cliente<input id="taxRuleCustomerType" value="${escapeHtml(row.customer_type || 'GERAL')}"></label>
-      <label class="span-1">ICMS %<input id="taxRuleIcms" type="number" min="0" step="0.0001" value="${escapeHtml(row.icms_percent || 0)}"></label>
-      <label class="span-1">IPI %<input id="taxRuleIpi" type="number" min="0" step="0.0001" value="${escapeHtml(row.ipi_percent || 0)}"></label>
-      <label class="span-1">PIS %<input id="taxRulePis" type="number" min="0" step="0.0001" value="${escapeHtml(row.pis_percent || 0)}"></label>
-      <label class="span-1">COFINS %<input id="taxRuleCofins" type="number" min="0" step="0.0001" value="${escapeHtml(row.cofins_percent || 0)}"></label>
-      <label class="span-1">FCP %<input id="taxRuleFcp" type="number" min="0" step="0.0001" value="${escapeHtml(row.fcp_percent || 0)}"></label>
-      <label class="span-1">ICMS-ST %<input id="taxRuleIcmsSt" type="number" min="0" step="0.0001" value="${escapeHtml(row.icms_st_percent || 0)}"></label>
-      <label class="span-1">MVA %<input id="taxRuleMva" type="number" min="0" step="0.0001" value="${escapeHtml(row.mva_percent || 0)}"></label>
+      <label class="span-1">ICMS %<input id="taxRuleIcms" type="number" min="0" max="100" step="0.0001" required value="${escapeHtml(fiscalPercentInputValue(row.icms_percent))}"></label>
+      <label class="span-1">IPI %<input id="taxRuleIpi" type="number" min="0" max="100" step="0.0001" placeholder="Não definido" value="${escapeHtml(fiscalPercentInputValue(row.ipi_percent))}"></label>
+      <label class="span-1">PIS %<input id="taxRulePis" type="number" min="0" max="100" step="0.0001" placeholder="Não definido" value="${escapeHtml(fiscalPercentInputValue(row.pis_percent))}"></label>
+      <label class="span-1">COFINS %<input id="taxRuleCofins" type="number" min="0" max="100" step="0.0001" placeholder="Não definido" value="${escapeHtml(fiscalPercentInputValue(row.cofins_percent))}"></label>
+      <label class="span-1">FCP %<input id="taxRuleFcp" type="number" min="0" max="100" step="0.0001" placeholder="Não definido" value="${escapeHtml(fiscalPercentInputValue(row.fcp_percent))}"></label>
+      <label class="span-1">ICMS-ST %<input id="taxRuleIcmsSt" type="number" min="0" max="100" step="0.0001" placeholder="Obrigatório com ST" value="${escapeHtml(fiscalPercentInputValue(row.icms_st_percent))}"></label>
+      <label class="span-1">MVA %<input id="taxRuleMva" type="number" min="0" max="1000" step="0.0001" placeholder="Obrigatória com ST" value="${escapeHtml(fiscalPercentInputValue(row.mva_percent))}"></label>
       <label class="span-1">ST<select id="taxRuleHasSt"><option value="true"${row.has_st !== false ? ' selected' : ''}>Com ST</option><option value="false"${row.has_st === false ? ' selected' : ''}>Sem ST</option></select></label>
       <label class="span-3">Cálculo para Revenda
         <select id="taxRuleResaleMethod">
@@ -229,76 +228,12 @@ function formatResaleCalculationProfile(row) {
   return `portal atual (${rate}${row.resale_include_own_icms ? ', soma ICMS próprio' : ', sem somar ICMS próprio'})`;
 }
 
-async function importFiscalTaxRulesFromText(event) {
-  const text = document.getElementById('taxRuleImportText').value.trim();
-  if (!text) {
-    showFiscalTaxRuleMessage('Cole a relacao de impostos antes de importar.', false);
-    return;
-  }
-  const rows = parseFiscalTaxRuleImport(text);
-  if (!rows.length) {
-    showFiscalTaxRuleMessage('Nenhuma linha valida encontrada.', false);
-    return;
-  }
-  await runFiscalTaxRuleAction(event.target, async () => {
-    for (const row of rows) await supabaseSaveFiscalTaxRule(row);
-    showFiscalTaxRuleMessage(`${rows.length} regra${rows.length === 1 ? '' : 's'} importada${rows.length === 1 ? '' : 's'}.`, true);
-    document.getElementById('taxRuleImportText').value = '';
-    await loadFiscalTaxRules();
-  });
-}
-
-function parseFiscalTaxRuleImport(text) {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (lines.length < 2) return [];
-  const delimiter = lines[0].includes('\t') ? '\t' : ';';
-  const headers = lines[0].split(delimiter).map(normalizeFiscalHeader);
-  return lines.slice(1).map((line) => {
-    const values = line.split(delimiter);
-    const record = {};
-    headers.forEach((header, index) => {
-      if (header) record[header] = values[index] == null ? '' : values[index].trim();
-    });
-    return normalizeFiscalImportRecord(record);
-  }).filter((row) => row.ncm && row.uf_origem && row.uf_destino);
-}
-
-function normalizeFiscalImportRecord(row) {
-  return {
-    ncm: row.ncm,
-    uf_origem: row.uf_origem || row.origem,
-    uf_destino: row.uf_destino || row.uf || row.destino,
-    operation_type: row.operation_type || row.operacao || 'VENDA',
-    customer_type: row.customer_type || row.tipo_cliente || 'GERAL',
-    icms_percent: row.icms_percent || row.icms || 0,
-    ipi_percent: row.ipi_percent || row.ipi || 0,
-    pis_percent: row.pis_percent || row.pis || 0,
-    cofins_percent: row.cofins_percent || row.cofins || 0,
-    fcp_percent: row.fcp_percent || row.fcp || 0,
-    icms_st_percent: row.icms_st_percent || row.icms_st || row.st || 0,
-    mva_percent: row.mva_percent || row.mva_st || row.mva || 0,
-    effective_from: row.effective_from || row.vigencia_inicio || todayDateInput(),
-    effective_to: row.effective_to || row.vigencia_fim || '',
-    active: String(row.active || row.ativo || 'true').toLowerCase() !== 'false',
-    notes: row.notes || row.observacao || ''
-  };
-}
-
-function normalizeFiscalHeader(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
-}
-
 async function runFiscalTaxRuleAction(button, callback) {
   if (button) button.disabled = true;
   try {
     await callback();
   } catch (error) {
-    showFiscalTaxRuleMessage(error.message || 'Erro ao processar regra fiscal.', false);
+    showFiscalTaxRuleMessage(formatFiscalTaxRuleError(error), false);
   } finally {
     if (button) button.disabled = false;
   }
@@ -317,7 +252,27 @@ function formatNcm(value) {
 }
 
 function formatPercent(value) {
-  return Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '%';
+  if (value == null || value === '') return 'Não definido';
+  return Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '%';
+}
+
+function fiscalPercentInputValue(value) {
+  return value == null ? '' : value;
+}
+
+function formatFiscalTaxRuleError(error) {
+  const message = String(error?.message || 'Erro ao processar regra fiscal.');
+  const known = {
+    REGRA_FISCAL_CONFLITANTE: 'Já existe uma regra fiscal ativa com estes parâmetros e período de vigência.',
+    ICMS_OBRIGATORIO: 'Informe a alíquota de ICMS.',
+    ICMS_INTERNO_OBRIGATORIO_PARA_ST: 'Informe o ICMS interno para uma regra com ST.',
+    MVA_OBRIGATORIA_PARA_ST: 'Informe a MVA para uma regra com ST.',
+    UF_INVALIDA: 'Informe uma UF brasileira válida.',
+    NCM_INVALIDO: 'Informe um NCM válido com oito dígitos.',
+    ALIQUOTA_FORA_DA_FAIXA: 'Revise as alíquotas: há um percentual fora da faixa aceita.'
+  };
+  const code = Object.keys(known).find((key) => message.includes(key));
+  return code ? known[code] : message;
 }
 
 function formatDateOnly(value) {

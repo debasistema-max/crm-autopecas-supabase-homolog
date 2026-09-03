@@ -117,3 +117,36 @@ O teste de roles simulado não comprova RLS ou permissões reais do Supabase.
 
 O relatório detalhado e a matriz de riscos estão em
 [fiscal-audit.md](fiscal-audit.md).
+
+## Fase 5A — contenção fiscal e integridade
+
+Em 02/09/2026, as migrations 055–057 foram validadas e aplicadas exclusivamente
+no Supabase de homologação. A suíte SQL completa foi executada contra esse banco;
+cada arquivo abre transação e termina com `ROLLBACK`:
+
+- `047_fiscal_engine_regression.sql`: golden cases PR→PR, SP→SP e PR→SC;
+- `048_sap_import_center_regression.sql`: permissões, Cadastro Item SAP,
+  idempotência, campo vazio, estoque/preço PR, fiscal PR, cotação e pedido;
+- `049_all_import_types_regression.sql`: cadastro comercial, estoque/preço SP e
+  fiscal SP;
+- `050_reference_workbook_regression.sql`: referência integral da planilha;
+- `053_legacy_resale_profile_regression.sql`: compatibilidade do perfil Revenda;
+- `054_resale_profile_admin_regression.sql`: administração do perfil Revenda;
+- `055_fiscal_security_and_document_guard_regression.sql`: privilégios e bloqueio
+  atômico de documento com cálculo inválido;
+- `056_fiscal_rule_input_integrity_regression.sql`: UF inválida, distinção entre
+  `NULL` e zero e conflito de vigência;
+- `057_partial_stock_field_mask_regression.sql`: preservação das colunas omitidas
+  em importação parcial de estoque.
+
+Resultado: 9/9 arquivos SQL aprovados, 7/7 contratos estáticos aprovados e 22/22
+arquivos JavaScript aprovados em `node --check`. O uso de `node --test` encontrou
+uma restrição `spawn EPERM` do sandbox; o mesmo arquivo foi executado diretamente
+com o runner nativo e os sete casos passaram.
+
+Verificações adicionais:
+
+- a tentativa anônima às RPCs protegidas retorna HTTP 401;
+- `authenticated` mantém `EXECUTE` conforme regressão SQL;
+- as três migrations respondem `ALREADY_APPLIED` no histórico da homologação;
+- os valores fiscais esperados permaneceram inalterados.

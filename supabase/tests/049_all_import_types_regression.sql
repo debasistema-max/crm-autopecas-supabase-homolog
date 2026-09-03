@@ -50,6 +50,16 @@ begin
   end if;
 
   update public.products set ncm='85122011',cest='0100100',ipi_rate=0.0975,ipi_defined=true where codigo='6111032202';
+  -- Isola o teste das regras reais vigentes. O rollback restaura o estado original.
+  update public.fiscal_tax_rules
+     set active=false
+   where ncm='85122011'
+     and uf_origem='SP'
+     and uf_destino='SP'
+     and operation_type='VENDA'
+     and customer_type='GERAL'
+     and active;
+
   v_batch := (public.create_sap_import_batch(jsonb_build_object(
     'import_kind','FISCAL_RULES_SP','file_hash',repeat('4',64),'original_filename','fiscal-sp.csv',
     'detected_fields',jsonb_build_array('ncm','destination_state','interstate_icms_rate','internal_icms_rate','mva_rate','ipi_rate','has_st')

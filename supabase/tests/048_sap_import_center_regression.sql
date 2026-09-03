@@ -61,6 +61,16 @@ begin
   if not exists(select 1 from public.product_branch_prices p join public.branches b on b.id=p.branch_id
     where p.product_code='6111032201' and b.code='PR' and p.sale_price=232) then raise exception 'PRECO_PR_FALHOU'; end if;
 
+  -- Isola o teste das regras reais vigentes. O rollback restaura o estado original.
+  update public.fiscal_tax_rules
+     set active=false
+   where ncm='85122011'
+     and uf_origem='PR'
+     and uf_destino in ('PR','SC')
+     and operation_type='VENDA'
+     and customer_type='GERAL'
+     and active;
+
   v_batch := (public.create_sap_import_batch(jsonb_build_object('import_kind','FISCAL_RULES_PR','file_hash',repeat('d',64),
     'original_filename','fiscal-pr.csv','detected_fields',jsonb_build_array('ncm','destination_state','interstate_icms_rate','internal_icms_rate','mva_rate','ipi_rate','has_st')))->>'batch_id')::uuid;
   perform public.stage_sap_import_rows(v_batch,jsonb_build_array(
