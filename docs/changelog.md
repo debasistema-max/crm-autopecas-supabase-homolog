@@ -21,7 +21,8 @@
   físicos não foram controlados pelo navegador de teste.
 - Achados fiscais: defaults de zero e importação legada por linha registrados
   em `mobile-audit.md`; nenhuma correção fiscal presumida.
-- Publicação: homologação prevista após a verificação final; produção proibida.
+- Publicação: commit funcional `df20913` aprovado no GitHub Pages de homologação;
+  25 verificações públicas aprovadas. Produção não alterada.
 
 ## 2026-08-27 — Fase 2, entrega 4: importações e transferências
 

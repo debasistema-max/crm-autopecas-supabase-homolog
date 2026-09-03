@@ -1,7 +1,7 @@
 # Fase 3 — auditoria mobile, concluída em 02/09/2026
 
-Status: **validada localmente, aguardando publicação em homologação**.
-Base publicada antes desta entrega: `dc1a593`.
+Status: **validada e publicada em homologação**.
+Commit funcional publicado: `df20913`.
 
 ## Escopo e dependências
 
@@ -97,6 +97,6 @@ smokes funcionais aprovados; nenhum erro/warning no console do portal testado.
 O navegador esteve indisponível em 28/08. Em 02/09, a conexão foi restabelecida
 e a matriz foi executada sem recorrer a outra automação.
 
-Próximo passo: executar a verificação final de sintaxe/diff, publicar no
-repositório de homologação e validar a URL pública. Produção e ambos os bancos
-permanecem intocados nesta entrega.
+Publicação validada em 390, 768 e 1440 px: 21 cenários de módulos/smokes e
+4 entradas de login/portal, sem overflow ou falha funcional. Produção e ambos
+os bancos permaneceram intocados nesta entrega.
