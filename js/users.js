@@ -3,7 +3,7 @@ async function renderUsers(container) {
   try {
     const users = await supabaseListUsers();
     container.innerHTML = `
-      <section class="panel">
+      <section class="panel admin-panel">
         <div class="panel-header">
           <div><h2>Usuarios</h2><p>Senha e permissoes permanecem protegidas no servidor.</p></div>
         </div>
@@ -26,7 +26,7 @@ async function renderUsers(container) {
           </div>
         </form>
       </section>
-      <section class="panel">${renderUsersTable(users)}</section>
+      <section class="panel admin-panel">${renderUsersTable(users)}</section>
     `;
     document.getElementById('userForm').addEventListener('submit', saveUserFromForm);
     document.getElementById('clearUserFormButton').addEventListener('click', clearUserForm);
@@ -41,7 +41,7 @@ function renderUsersTable(users) {
   return `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Usuario</th><th>Nome</th><th>Email</th><th>Perfil</th><th>Status</th><th>Ultimo login</th><th></th></tr></thead>
+        <thead><tr><th>Usuario</th><th>Nome</th><th>Email</th><th>Perfil</th><th>Status</th><th>Ultimo login</th><th>Acoes</th></tr></thead>
         <tbody>
           ${users.map((user, index) => `
             <tr>
@@ -126,17 +126,17 @@ async function saveUserFromForm(event) {
 
 async function renderLogs(container) {
   container.innerHTML = `
-    <section class="panel">
+    <section class="panel admin-panel">
       <div class="panel-header">
         <div><h2>Logs</h2><p>Acoes importantes registradas no Supabase.</p></div>
       </div>
-      <form id="logsFilter" class="actions-row">
-        <label>Usuario<input id="logsUser"></label>
-        <label>Acao<input id="logsAction"></label>
-        <button class="btn btn-primary" type="submit">Filtrar</button>
+      <form id="logsFilter" class="field-grid">
+        <label class="span-4">Usuario<input id="logsUser"></label>
+        <label class="span-4">Acao<input id="logsAction"></label>
+        <div class="span-4 actions-row align-end"><button class="btn btn-primary" type="submit">Filtrar</button></div>
       </form>
     </section>
-    <section class="panel" id="logsResults"><div class="empty-state">Carregando logs...</div></section>
+    <section class="panel admin-panel" id="logsResults"><div class="empty-state">Carregando logs...</div></section>
   `;
   const load = async () => {
     const target = document.getElementById('logsResults');

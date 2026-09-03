@@ -2,7 +2,7 @@ async function renderCadastrosClientes(container) {
   const admin = isAdminSession();
   container.innerHTML = `
     ${admin ? renderPortalCadastrosAdminPanel() : ''}
-    <section class="panel">
+    <section class="panel admin-panel">
       <div class="panel-header">
         <div>
           <h2>Cadastros de Clientes</h2>
@@ -25,7 +25,7 @@ async function renderCadastrosClientes(container) {
       </div>
       <p id="cadastroMessage" class="form-message"></p>
     </section>
-    <section class="panel" id="cadastrosList">
+    <section class="panel admin-panel" id="cadastrosList">
       <div class="empty-state">Carregando cadastros...</div>
     </section>
   `;
@@ -73,7 +73,7 @@ function renderPortalCadastrosAdminPanel() {
   const from = new Date(today);
   from.setDate(from.getDate() - 30);
   return `
-    <section class="panel">
+    <section class="panel admin-panel">
       <div class="panel-header">
         <div>
           <h2>Controle do portal de cadastros</h2>
@@ -184,7 +184,7 @@ function renderPortalCadastrosReportRows(rows) {
           <th>Email</th>
           <th>Vendedor</th>
           <th>Anexos</th>
-          <th></th>
+          <th>Acoes</th>
         </tr>
       </thead>
       <tbody>
@@ -277,7 +277,7 @@ function renderCadastrosTable(rows) {
             <th>Anexos</th>
             <th>Status</th>
             <th>Observacoes internas</th>
-            <th></th>
+            <th>Acoes</th>
           </tr>
         </thead>
         <tbody>
@@ -306,15 +306,15 @@ function renderCadastroRow(row) {
         <small>${escapeHtml(row.email_compras || '')}</small>
       </td>
       <td>
-        <input data-cadastro-codigo-sap value="${escapeHtml(row.codigo_sap_cliente || '')}" placeholder="Codigo SAP">
+        <input data-cadastro-codigo-sap aria-label="Codigo SAP de ${escapeHtml(row.protocolo || row.razao_social || 'cadastro')}" value="${escapeHtml(row.codigo_sap_cliente || '')}" placeholder="Codigo SAP">
       </td>
       <td>${renderCadastroAnexos(row.anexos)}</td>
       <td>
-        <select data-cadastro-status>
+        <select data-cadastro-status aria-label="Status de ${escapeHtml(row.protocolo || row.razao_social || 'cadastro')}">
           ${cadastroStatusOptions().map((status) => `<option value="${escapeHtml(status)}"${status === row.status ? ' selected' : ''}>${escapeHtml(status)}</option>`).join('')}
         </select>
       </td>
-      <td><textarea data-cadastro-notes>${escapeHtml(row.observacoes_internas || '')}</textarea></td>
+      <td><textarea data-cadastro-notes aria-label="Observacoes internas de ${escapeHtml(row.protocolo || row.razao_social || 'cadastro')}">${escapeHtml(row.observacoes_internas || '')}</textarea></td>
       <td><button class="btn btn-secondary" type="button" data-save-cadastro>Salvar</button></td>
     </tr>
   `;

@@ -2741,6 +2741,7 @@ textarea {
 }
 
 .company-settings-preview img {
+  flex: 0 0 48px;
   width: 48px;
   height: 48px;
   border-radius: 8px;
@@ -2759,6 +2760,53 @@ textarea {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
+}
+
+/* Administrative forms must retain usable controls between phone and desktop. */
+.admin-panel .span-5 {
+  grid-column: span 5;
+}
+
+.admin-panel .field-grid > *,
+.company-settings-preview > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-panel .btn,
+.admin-panel .link-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-panel .attachment-list {
+  min-width: 0;
+}
+
+.admin-panel .link-button {
+  width: 100%;
+}
+
+@media (min-width: 681px) and (max-width: 1200px) {
+  .admin-panel .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-panel .field-grid > * {
+    grid-column: auto;
+  }
+  .admin-panel .field-grid > .span-12 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 980px) {
+  .admin-panel input,
+  .admin-panel select,
+  .admin-panel textarea {
+    font-size: 16px;
+  }
 }
 
 button:disabled {
@@ -3018,6 +3066,19 @@ button:disabled {
     min-width: 44px;
     width: 44px;
     height: 44px;
+  }
+  .dashboard-period-button,
+  .product-mini-item {
+    min-height: 44px;
+  }
+  .product-favorite {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .commercial-document .sap-mini-button,
+  .commercial-document .sap-search-button {
+    min-height: 44px;
   }
   .sap-form-left input,
   .sap-form-left select,
@@ -3495,6 +3556,7 @@ button:disabled {
   .mapping-row { grid-template-columns: 1fr; }
   .field-grid { grid-template-columns: 1fr; }
   .span-2, .span-3, .span-4, .span-6, .span-8, .span-12 { grid-column: auto; }
+  .admin-panel .span-5 { grid-column: auto; }
   .table-wrap {
     overflow: visible;
   }
@@ -3557,6 +3619,15 @@ button:disabled {
   td select {
     width: 100%;
     min-width: 0;
+  }
+  .admin-panel td[data-label] > small {
+    grid-column: 2;
+  }
+  .admin-panel td[data-label]:has(input, select, textarea, .attachment-list, .actions-row, .btn) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-panel td[data-label]:has(input, select, textarea, .attachment-list, .actions-row, .btn) > * {
+    grid-column: 1;
   }
   .sap-titlebar {
     align-items: flex-start;

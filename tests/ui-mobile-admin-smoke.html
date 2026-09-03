@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Administracao mobile</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <output id="smokeResult" hidden>Executando</output>
+  <main class="content" id="content" tabindex="-1"></main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script src="../js/users.js"></script>
+  <script src="../js/cadastros.js"></script>
+  <script src="../js/company_settings.js"></script>
+  <script src="../js/tax_rules.js"></script>
+  <script>
+    // No Supabase client or credentials: all data and mutation guards are local.
+    const params = new URLSearchParams(location.search);
+    const moduleName = params.get('module') || 'users';
+    const scenario = params.get('scenario') || 'loaded';
+    let mutationCalls = 0;
+    let readCalls = 0;
+    const currentSession = { perfil: params.get('role') || 'ADMIN' };
+    DEFAULT_COMPANY_SETTINGS.logo_url = '../assets/logo-neutral.svg';
+    function isSupabaseReady() { return false; }
+    function getStoredSession() { return currentSession; }
+    function readFixture(rows) {
+      readCalls += 1;
+      if (scenario === 'error') throw new Error('Falha simulada. Tente novamente.');
+      return scenario === 'empty' ? [] : rows;
+    }
+    async function denyMutation() {
+      mutationCalls += 1;
+      document.documentElement.dataset.smoke = 'fail';
+      throw new Error('O smoke nao permite gravacoes.');
+    }
+    supabaseSaveCompanySettings = denyMutation;
+    const supabaseSaveUser = denyMutation;
+    const supabaseUpdateCadastroCliente = denyMutation;
+    const supabaseSavePortalCadastroSettings = denyMutation;
+    const supabaseSaveBusinessClientFromCadastro = denyMutation;
+    const supabaseSaveFiscalTaxRule = denyMutation;
+    const supabaseDeleteFiscalTaxRule = denyMutation;
+    const cadastroFixture = {
+      id: 'cadastro-smoke', protocolo: 'HML-2026-000123', created_at: '2026-08-28T13:30:00Z',
+      razao_social: 'DISTRIBUIDORA DE AUTOPECAS HOMOLOGACAO LTDA', cidade: 'Sao Jose dos Pinhais', estado: 'PR',
+      cnpj: '13180109000108', status: 'Em analise', codigo_sap_cliente: 'C000123',
+      email_compras: 'compras.homologacao@empresa.example', vendedor: 'Vendedor de homologacao',
+      telefone: '(41) 3000-0000', segmento: 'Distribuidor', observacoes_internas: 'Conferir documentos recebidos.',
+      anexos: [{ path: 'smoke/documento.pdf', name: 'Comprovante de inscricao estadual.pdf' }]
+    };
+    async function supabaseListUsers() {
+      return readFixture([{ id: 'user-smoke', usuario: 'vendedor.homologacao', nome: 'Usuario Homologacao',
+        email: 'vendedor.homologacao@empresa.example', perfil: 'VENDEDOR', ativo: true, ultimo_login: '28/08/2026 10:30' }]);
+    }
+    async function supabaseGetLogs() {
+      return readFixture([{ data_hora: '28/08/2026 10:30', usuario: 'admin.homologacao', acao: 'ATUALIZAR_CONFIG_EMPRESA',
+        entidade: 'company_settings', id_entidade: '12345678-abcd-1234-abcd-123456789012' }]);
+    }
+    async function supabaseListCadastrosClientes() { return readFixture([cadastroFixture]); }
+    async function supabaseGetCadastrosPortalReport() {
+      const recent = readFixture([cadastroFixture]);
+      return { settings: { email_principal: 'financeiro@empresa.example' }, total: recent.length,
+        byStatus: [{ status: 'Em analise', count: recent.length }], recent };
+    }
+    supabaseGetCompanySettings = async () => {
+      readFixture([]);
+      return { ...DEFAULT_COMPANY_SETTINGS, company_name: 'DISTRIBUIDORA DE AUTOPECAS HOMOLOGACAO LTDA',
+        logo_url: '../assets/logo-neutral.svg', email: 'contato@empresa.example', state: 'PR',
+        created_at: '2026-08-28T13:30:00Z', updated_at: '2026-08-28T13:30:00Z' };
+    };
+    async function supabaseListFiscalTaxRules() {
+      return readFixture([{ id: 'rule-smoke', ncm: '85122011', uf_origem: 'PR', uf_destino: 'PR',
+        customer_type: 'GERAL', icms_percent: 12, ipi_percent: 9.75, pis_percent: null, cofins_percent: null,
+        fcp_percent: null, icms_st_percent: 19.5, mva_percent: 87.78, has_st: true,
+        effective_from: '2026-08-28', active: true, notes: 'Fixture visual, nao e validacao fiscal.' }]);
+    }
+    (async () => {
+      const root = document.getElementById('content');
+      const renderers = { users: renderUsers, logs: renderLogs, cadastros: renderCadastrosClientes,
+        portal: renderPortalCadastrosControle, settings: renderCompanySettings, fiscal: renderFiscalTaxRules };
+      try {
+        if (!renderers[moduleName]) throw new Error('Modulo de teste desconhecido.');
+        CrmUi.observeResponsiveTables(root);
+        await renderers[moduleName](root);
+        if (params.get('editor') === 'true' && moduleName === 'fiscal') {
+          document.querySelector('[data-tax-edit]').click();
+        }
+        if (params.get('editor') === 'true' && moduleName === 'users') {
+          document.querySelector('[data-edit-user]').click();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const denied = moduleName === 'portal' && currentSession.perfil !== 'ADMIN';
+        const checks = {
+          rendered: root.textContent.trim().length > 0,
+          noMutations: mutationCalls === 0,
+          errorState: scenario !== 'error' || denied || root.textContent.includes('Falha simulada'),
+          emptyState: scenario !== 'empty' || moduleName === 'settings' || denied || /Nenhum|Nenhuma/.test(root.textContent),
+          portalGuard: !denied || (readCalls === 0 && !document.getElementById('savePortalSettingsButton')),
+          tablesLabeled: Array.from(root.querySelectorAll('table')).every((table) => table.dataset.responsiveReady === 'true'),
+          controlsNamed: Array.from(root.querySelectorAll('input:not([type="hidden"]), select, textarea'))
+            .every((control) => control.labels.length > 0 || Boolean(control.getAttribute('aria-label'))),
+          fiscalEditor: moduleName !== 'fiscal' || params.get('editor') !== 'true' || (
+            document.getElementById('taxRuleNcm').value === '85122011' && document.getElementById('taxRuleMva').value === '87.78'),
+          userEditor: moduleName !== 'users' || params.get('editor') !== 'true' || (
+            document.getElementById('newUserProfile').value === 'VENDEDOR' && document.getElementById('newUserPassword').value === '')
+        };
+        document.getElementById('smokeResult').value = JSON.stringify(checks);
+        document.documentElement.dataset.smoke = Object.values(checks).every(Boolean) ? 'pass' : 'fail';
+      } catch (error) {
+        document.getElementById('smokeResult').value = error.message;
+        document.documentElement.dataset.smoke = 'fail';
+      }
+    })();
+  </script>
+</body>
+</html>

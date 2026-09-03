@@ -2,6 +2,8 @@
 
 ## Validações atuais
 
+- `node --test tests/static-ui-contracts.test.cjs`: runner estático sem dependências,
+  com sintaxe, referências, IDs e contratos de acessibilidade (não substitui browser);
 - `node --check` para JavaScript não vendorizado;
 - smoke pages em `tests/` para fiscal, importações e consulta CNPJ;
 - smoke operacional em `tests/ui-operational-smoke.html`, selecionável por
@@ -83,5 +85,16 @@
 
 ## Lacunas
 
-Ainda não há runner automatizado, lint, typecheck ou CI. A implantação de um
-runner mínimo deve ocorrer antes da centralização fiscal v2.
+Há um runner estático mínimo, mas ainda não há runner visual/integração,
+lint, typecheck ou CI. A centralização fiscal v2 exige regressões adicionais.
+
+## Fase 3 — validação local concluída
+
+Em 02/09/2026, os 7 testes estáticos passaram. O smoke administrativo
+`tests/ui-mobile-admin-smoke.html` foi preparado com dados simulados,
+cenários de erro/vazio, edição e guard do portal. Foram aprovados 66 cenários
+administrativos, 7 de login, 7 viewports do portal público, a navegação das
+cinco etapas sem submissão e 48 regressões dos módulos já entregues.
+
+A matriz e os limites da evidência estão em [mobile-audit.md](mobile-audit.md).
+O teste de roles simulado não comprova RLS ou permissões reais do Supabase.

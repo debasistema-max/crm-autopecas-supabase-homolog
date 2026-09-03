@@ -1,5 +1,28 @@
 # Changelog técnico
 
+## 2026-09-02 — Fase 3: administração, login e regressão mobile
+
+- Motivo: preparar formulários e tabelas administrativas para mobile/tablet.
+- Antes: grade de 12 colunas em tablet, controles de cadastro sem nome acessível,
+  ações de anexo pequenas e login com overflow oculto.
+- Depois: grade administrativa em duas
+  colunas no tablet; rótulos de ação/controles; áreas de toque; fonte mobile;
+  rolagem vertical do login. Fórmulas, handlers e persistência preservados.
+- Arquivos: `app.html`, `index.html`, `css/app.css`, `css/login.css`,
+  `js/users.js`, `js/cadastros.js`, `js/company_settings.js`, `js/tax_rules.js`,
+  `tests/ui-mobile-admin-smoke.html`, `tests/static-ui-contracts.test.cjs`,
+  `docs/mobile-audit.md`, `docs/mobile-guidelines.md`, `docs/testing.md` e este arquivo.
+- Banco alterado: não. Migration: nenhuma. RPC/RLS: sem alteração.
+- Testes: 7 estáticos, 66 administrativos, 7 login, 7 portal público,
+  navegação das 5 etapas e 48 regressões gerais aprovados.
+- Regressão corrigida: busca de cliente em cotações/pedidos, períodos do
+  dashboard e ações rápidas de produtos tinham alvo inferior a 44 px no tablet.
+- Risco: roles são simuladas e não comprovam RLS; teclado virtual e aparelhos
+  físicos não foram controlados pelo navegador de teste.
+- Achados fiscais: defaults de zero e importação legada por linha registrados
+  em `mobile-audit.md`; nenhuma correção fiscal presumida.
+- Publicação: homologação prevista após a verificação final; produção proibida.
+
 ## 2026-08-27 — Fase 2, entrega 4: importações e transferências
 
 - Central de Importações recebeu cabeçalho, navegação semântica e indicador das

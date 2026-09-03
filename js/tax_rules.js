@@ -1,6 +1,6 @@
 async function renderFiscalTaxRules(container) {
   container.innerHTML = `
-    <section class="panel">
+    <section class="panel admin-panel">
       <div class="panel-header">
         <div>
           <h2>Impostos</h2>
@@ -28,17 +28,18 @@ async function renderFiscalTaxRules(container) {
       </div>
       <p id="taxRuleMessage" class="form-message"></p>
     </section>
-    <section class="panel" id="taxRuleEditor" hidden></section>
-    <section class="panel">
+    <section class="panel admin-panel" id="taxRuleEditor" hidden></section>
+    <section class="panel admin-panel">
       <div class="panel-header">
         <div><h2>Importar relacao</h2><p>Cole CSV/TSV com cabecalho para cadastrar varias regras.</p></div>
       </div>
+      <label for="taxRuleImportText">Dados da relacao fiscal</label>
       <textarea id="taxRuleImportText" placeholder="ncm;uf_origem;uf_destino;icms;ipi;pis;cofins;fcp;mva_st;icms_st;tipo_cliente;vigencia_inicio"></textarea>
       <div class="actions-row" style="margin-top: 10px;">
         <button class="btn btn-secondary" id="taxRuleImportButton" type="button">Importar texto</button>
       </div>
     </section>
-    <section class="panel" id="taxRuleResults"><div class="empty-state">Carregando regras fiscais...</div></section>
+    <section class="panel admin-panel" id="taxRuleResults"><div class="empty-state">Carregando regras fiscais...</div></section>
   `;
 
   document.getElementById('taxRuleFilterButton').addEventListener('click', loadFiscalTaxRules);
@@ -80,7 +81,7 @@ function renderFiscalTaxRuleResults(rows) {
       <table>
         <thead>
           <tr>
-            <th>NCM</th><th>Origem</th><th>Destino</th><th>ICMS</th><th>IPI</th><th>PIS</th><th>COFINS</th><th>ST/MVA</th><th>Vigencia</th><th>Status</th><th></th>
+            <th>NCM</th><th>Origem</th><th>Destino</th><th>ICMS</th><th>IPI</th><th>PIS</th><th>COFINS</th><th>ST/MVA</th><th>Vigencia</th><th>Status</th><th>Acoes</th>
           </tr>
         </thead>
         <tbody>

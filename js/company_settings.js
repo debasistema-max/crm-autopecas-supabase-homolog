@@ -204,7 +204,7 @@ async function renderCompanySettings(container) {
   try {
     const settings = await supabaseGetCompanySettings();
     container.innerHTML = `
-      <section class="panel">
+      <section class="panel admin-panel">
         <div class="panel-header">
           <div><h2>Configuracoes da Empresa</h2><p>Identidade institucional usada pelo CRM.</p></div>
         </div>
