@@ -87,3 +87,23 @@ test('login retains browser credential autofill and labeled inputs', () => {
   assert.match(source, /id="loginButton"[^>]*type="submit"/);
   assert.match(source, /id="loginMessage"[^>]*role="alert"/);
 });
+
+test('Data Center is wired without frontend secrets and keeps manual imports', () => {
+  const html = read('app.html');
+  const app = read('js/app.js');
+  const sync = read('js/data_sync.js');
+  const store = read('js/supabase_store.js');
+  assert.match(html, /data-module="dataCentral"/);
+  assert.match(html, /Importação e Integrações/);
+  assert.match(html, /src="js\/data_sync\.js/);
+  assert.match(app, /dataCentral: \{[^\n]+adminOnly: true/);
+  for (const id of ['dataSyncNow', 'dataSyncDetails', 'dataSyncErrors', 'dataSyncHistory', 'dataSyncStatusContent']) {
+    assert.ok(sync.includes(`id="${id}"`), id);
+  }
+  assert.match(store, /functions\.invoke\('excel-sync'/);
+  assert.doesNotMatch(sync + store, /service[_ -]?role|DATA_SYNC_ADAPTER_TOKEN/i);
+  assert.match(read('js/imports.js'), /function renderImportCenter/);
+  const smoke = read('tests/ui-data-sync-smoke.html');
+  assert.doesNotMatch(smoke, /<script[^>]+src=["'][^"']*(?:supabase|auth|store)/i);
+  assert.doesNotMatch(smoke, /\b(?:fetch|XMLHttpRequest|createClient)\s*\(/);
+});

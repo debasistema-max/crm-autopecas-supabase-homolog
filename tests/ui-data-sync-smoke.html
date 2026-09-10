@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke — Central de Dados</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <main class="content" id="content"></main>
+  <script src="../js/utils/format.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script>
+    const smokeBatch = {
+      id: '06000000-0000-4000-8000-000000000001', created_at: '2026-09-10T18:00:00Z',
+      started_at: '2026-09-10T18:00:00Z', finished_at: '2026-09-10T18:00:08Z',
+      source_updated_at: '2026-09-10T17:59:00Z', source_version: 'abcdef1234567890',
+      integration_source: 'EXCEL_API', status: 'completed_with_errors', total_rows: 10000,
+      inserted_rows: 15, updated_rows: 321, unchanged_rows: 9600, ignored_rows: 64, error_count: 2,
+      duration_seconds: 8, summary: { products_analyzed: 4239, products_inserted: 15,
+        prices_changed: 103, stocks_changed: 82, products_changed: 91, fiscal_results_changed: 45 }
+    };
+    async function supabaseGetDataSyncStatus() {
+      return { connected: true, source: { connection_status: 'DEGRADED', adapter_type: 'HTTP_ADAPTER',
+        next_sync_at: '2026-09-10T19:00:00Z' }, last_batch: smokeBatch };
+    }
+    async function supabaseListDataSyncBatches() { return { rows: [smokeBatch], count: 1 }; }
+    async function supabaseListDataSyncErrors() { return { rows: [{ batch_id: smokeBatch.id, product_code: '12345',
+      area: 'STOCK', branch_code: 'PR', status: 'error', errors: ['NUMERO_INVALIDO:stock_qty'], warnings: [],
+      normalized_data: { stock_qty: 'ABC' } }], count: 1 }; }
+    async function supabaseListDataSyncAudit() { return { rows: [{ created_at: smokeBatch.finished_at,
+      product_code: '6111032201', area: 'BASE_PRICE', field_name: 'base_price', old_value: 580,
+      new_value: 595, branch_code: 'SP', source: 'EXCEL_API', created_by: 'SYSTEM' }], count: 1 }; }
+    async function supabaseTriggerDataSync() { return { duplicate: true, batch: smokeBatch }; }
+  </script>
+  <script src="../js/data_sync.js"></script>
+  <script>renderDataSyncCenter(document.getElementById('content'));</script>
+</body>
+</html>

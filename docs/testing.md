@@ -178,3 +178,23 @@ e migrations 058/059 registradas. Os três resultados da planilha não mudaram.
 O smoke administrativo fiscal passou em 320, 768 e 1024 px: editor de rascunho,
 rótulos, tabela responsiva e ausência de mutações automáticas foram aprovados,
 sem overflow horizontal nos três breakpoints.
+
+## Central de Dados
+
+- `060_excel_data_sync_center_regression.sql`: permissões, código Excel,
+  produto novo, atualização parcial, vazio, limpeza explícita, zero, filial,
+  preço de rota, idempotência, lote antigo, concorrência, falha parcial,
+  `SYNC_ERP`, auditoria e filtros de erro;
+- `060_excel_data_sync_performance_regression.sql`: staging e validação de 4.000
+  produtos em uma transação descartável;
+- `061_excel_sync_edge_authorization_regression.sql`: `anon` sem execução do
+  predicado, ADMIN autorizado e identidade autenticada sem perfil negada;
+- `scripts/build_excel_sync_payload.py`: executado contra a referência real,
+  sem salvar ou alterar o XLSX;
+- o contrato estático verifica navegação, controles, Edge Function e ausência de
+  service role/token no frontend.
+
+Em 10/09/2026, as migrations 060–061 foram aplicadas somente na homologação. A
+regressão 060 e o teste de 4.000 registros passaram novamente contra o schema
+instalado com `ROLLBACK`; a carga levou 4,85 s. A Edge Function versão 2 ficou
+ativa e respondeu HTTP 401 tanto sem credencial quanto com a chave anônima.

@@ -5,7 +5,8 @@ const MODULES = {
   stockTransfers: { title: 'Transferências', section: 'Operação', domain: 'orders', permission: 'pedidos', render: renderStockTransfers },
   quoteReports: { title: 'Cotações', section: 'Comercial', domain: 'quotes', permission: ['cotacoes', 'nova_cotacao'], render: renderQuotationsReport },
   partners: { title: 'Parceiros de negócios', section: 'Comercial', domain: 'customers', permission: 'parceiros', render: renderBusinessPartners },
-  sap: { title: 'Importações', section: 'Operação', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], render: renderImportCenter },
+  dataCentral: { title: 'Central de Dados', section: 'Operação', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], adminOnly: true, render: renderDataSyncCenter },
+  sap: { title: 'Importação e Integrações', section: 'Operação', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], render: renderImportCenter },
   cadastros: { title: 'Cadastros', section: 'Operação', domain: 'customers', permission: 'cadastros', render: renderCadastrosClientes },
   portalCadastros: { title: 'Portal de clientes', section: 'Operação', domain: 'customers', permission: 'usuarios', adminOnly: true, render: renderPortalCadastrosControle },
   companySettings: { title: 'Configurações da empresa', section: 'Sistema', domain: 'settings', permission: ['configuracoes_empresa', 'configuracoes'], adminOnly: true, render: renderCompanySettings },
@@ -19,6 +20,7 @@ const SIDEBAR_PREFERENCE_KEY = 'crm.sidebar.collapsed.v1';
 const MODULE_ALIASES = {
   customers: { module: 'partners' },
   imports: { module: 'sap' },
+  dataSync: { module: 'dataCentral' },
   orders: { module: 'ordersReport' },
   transfers: { module: 'stockTransfers' },
   quotes: { module: 'quoteReports' },

@@ -1,5 +1,18 @@
 # Changelog técnico
 
+## 2026-09-10 — Central de Dados e sincronização Excel
+
+- adicionada camada Excel/adapter → normalização → validação → lotes → Supabase, sem dependência do arquivo em tempo de execução do CRM;
+- incluídos UPSERT parcial, diferenciação entre campo ausente e zero, idempotência, proteção contra lote antigo e concorrência otimista;
+- estoque por filial continua em `product_branch_stock`, preço-base continua em `product_branch_prices` e resultados consolidados por rota foram isolados em `product_route_prices`;
+- auditoria por campo e movimento `SYNC_ERP` identificam origem, lote, filial, rota, valor anterior e valor novo;
+- criada Central de Dados administrativa e preservada a importação manual como “Importação e Integrações”;
+- o adapter rejeita o lote se o OneDrive substituir o XLSX durante a leitura;
+- a Edge Function valida sessão e perfil ADMIN antes de contatar o adapter; chave anônima retorna 401;
+- migrations 060–061 e Edge Function versão 2 aplicadas somente em homologação; produção não foi acessada;
+- adicionados testes de contrato, integração, autorização e carga de 4.000 registros;
+- rollback automático de lote não foi exposto nesta fase: a documentação descreve a reversão futura com verificação de versão para não apagar mudanças posteriores.
+
 ## 2026-09-03 — Fase 5B: versionamento e ciclo de vida fiscal
 
 - Motivo: impedir alteração destrutiva de regras em uso e tornar cada mudança

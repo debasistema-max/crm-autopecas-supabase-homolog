@@ -1955,6 +1955,44 @@ async function supabaseListSapImportBatches(filters = {}) {
   return data || { rows: [] };
 }
 
+async function supabaseGetDataSyncStatus(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('get_data_sync_status', { filters });
+  if (error) throw error;
+  return data || { source: null, last_batch: null, connected: false };
+}
+
+async function supabaseListDataSyncBatches(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('list_data_sync_batches', { filters });
+  if (error) throw error;
+  return data || { rows: [], count: 0 };
+}
+
+async function supabaseListDataSyncErrors(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('list_data_sync_errors', { filters });
+  if (error) throw error;
+  return data || { rows: [], count: 0 };
+}
+
+async function supabaseListDataSyncAudit(filters = {}) {
+  const { data, error } = await supabaseClient.rpc('list_data_sync_audit', { filters });
+  if (error) throw error;
+  return data || { rows: [], count: 0 };
+}
+
+async function supabaseTriggerDataSync() {
+  const { data, error } = await supabaseClient.functions.invoke('excel-sync', {
+    body: { source: 'EXCEL_API' }
+  });
+  if (error) {
+    const contextMessage = error.context && typeof error.context.json === 'function'
+      ? await error.context.json().catch(() => null)
+      : null;
+    throw new Error(contextMessage?.error || error.message || 'Não foi possível iniciar a sincronização.');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data || {};
+}
+
 async function supabaseGetFiscalPending(filters = {}) {
   const { data, error } = await supabaseClient.rpc('get_fiscal_pending', { filters });
   if (error) throw error;

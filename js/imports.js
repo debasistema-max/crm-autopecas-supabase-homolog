@@ -62,8 +62,8 @@ async function renderImportCenter(container) {
   container.innerHTML = `
     <div class="module-page import-workspace">
       ${CrmUi.renderPageHeader(
-        'Central de Importacoes',
-        'Receba arquivos SAP com staging, validacao, preview, auditoria e commit transacional.',
+        'Importação e Integrações',
+        'Contingência administrativa para arquivos manuais, com staging, validação, preview, auditoria e commit transacional.',
         '',
         'Operacao'
       )}

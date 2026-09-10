@@ -36,3 +36,17 @@ de mudanças estruturais adicionais.
 O projeto permanece sem framework e sem bundler nesta fase. Componentes novos
 usam um namespace global único (`CrmUi`) para reduzir colisões enquanto os
 módulos legados são extraídos gradualmente.
+
+## Integração de dados externa
+
+A Central de Dados acrescenta uma fronteira de integração sem tornar o Excel
+uma dependência de execução do CRM:
+
+```text
+origem -> adapter -> DTO Data Sync v1 -> Edge Function -> staging/RPCs -> tabelas canônicas
+```
+
+Estoque continua em `product_branch_stock`; preço-base continua em
+`product_branch_prices`. `product_route_prices` guarda apenas o resultado fiscal
+consolidado por rota, um conceito diferente. Detalhes operacionais e instruções
+de extensão estão em [data-sync.md](data-sync.md).
