@@ -142,3 +142,21 @@ test('quotes read synchronized branch price and stock instead of legacy product 
   assert.match(migration, /create or replace function public\.search_products/);
   assert.doesNotMatch(migration, /then p\.preco_pr else p\.preco_sp/);
 });
+
+test('quotation and order creation use the compact commercial workflow', () => {
+  for (const file of ['js/quotes.js', 'js/orders.js']) {
+    const source = read(file);
+    const createView = source.slice(0, source.indexOf('\nfunction apply'));
+    assert.match(createView, /class="commercial-steps"/);
+    assert.match(createView, /Cliente e rota/);
+    assert.match(createView, /Adicionar produtos/);
+    assert.match(createView, /Revisar e salvar/);
+    assert.match(createView, /class="commercial-more-fields"/);
+    assert.match(createView, /Codigo, nome ou aplicacao/);
+    assert.match(createView, /type="number" min="1" value="1"/);
+    assert.match(source, /<th>Produto<\/th><th>Qtde<\/th><th>Preco<\/th>/);
+    assert.match(source, /colspan="7" class="sap-empty-row"/);
+    assert.doesNotMatch(createView, /Status SAP<input/);
+    assert.doesNotMatch(createView, /Autorizacao portal<input/);
+  }
+});

@@ -3,6 +3,358 @@
   overflow-x: hidden;
 }
 
+/* Fluxo comercial enxuto: cotacoes e pedidos */
+.commercial-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  background: var(--surface-soft);
+  list-style: none;
+}
+
+.commercial-steps li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.commercial-steps li::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  margin-left: 4px;
+  background: var(--line);
+}
+
+.commercial-steps li:last-child::after {
+  display: none;
+}
+
+.commercial-steps span {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  font-weight: 900;
+}
+
+.commercial-steps .is-active {
+  color: var(--primary-strong);
+}
+
+.commercial-steps .is-active span {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.commercial-document .sap-window {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.commercial-context-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.commercial-context-grid label,
+.commercial-more-grid label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.commercial-context-grid input,
+.commercial-context-grid select,
+.commercial-more-grid input,
+.commercial-more-grid select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.commercial-client-search {
+  grid-column: span 3;
+}
+
+.commercial-client-name {
+  grid-column: span 2;
+}
+
+.commercial-more-fields {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.commercial-more-fields summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.commercial-more-fields[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.commercial-more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.commercial-more-grid .btn {
+  align-self: end;
+}
+
+.commercial-document .sap-tabs-section {
+  padding-top: 12px;
+}
+
+.commercial-document .sap-tab-panel[data-sap-panel="items"] {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
+
+.commercial-document .sap-tab-panel[data-sap-panel="items"][hidden] {
+  display: none;
+}
+
+.commercial-document .sap-tab-panel[data-sap-panel="items"] .sap-tab-tools {
+  order: 0;
+  margin: 0;
+}
+
+.commercial-document .sap-tab-panel[data-sap-panel="items"] .sap-bottom-grid {
+  order: 1;
+}
+
+.commercial-document .sap-tab-panel[data-sap-panel="items"] .sap-items-wrap {
+  order: 2;
+}
+
+.commercial-document .sap-bottom-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.commercial-document .sap-add-form {
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 10px;
+}
+
+.commercial-document .commercial-selection-field {
+  display: none;
+}
+
+.commercial-document .sap-item-search-actions .btn {
+  min-height: 42px;
+}
+
+.commercial-document .sap-product-results {
+  margin-top: 10px;
+}
+
+.commercial-document .sap-stock-line {
+  padding: 10px 12px;
+  border: 1px solid #b9e2cb;
+  border-radius: 7px;
+  background: #edf9f2;
+}
+
+.commercial-document .sap-items-table {
+  min-width: 860px;
+}
+
+.commercial-document .sap-items-table th:nth-child(1) {
+  width: 52%;
+  text-align: left;
+}
+
+.commercial-document .sap-items-table th:nth-child(2),
+.commercial-document .sap-items-table th:nth-child(4) {
+  width: 82px;
+}
+
+.commercial-document .sap-items-table th:nth-child(3),
+.commercial-document .sap-items-table th:nth-child(5),
+.commercial-document .sap-items-table th:nth-child(6) {
+  width: 116px;
+}
+
+.commercial-item-product strong,
+.commercial-item-product small {
+  display: block;
+}
+
+.commercial-item-product strong {
+  color: var(--text-strong);
+  line-height: 1.4;
+}
+
+.commercial-item-product small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.commercial-document .sap-footer-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  justify-content: flex-end;
+  min-height: 64px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 -8px 24px rgba(16, 28, 40, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.commercial-document .sap-footer-actions .btn-primary {
+  min-width: 170px;
+}
+
+.commercial-document .sap-footer-actions .form-message {
+  order: -1;
+  flex: 1;
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .commercial-context-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .commercial-client-search,
+  .commercial-client-name {
+    grid-column: span 2;
+  }
+
+  .commercial-more-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .commercial-document .sap-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .commercial-document .sap-totals {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .commercial-steps {
+    gap: 4px;
+    padding: 10px;
+  }
+
+  .commercial-steps li {
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .commercial-steps li::after {
+    display: none;
+  }
+
+  .commercial-steps span {
+    width: 24px;
+    height: 24px;
+  }
+
+  .commercial-context-grid,
+  .commercial-more-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .commercial-client-search,
+  .commercial-client-name {
+    grid-column: auto;
+  }
+
+  .commercial-document .sap-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .commercial-document .sap-items-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .commercial-document .sap-item-search-actions,
+  .commercial-document .sap-add-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .commercial-document .sap-item-search-actions .btn,
+  .commercial-document .sap-add-controls .btn {
+    width: 100%;
+  }
+
+  .commercial-document .sap-items-table td:nth-child(1)::before {
+    content: none;
+  }
+
+  .commercial-document .sap-items-table td:nth-child(2)::before { content: "Quantidade"; }
+  .commercial-document .sap-items-table td:nth-child(3)::before { content: "Preco"; }
+  .commercial-document .sap-items-table td:nth-child(4)::before { content: "Desconto"; }
+  .commercial-document .sap-items-table td:nth-child(5)::before { content: "Preco final"; }
+  .commercial-document .sap-items-table td:nth-child(6)::before { content: "Total"; }
+  .commercial-document .sap-items-table td:nth-child(7)::before { content: "Acao"; }
+
+  .commercial-document .sap-items-table td.commercial-item-product {
+    display: block;
+    padding: 14px 10px;
+  }
+
+  .commercial-document .sap-footer-actions {
+    bottom: 70px;
+  }
+
+  .commercial-document .sap-footer-actions .form-message {
+    flex-basis: 100%;
+  }
+}
+
 /* Central de Dados */
 .data-sync-workspace {
   display: grid;

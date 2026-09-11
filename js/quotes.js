@@ -20,49 +20,43 @@ async function renderCreateQuotation(container) {
       )}
     <section class="sap-document commercial-document" data-document-kind="quotation">
       <div class="sap-titlebar">
-        <div class="sap-title"><span class="sap-title-icon">#</span><h2>Cotacao de venda</h2></div>
-        <strong class="sap-document-number">No. Novo</strong>
+        <div class="sap-title"><span class="sap-title-icon">1</span><h2>Cliente e rota</h2></div>
+        <strong class="sap-document-number">Rascunho</strong>
       </div>
+      <ol class="commercial-steps" aria-label="Fluxo da cotacao">
+        <li class="is-active"><span>1</span><strong>Cliente e rota</strong></li>
+        <li><span>2</span><strong>Adicionar produtos</strong></li>
+        <li><span>3</span><strong>Revisar e salvar</strong></li>
+      </ol>
       <div class="sap-window">
         <section class="sap-section sap-general-section">
-          <div class="sap-section-heading"><div><h3>Dados gerais</h3><p>Cliente, filial faturadora, destino e condicoes principais.</p></div></div>
-          <div class="sap-form-grid">
-            <div class="sap-form-left">
-              <label>Filial
-                <select id="quoteBranch"><option>${escapeHtml(branchLabel)}</option></select>
-              </label>
-              <div class="sap-inline-fields">
-                <label>Cliente | CPF/CNPJ
-                  <input id="quoteClientSapCode" type="text" placeholder="Codigo SAP">
-                </label>
-                <button class="sap-mini-button" id="quoteClientSearchButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
-                <label>
-                  <input id="quoteCnpj" type="text" placeholder="CNPJ">
-                </label>
-              </div>
-              <label>Nome cliente<input id="quoteClient" type="text"></label>
-              <label>Buscar cliente
-                <span class="sap-search-field">
-                  <input id="quoteClientSearch" type="search" placeholder="Codigo SAP, CNPJ, protocolo ou empresa">
-                  <button class="sap-search-button" id="quoteClientSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
-                </span>
-              </label>
-              <label>Pessoa de contato<input id="quotePhone" type="text"></label>
-              <label>No Ref.Cli.<input id="quoteClientRef" type="text"></label>
-              <label>Vendedor<input id="quoteSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}"></label>
-              <label>Utilizacao principal<select id="quoteUsage"><option>Revenda</option><option>Consumo</option></select></label>
-              <label>Faturamento<select id="quoteRegion"><option value="PR">01 - MATRIZ - PR</option><option value="SP">02 - FILIAL - SP</option></select></label>
-              <input id="quoteBillingState" type="hidden">
-              <label>Endereco<input id="quoteAddress" type="text"></label>
-            </div>
-            <div class="sap-form-right">
-              <label>Status SAP<input type="text" value="Aberto" readonly></label>
-              <label>Dt.Cotacao<input type="text" value="${formatDateInput(new Date())}" readonly></label>
-              <label>Valido ate<input type="date" id="quoteValidUntil"></label>
-              <label>Autorizacao SAP<input type="text" value="Sem status" readonly></label>
-              <label>Autorizacao portal<input type="text" value="Sem status" readonly></label>
-            </div>
+          <div class="sap-section-heading"><div><h3>Para quem e de onde?</h3><p>Localize o cliente e confirme apenas a filial e o tipo da operacao.</p></div></div>
+          <div class="commercial-context-grid">
+            <label class="commercial-client-search">Buscar cliente
+              <span class="sap-search-field">
+                <input id="quoteClientSearch" type="search" placeholder="Nome, CNPJ ou codigo SAP" autocomplete="off">
+                <button class="sap-search-button" id="quoteClientSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
+              </span>
+            </label>
+            <label>Filial de faturamento<select id="quoteRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
+            <label>Tipo de venda<select id="quoteUsage"><option>Revenda</option><option>Consumo</option></select></label>
+            <label>Codigo SAP<input id="quoteClientSapCode" type="text" placeholder="Preenchido ao selecionar"></label>
+            <label>CNPJ<input id="quoteCnpj" type="text" placeholder="00.000.000/0000-00"></label>
+            <label class="commercial-client-name">Cliente<input id="quoteClient" type="text" placeholder="Selecione ou informe o cliente"></label>
           </div>
+          <input id="quoteBillingState" type="hidden">
+          <details class="commercial-more-fields">
+            <summary>Mais dados do cliente e validade</summary>
+            <div class="commercial-more-grid">
+              <label>Contato<input id="quotePhone" type="text"></label>
+              <label>Referencia do cliente<input id="quoteClientRef" type="text"></label>
+              <label>Endereco<input id="quoteAddress" type="text"></label>
+              <label>Valido ate<input type="date" id="quoteValidUntil"></label>
+              <label>Vendedor<input id="quoteSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}" readonly></label>
+              <label>Unidade do sistema<select id="quoteBranch"><option>${escapeHtml(branchLabel)}</option></select></label>
+              <button class="btn btn-secondary" id="quoteClientSearchButton" type="button">Buscar pelos dados informados</button>
+            </div>
+          </details>
           <div id="quoteClientResults" class="sap-search-results">
             ${CrmUi.renderState('empty', 'Nenhum cliente selecionado', 'Pesquise por codigo SAP, CNPJ ou nome da empresa.')}
           </div>
@@ -70,8 +64,8 @@ async function renderCreateQuotation(container) {
 
         <section class="sap-section sap-tabs-section">
           <div class="sap-tabs" role="tablist" aria-label="Etapas da cotacao">
-            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Itens</button>
-            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Frete / Pagamento</button>
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Produtos</button>
+            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Entrega e pagamento</button>
           </div>
           <div class="sap-tab-panel" role="tabpanel" data-sap-panel="items">
             <div class="sap-tab-tools">
@@ -82,13 +76,13 @@ async function renderCreateQuotation(container) {
             <div class="sap-bottom-grid">
               <div class="sap-add-item">
                 <form id="quoteProductSearch" class="sap-add-form">
-                  <label>Cod.Item / EAN
-                    <input id="quoteProductTerm" type="search">
+                  <label>Codigo, nome ou aplicacao
+                    <input id="quoteProductTerm" type="search" placeholder="Digite e pressione Enter" autocomplete="off">
                   </label>
-                  <label>Nome item
-                    <input id="quoteProductNamePreview" type="text">
+                  <label class="commercial-selection-field">Produto selecionado
+                    <input id="quoteProductNamePreview" type="text" readonly>
                   </label>
-                  <label>Grupo
+                  <label class="commercial-selection-field">Grupo
                     <select id="quoteProductGroupPreview"><option value=""></option></select>
                   </label>
                   <div class="actions-row sap-item-search-actions">
@@ -97,7 +91,7 @@ async function renderCreateQuotation(container) {
                   </div>
                   <div class="sap-stock-line" id="quoteProductStockLine" hidden>Disp. Venda: <strong>-</strong> / Pr.Unit.: <strong>-</strong></div>
                   <label id="quoteQuantityLabel" hidden>Quantidade
-                    <input id="quoteAddQuantity" type="number" min="0" value="0">
+                    <input id="quoteAddQuantity" type="number" min="1" value="1">
                   </label>
                   <div class="actions-row sap-add-controls" id="quoteAddControls" hidden>
                     <button class="btn btn-primary" id="quoteAddSelectedProductButton" type="button">Adicionar</button>
@@ -169,8 +163,8 @@ async function renderCreateQuotation(container) {
         </section>
       </div>
       <div class="sap-footer-actions">
-        <button class="btn btn-primary" id="saveQuoteButton" type="button">Salvar</button>
-        <button class="btn btn-ghost" id="closeQuoteButton" type="button">Fechar</button>
+        <button class="btn btn-primary" id="saveQuoteButton" type="button">Salvar cotacao</button>
+        <button class="btn btn-ghost" id="closeQuoteButton" type="button">Cancelar</button>
         <p id="quoteMessage" class="form-message"></p>
       </div>
     </section>
@@ -207,11 +201,12 @@ async function renderCreateQuotation(container) {
   });
   document.getElementById('quoteProductSearch').addEventListener('submit', async (event) => {
     event.preventDefault();
+    const term = document.getElementById('quoteProductTerm').value.trim();
     quoteSelectedProduct = null;
     updateQuoteProductSelection(null);
     await searchProductsInto(document.getElementById('quoteSearchResults'), {
-      termo: getQuoteProductSearchTerm(),
-      grupo: document.getElementById('quoteProductGroupPreview').value,
+      termo: term,
+      grupo: '',
       regiao: document.getElementById('quoteRegion').value
     }, selectProductForQuote);
   });
@@ -276,13 +271,6 @@ function applyQuoteDraft(draft) {
   }
 }
 
-function getQuoteProductSearchTerm() {
-  return [
-    document.getElementById('quoteProductTerm').value,
-    document.getElementById('quoteProductNamePreview').value
-  ].filter(Boolean).join(' ').trim();
-}
-
 function setQuoteProductGroup(value) {
   const select = document.getElementById('quoteProductGroupPreview');
   const group = value || '';
@@ -305,7 +293,7 @@ function updateQuoteProductSelection(product) {
   document.getElementById('quoteProductNamePreview').value = product.descricao || '';
   setQuoteProductGroup(product.grupo || product.linha || product.categoria || '');
   document.getElementById('quoteProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>';
-  document.getElementById('quoteAddQuantity').value = 0;
+  document.getElementById('quoteAddQuantity').value = 1;
 }
 
 function selectProductForQuote(product) {
@@ -521,45 +509,38 @@ function renderQuoteCart() {
 
 function renderSapQuoteItemsTable(items) {
   const totalQty = items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
-  const subtotal = items.reduce((sum, item) => sum + item.preco * item.quantidade, 0);
   const total = items.reduce((sum, item) => sum + item.preco * item.quantidade * (1 - item.desconto_percentual / 100), 0);
   const rows = items.length ? items.map((item, index) => {
     const finalUnit = item.preco * (1 - item.desconto_percentual / 100);
     const rowTotal = finalUnit * item.quantidade;
     return `
       <tr>
-        <td>${index + 1}</td>
-        <td class="sap-code">${escapeHtml(item.codigo)}</td>
-        <td>${escapeHtml(item.descricao || '')}
-          <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+        <td class="commercial-item-product"><strong><span class="sap-code">${escapeHtml(item.codigo)}</span> · ${escapeHtml(item.descricao || '')}</strong>
+          <small>${escapeHtml([item.marca,item.aplicacao].filter(Boolean).join(' · '))}</small>
+          <small>Base ${money(item.preco_sem_imposto || 0)} · Tributos ${money(item.tributos || 0)} · Estoque ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
           <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
           <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
           ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}</td>
-        <td>${escapeHtml(item.marca || '')}</td>
-        <td>${escapeHtml(item.aplicacao || '')}</td>
-        <td>UN</td>
         <td><input type="number" min="1" value="${escapeHtml(item.quantidade)}" data-quote-qty="${index}"></td>
         <td>${money(item.preco)}</td>
         <td><input type="number" min="0" step="0.01" value="${escapeHtml(item.desconto_percentual)}" data-quote-discount="${index}"></td>
         <td>${money(finalUnit)}</td>
         <td>${money(rowTotal)}</td>
-        <td>${money(rowTotal)}</td>
-        <td><button class="sap-remove-button" type="button" data-quote-remove="${index}" title="Remover">-</button></td>
+        <td><button class="sap-remove-button" type="button" data-quote-remove="${index}" title="Remover" aria-label="Remover ${escapeHtml(item.codigo)}">×</button></td>
       </tr>
     `;
-  }).join('') : '<tr><td colspan="13" class="sap-empty-row">Nenhum item adicionado.</td></tr>';
+  }).join('') : '<tr><td colspan="7" class="sap-empty-row">Nenhum produto adicionado ainda.</td></tr>';
   return `
     <table class="sap-items-table">
       <thead>
         <tr>
-          <th>#</th><th>Cod.</th><th>Descricao</th><th>Marca</th><th>Aplicacao</th><th>UM</th><th>Qtde</th>
-          <th>Pr.Unit.</th><th>% do desc.</th><th>Pr.Apos Desc.</th><th>Total Apos Desc.</th><th>Total c/ Imp.</th><th></th>
+          <th>Produto</th><th>Qtde</th><th>Preco</th><th>Desc. %</th><th>Preco final</th><th>Total</th><th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
       <tfoot>
         <tr>
-          <td colspan="6">Totais:</td><td>${totalQty}</td><td></td><td></td><td></td><td>${money(total)}</td><td>${money(subtotal)}</td><td></td>
+          <td>Total de produtos</td><td>${totalQty}</td><td colspan="3"></td><td>${money(total)}</td><td></td>
         </tr>
       </tfoot>
     </table>
@@ -602,7 +583,7 @@ async function saveCurrentQuote() {
     message.textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = 'Salvar';
+    button.textContent = 'Salvar cotacao';
   }
 }
 

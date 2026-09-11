@@ -20,49 +20,43 @@ async function renderOrders(container) {
       )}
     <section class="sap-document commercial-document" data-document-kind="order">
       <div class="sap-titlebar">
-        <div class="sap-title"><span class="sap-title-icon">#</span><h2>Pedido de venda</h2></div>
-        <strong class="sap-document-number">No. Novo</strong>
+        <div class="sap-title"><span class="sap-title-icon">1</span><h2>Cliente e rota</h2></div>
+        <strong class="sap-document-number">Rascunho</strong>
       </div>
+      <ol class="commercial-steps" aria-label="Fluxo do pedido">
+        <li class="is-active"><span>1</span><strong>Cliente e rota</strong></li>
+        <li><span>2</span><strong>Adicionar produtos</strong></li>
+        <li><span>3</span><strong>Revisar e salvar</strong></li>
+      </ol>
       <div class="sap-window">
         <section class="sap-section sap-general-section">
-          <div class="sap-section-heading"><div><h3>Dados gerais</h3><p>Cliente, filial faturadora, destino e condicoes principais.</p></div></div>
-          <div class="sap-form-grid">
-            <div class="sap-form-left">
-              <label>Filial
-                <select id="orderBranch"><option>${escapeHtml(branchLabel)}</option></select>
-              </label>
-              <div class="sap-inline-fields">
-                <label>Cliente | CPF/CNPJ
-                  <input id="orderClientSapCode" type="text" placeholder="Codigo SAP">
-                </label>
-                <button class="sap-mini-button" id="orderCadastroSearchButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
-                <label>
-                  <input id="orderCnpj" type="text" placeholder="CNPJ">
-                </label>
-              </div>
-              <label>Nome cliente<input id="orderClient" type="text"></label>
-              <label>Buscar cliente
-                <span class="sap-search-field">
-                  <input id="orderCadastroSearch" type="search" placeholder="Codigo SAP, CNPJ, protocolo ou empresa">
-                  <button class="sap-search-button" id="orderCadastroSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
-                </span>
-              </label>
-              <label>Pessoa de contato<input id="orderPhone" type="text"></label>
-              <label>No Ref.Cli.<input id="orderClientRef" type="text"></label>
-              <label>Vendedor<input id="orderSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}"></label>
-              <label>Utilizacao principal<select id="orderUsage"><option>Revenda</option><option>Consumo</option></select></label>
-              <label>Faturamento<select id="orderRegion"><option value="PR">01 - MATRIZ - PR</option><option value="SP">02 - FILIAL - SP</option></select></label>
-              <input id="orderBillingState" type="hidden">
-              <label>Endereco<input id="orderAddress" type="text"></label>
-            </div>
-            <div class="sap-form-right">
-              <label>Status SAP<input type="text" value="Aberto" readonly></label>
-              <label>Dt.Pedido<input type="text" value="${formatDateInput(new Date())}" readonly></label>
-              <label>Valido ate<input type="date" id="orderValidUntil"></label>
-              <label>Autorizacao SAP<input type="text" value="Sem status" readonly></label>
-              <label>Autorizacao portal<input type="text" value="Sem status" readonly></label>
-            </div>
+          <div class="sap-section-heading"><div><h3>Para quem e de onde?</h3><p>Localize o cliente e confirme apenas a filial e o tipo da operacao.</p></div></div>
+          <div class="commercial-context-grid">
+            <label class="commercial-client-search">Buscar cliente
+              <span class="sap-search-field">
+                <input id="orderCadastroSearch" type="search" placeholder="Nome, CNPJ ou codigo SAP" autocomplete="off">
+                <button class="sap-search-button" id="orderCadastroSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
+              </span>
+            </label>
+            <label>Filial de faturamento<select id="orderRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
+            <label>Tipo de venda<select id="orderUsage"><option>Revenda</option><option>Consumo</option></select></label>
+            <label>Codigo SAP<input id="orderClientSapCode" type="text" placeholder="Preenchido ao selecionar"></label>
+            <label>CNPJ<input id="orderCnpj" type="text" placeholder="00.000.000/0000-00"></label>
+            <label class="commercial-client-name">Cliente<input id="orderClient" type="text" placeholder="Selecione ou informe o cliente"></label>
           </div>
+          <input id="orderBillingState" type="hidden">
+          <details class="commercial-more-fields">
+            <summary>Mais dados do cliente e validade</summary>
+            <div class="commercial-more-grid">
+              <label>Contato<input id="orderPhone" type="text"></label>
+              <label>Referencia do cliente<input id="orderClientRef" type="text"></label>
+              <label>Endereco<input id="orderAddress" type="text"></label>
+              <label>Valido ate<input type="date" id="orderValidUntil"></label>
+              <label>Vendedor<input id="orderSellerDisplay" type="text" value="${escapeHtml((getStoredSession() || {}).nome || '')}" readonly></label>
+              <label>Unidade do sistema<select id="orderBranch"><option>${escapeHtml(branchLabel)}</option></select></label>
+              <button class="btn btn-secondary" id="orderCadastroSearchButton" type="button">Buscar pelos dados informados</button>
+            </div>
+          </details>
           <div id="orderCadastroResults" class="sap-search-results">
             ${CrmUi.renderState('empty', 'Nenhum cliente selecionado', 'Pesquise por codigo SAP, CNPJ ou nome da empresa.')}
           </div>
@@ -70,8 +64,8 @@ async function renderOrders(container) {
 
         <section class="sap-section sap-tabs-section">
           <div class="sap-tabs" role="tablist" aria-label="Etapas do pedido">
-            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Itens</button>
-            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Frete / Pagamento</button>
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-sap-tab="items">Produtos</button>
+            <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Entrega e pagamento</button>
           </div>
           <div class="sap-tab-panel" role="tabpanel" data-sap-panel="items">
             <div class="sap-tab-tools">
@@ -82,13 +76,13 @@ async function renderOrders(container) {
             <div class="sap-bottom-grid">
               <div class="sap-add-item">
                 <form id="orderProductSearch" class="sap-add-form">
-                  <label>Cod.Item / EAN
-                    <input id="orderProductTerm" type="search">
+                  <label>Codigo, nome ou aplicacao
+                    <input id="orderProductTerm" type="search" placeholder="Digite e pressione Enter" autocomplete="off">
                   </label>
-                  <label>Nome item
-                    <input id="orderProductNamePreview" type="text">
+                  <label class="commercial-selection-field">Produto selecionado
+                    <input id="orderProductNamePreview" type="text" readonly>
                   </label>
-                  <label>Grupo
+                  <label class="commercial-selection-field">Grupo
                     <select id="orderProductGroupPreview"><option value=""></option></select>
                   </label>
                   <div class="actions-row sap-item-search-actions">
@@ -97,7 +91,7 @@ async function renderOrders(container) {
                   </div>
                   <div class="sap-stock-line" id="orderProductStockLine" hidden>Disp. Venda: <strong>-</strong> / Pr.Unit.: <strong>-</strong></div>
                   <label id="orderQuantityLabel" hidden>Quantidade
-                    <input id="orderAddQuantity" type="number" min="0" value="0">
+                    <input id="orderAddQuantity" type="number" min="1" value="1">
                   </label>
                   <div class="actions-row sap-add-controls" id="orderAddControls" hidden>
                     <button class="btn btn-primary" id="orderAddSelectedProductButton" type="button">Adicionar</button>
@@ -169,8 +163,8 @@ async function renderOrders(container) {
         </section>
       </div>
       <div class="sap-footer-actions">
-        <button class="btn btn-primary" id="saveOrderButton" type="button">Salvar</button>
-        <button class="btn btn-ghost" id="closeOrderButton" type="button">Fechar</button>
+        <button class="btn btn-primary" id="saveOrderButton" type="button">Salvar pedido</button>
+        <button class="btn btn-ghost" id="closeOrderButton" type="button">Cancelar</button>
         <p id="orderMessage" class="form-message"></p>
       </div>
     </section>
@@ -208,11 +202,12 @@ async function renderOrders(container) {
 
   document.getElementById('orderProductSearch').addEventListener('submit', async (event) => {
     event.preventDefault();
+    const term = document.getElementById('orderProductTerm').value.trim();
     orderSelectedProduct = null;
     updateOrderProductSelection(null);
     await searchProductsInto(document.getElementById('orderSearchResults'), {
-      termo: getOrderProductSearchTerm(),
-      grupo: document.getElementById('orderProductGroupPreview').value,
+      termo: term,
+      grupo: '',
       regiao: document.getElementById('orderRegion').value
     }, selectProductForOrder);
   });
@@ -297,13 +292,6 @@ function bindSapTabs(scope) {
   });
 }
 
-function getOrderProductSearchTerm() {
-  return [
-    document.getElementById('orderProductTerm').value,
-    document.getElementById('orderProductNamePreview').value
-  ].filter(Boolean).join(' ').trim();
-}
-
 function setOrderProductGroup(value) {
   const select = document.getElementById('orderProductGroupPreview');
   const group = value || '';
@@ -327,7 +315,7 @@ function updateOrderProductSelection(product) {
   setOrderProductGroup(product.grupo || product.linha || product.categoria || '');
   const branchInfo = formatBranchAvailability(product, document.getElementById('orderRegion').value);
   document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>' + (branchInfo ? '<br><small>' + escapeHtml(branchInfo) + '</small>' : '');
-  document.getElementById('orderAddQuantity').value = 0;
+  document.getElementById('orderAddQuantity').value = 1;
 }
 
 function selectProductForOrder(product) {
@@ -558,7 +546,6 @@ function renderCart() {
 
 function renderSapOrderItemsTable(items) {
   const totalQty = items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
-  const subtotal = items.reduce((sum, item) => sum + item.preco * item.quantidade, 0);
   const total = items.reduce((sum, item) => sum + item.preco * item.quantidade * (1 - item.desconto_percentual / 100), 0);
   const rows = items.length ? items.map((item, index) => {
     const finalUnit = item.preco * (1 - item.desconto_percentual / 100);
@@ -566,38 +553,33 @@ function renderSapOrderItemsTable(items) {
     const branchInfo = formatBranchAvailability(item, document.getElementById('orderRegion')?.value || 'PR');
     return `
       <tr>
-        <td>${index + 1}</td>
-        <td class="sap-code">${escapeHtml(item.codigo)}</td>
-        <td>${escapeHtml(item.descricao || '')}${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
-          <small>Base: ${money(item.preco_sem_imposto || 0)} · Tributos: ${money(item.tributos || 0)} · Estoque: ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+        <td class="commercial-item-product"><strong><span class="sap-code">${escapeHtml(item.codigo)}</span> · ${escapeHtml(item.descricao || '')}</strong>
+          <small>${escapeHtml([item.marca,item.aplicacao].filter(Boolean).join(' · '))}</small>
+          ${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
+          <small>Base ${money(item.preco_sem_imposto || 0)} · Tributos ${money(item.tributos || 0)} · Estoque ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
           <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
           <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
           ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}</td>
-        <td>${escapeHtml(item.marca || '')}</td>
-        <td>${escapeHtml(item.aplicacao || '')}</td>
-        <td>UN</td>
         <td><input type="number" min="1" value="${escapeHtml(item.quantidade)}" data-cart-qty="${index}"></td>
         <td>${money(item.preco)}</td>
         <td><input type="number" min="0" step="0.01" value="${escapeHtml(item.desconto_percentual)}" data-cart-discount="${index}"></td>
         <td>${money(finalUnit)}</td>
         <td>${money(rowTotal)}</td>
-        <td>${money(rowTotal)}</td>
-        <td><button class="sap-remove-button" type="button" data-cart-remove="${index}" title="Remover">-</button></td>
+        <td><button class="sap-remove-button" type="button" data-cart-remove="${index}" title="Remover" aria-label="Remover ${escapeHtml(item.codigo)}">×</button></td>
       </tr>
     `;
-  }).join('') : '<tr><td colspan="13" class="sap-empty-row">Nenhum item adicionado.</td></tr>';
+  }).join('') : '<tr><td colspan="7" class="sap-empty-row">Nenhum produto adicionado ainda.</td></tr>';
   return `
     <table class="sap-items-table">
       <thead>
         <tr>
-          <th>#</th><th>Cod.</th><th>Descricao</th><th>Marca</th><th>Aplicacao</th><th>UM</th><th>Qtde</th>
-          <th>Pr.Unit.</th><th>% do desc.</th><th>Pr.Apos Desc.</th><th>Total Apos Desc.</th><th>Total c/ Imp.</th><th></th>
+          <th>Produto</th><th>Qtde</th><th>Preco</th><th>Desc. %</th><th>Preco final</th><th>Total</th><th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
       <tfoot>
         <tr>
-          <td colspan="6">Totais:</td><td>${totalQty}</td><td></td><td></td><td></td><td>${money(total)}</td><td>${money(subtotal)}</td><td></td>
+          <td>Total de produtos</td><td>${totalQty}</td><td colspan="3"></td><td>${money(total)}</td><td></td>
         </tr>
       </tfoot>
     </table>
@@ -674,7 +656,7 @@ async function saveCurrentOrder() {
     message.textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = 'Salvar';
+    button.textContent = 'Salvar pedido';
   }
 }
 
