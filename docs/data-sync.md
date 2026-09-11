@@ -14,12 +14,19 @@ Excel mestre / OneDrive
   -> CRM
 ```
 
+Quando a origem é um OneDrive Pessoal e não existe servidor Azure, o executor é
+um workflow privado do GitHub Actions. Ele baixa o arquivo temporariamente pelo
+Microsoft Graph, normaliza no runner e envia blocos de 500 linhas à mesma Edge
+Function. O arquivo é descartado ao final e nunca é publicado como artifact.
+
 O domínio do CRM não importa Microsoft Graph. Um adapter futuro pode obter o arquivo por Graph, SharePoint, Google Sheets ou SAP e continuar entregando o mesmo DTO.
 
 ## Componentes
 
 - `scripts/build_excel_sync_payload.py`: lê valores calculados do XLSX, normaliza cabeçalhos e gera o DTO. Usa `data_only=True` e nunca salva o arquivo.
 - `scripts/run_excel_sync_adapter.py`: adapter HTTP autenticado para arquivo local sincronizado pelo OneDrive.
+- `scripts/sync_onedrive_personal.py`: executor efêmero para a pasta dedicada do aplicativo no OneDrive Pessoal.
+- `.github/workflows/excel-sync.yml`: agenda em dias úteis e execução manual de contingência.
 - `supabase/functions/excel-sync`: busca o DTO no adapter, cria o lote, envia staging em blocos de 500, valida e confirma.
 - migration `060_excel_data_sync_center.sql`: estende batches/staging/auditoria, adiciona proteção de versão e armazena preço fiscal consolidado por rota.
 - `js/data_sync.js`: status, contadores, execução, erros, histórico e auditoria administrativa.
@@ -125,6 +132,36 @@ Na Edge Function, configure `DATA_SYNC_ADAPTER_URL`, `DATA_SYNC_ADAPTER_TOKEN`, 
 Um ADMIN pode executar “Sincronizar agora”. A agenda chama a mesma Edge Function com `x-sync-secret`. SUPERVISOR só consulta se receber as permissões já previstas; VENDEDOR não executa nem consulta a Central de Dados.
 
 Antes de contatar o adapter, a Edge Function valida a sessão com `auth.getUser()` e consulta `can_manage_data_sync()`. Assim, uma chave pública anônima ou um usuário sem perfil ADMIN não consegue provocar a leitura do Excel.
+
+### OneDrive Pessoal sem computador ligado
+
+É necessário registrar gratuitamente um aplicativo Microsoft que aceite contas
+pessoais, habilitar o fluxo delegado e consentir somente os escopos
+`offline_access` e `Files.ReadWrite.AppFolder`. Este último restringe o token à
+pasta própria do aplicativo; embora o Graph conceda escrita nessa pasta, o
+executor implementado realiza somente leituras.
+
+Copie a planilha mestre para a pasta `Aplicativos/<nome do aplicativo>` criada
+pelo primeiro acesso do Graph. Não gere link público e não coloque a planilha no
+repositório.
+
+Configure no GitHub, em Actions variables:
+
+- `MS_GRAPH_CLIENT_ID`;
+- `ONEDRIVE_WORKBOOK_NAME`;
+- `DATA_SYNC_EDGE_URL`.
+- `DATA_SYNC_ENABLED=true` somente depois da homologação ponta a ponta.
+
+Configure em Actions secrets:
+
+- `MS_GRAPH_REFRESH_TOKEN`;
+- `DATA_SYNC_SCHEDULER_SECRET`, com o mesmo valor guardado na Edge Function.
+
+Não configure `SUPABASE_SERVICE_ROLE_KEY` no GitHub. O workflow possui apenas
+`contents: read`, não executa em pull requests, impede duas sincronizações
+simultâneas, limita a execução a 20 minutos e não mantém cache/artifact do XLSX.
+O refresh token é revogável; falha de autorização deve gerar reconsentimento
+assistido, sem apagar os últimos dados válidos do CRM.
 
 ## Diagnóstico e reprocessamento
 

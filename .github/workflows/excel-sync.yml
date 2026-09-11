@@ -1,0 +1,42 @@
+name: Sincronizar Excel Mestre
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 08:17, 10:17, 12:17, 14:17, 16:17 e 18:17 em São Paulo (UTC-3).
+    - cron: "17 11-21/2 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: excel-master-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DATA_SYNC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obter código versionado
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements-data-sync.txt
+
+      - name: Instalar dependências fixadas
+        run: python -m pip install --disable-pip-version-check -r scripts/requirements-data-sync.txt
+
+      - name: Baixar, validar e sincronizar
+        env:
+          MS_GRAPH_CLIENT_ID: ${{ vars.MS_GRAPH_CLIENT_ID }}
+          ONEDRIVE_WORKBOOK_NAME: ${{ vars.ONEDRIVE_WORKBOOK_NAME }}
+          DATA_SYNC_EDGE_URL: ${{ vars.DATA_SYNC_EDGE_URL }}
+          MS_GRAPH_REFRESH_TOKEN: ${{ secrets.MS_GRAPH_REFRESH_TOKEN }}
+          DATA_SYNC_SCHEDULER_SECRET: ${{ secrets.DATA_SYNC_SCHEDULER_SECRET }}
+        run: python scripts/sync_onedrive_personal.py

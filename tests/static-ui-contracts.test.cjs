@@ -107,3 +107,19 @@ test('Data Center is wired without frontend secrets and keeps manual imports', (
   assert.doesNotMatch(smoke, /<script[^>]+src=["'][^"']*(?:supabase|auth|store)/i);
   assert.doesNotMatch(smoke, /\b(?:fetch|XMLHttpRequest|createClient)\s*\(/);
 });
+
+test('personal OneDrive runner is server-only, chunked and least-privileged', () => {
+  const workflow = read('.github/workflows/excel-sync.yml');
+  const runner = read('scripts/sync_onedrive_personal.py');
+  const edge = read('supabase/functions/excel-sync/index.ts');
+  assert.match(workflow, /permissions:\s*\n\s*contents: read/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /pull_request:/);
+  assert.doesNotMatch(workflow, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(workflow, /vars\.DATA_SYNC_ENABLED == 'true'/);
+  assert.match(runner, /Files\.ReadWrite\.AppFolder/);
+  assert.match(runner, /CHUNK_ROWS = 500/);
+  assert.match(edge, /operation === 'create'/);
+  assert.match(edge, /operation === 'stage'/);
+  assert.match(edge, /PUSH_EXIGE_SEGREDO_DO_AGENDADOR/);
+});

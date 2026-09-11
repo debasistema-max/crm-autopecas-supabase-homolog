@@ -24,6 +24,18 @@ async function rpc(client: SupabaseClient, name: string, args: Record<string, un
   return data;
 }
 
+async function finalizeBatch(client: SupabaseClient, batchId: string) {
+  const validated = await rpc(client, 'validate_data_sync_batch', { target_batch_id: batchId });
+  if (validated.status === 'failed') {
+    const failed = await rpc(client, 'mark_data_sync_failure', {
+      target_batch_id: batchId,
+      error_message: 'LOTE_SEM_LINHAS_VALIDAS'
+    });
+    return { failed: true, batch: failed };
+  }
+  return { failed: false, batch: await rpc(client, 'commit_data_sync_batch', { target_batch_id: batchId }) };
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return response(405, { error: 'METODO_NAO_PERMITIDO' });
@@ -58,6 +70,51 @@ Deno.serve(async (request) => {
     const source = String(requestBody.source || 'EXCEL_API').trim().toUpperCase();
     if (source !== 'EXCEL_API') return response(400, { error: 'FONTE_NAO_SUPORTADA_NESTE_ADAPTER' });
     integrationSource = source;
+
+    // A cloud runner sends small, authenticated chunks. This keeps the XLSX and
+    // service-role key out of the browser and avoids a single oversized request.
+    const operation = String(requestBody.operation || '').trim().toLowerCase();
+    if (operation) {
+      if (!scheduled) return response(403, { error: 'PUSH_EXIGE_SEGREDO_DO_AGENDADOR' });
+      if (operation === 'create') {
+        const metadata = requestBody.metadata;
+        if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+          return response(400, { error: 'METADADOS_INVALIDOS' });
+        }
+        const created = await rpc(client, 'create_data_sync_batch', { payload: { ...metadata, source } });
+        return response(200, created);
+      }
+
+      batchId = String(requestBody.batch_id || '').trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchId)) {
+        return response(400, { error: 'LOTE_INVALIDO' });
+      }
+      if (operation === 'stage') {
+        const records = requestBody.records;
+        if (!Array.isArray(records) || records.length < 1 || records.length > 500) {
+          return response(400, { error: 'BLOCO_INVALIDO' });
+        }
+        return response(200, await rpc(client, 'stage_data_sync_rows', {
+          target_batch_id: batchId,
+          rows: records
+        }));
+      }
+      if (operation === 'finalize') {
+        const result = await finalizeBatch(client, batchId);
+        return response(result.failed ? 422 : 200, result.failed
+          ? { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: result.batch }
+          : { batch: result.batch });
+      }
+      if (operation === 'fail') {
+        const suppliedMessage = String(requestBody.message || 'FALHA_NO_EXECUTOR_EXTERNO').trim();
+        const safeFailure = suppliedMessage.replace(/[^A-Z0-9_:-]/gi, '_').slice(0, 160);
+        return response(200, { batch: await rpc(client, 'mark_data_sync_failure', {
+          target_batch_id: batchId,
+          error_message: safeFailure || 'FALHA_NO_EXECUTOR_EXTERNO'
+        }) });
+      }
+      return response(400, { error: 'OPERACAO_INVALIDA' });
+    }
 
     const adapterUrl = env('DATA_SYNC_ADAPTER_URL');
     const adapterToken = env('DATA_SYNC_ADAPTER_TOKEN');
@@ -102,16 +159,10 @@ Deno.serve(async (request) => {
         rows: payload.records.slice(index, index + 500)
       });
     }
-    const validated = await rpc(client, 'validate_data_sync_batch', { target_batch_id: batchId });
-    if (validated.status === 'failed') {
-      const failed = await rpc(client, 'mark_data_sync_failure', {
-        target_batch_id: batchId,
-        error_message: 'LOTE_SEM_LINHAS_VALIDAS'
-      });
-      return response(422, { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: failed });
-    }
-    const committed = await rpc(client, 'commit_data_sync_batch', { target_batch_id: batchId });
-    return response(200, { batch: committed });
+    const result = await finalizeBatch(client, batchId);
+    return response(result.failed ? 422 : 200, result.failed
+      ? { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: result.batch }
+      : { batch: result.batch });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'FALHA_NAO_DETALHADA';
     if (batchId) {

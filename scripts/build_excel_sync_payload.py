@@ -22,6 +22,17 @@ from typing import Any
 from openpyxl import load_workbook
 
 
+def sha256_file(source: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    if not hasattr(source, "open"):
+        digest.update(source.read_bytes())
+        return digest.hexdigest()
+    with source.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def key(value: Any) -> str:
     text = unicodedata.normalize("NFD", str(value or ""))
     text = "".join(char for char in text if unicodedata.category(char) != "Mn")
@@ -262,10 +273,14 @@ def read_prices(workbook, records: list[dict[str, Any]]):
                         "fields": fields, "field_mask": list(fields)})
 
 
-def build(source: Path) -> dict[str, Any]:
+def build(source: Path, source_updated_at_override: str | None = None) -> dict[str, Any]:
     initial_stat = source.stat()
-    digest = hashlib.sha256(source.read_bytes()).hexdigest()
-    source_updated_at = datetime.fromtimestamp(initial_stat.st_mtime, timezone.utc).isoformat()
+    digest = sha256_file(source)
+    source_updated_at = source_updated_at_override or datetime.fromtimestamp(initial_stat.st_mtime, timezone.utc).isoformat()
+    try:
+        datetime.fromisoformat(source_updated_at.replace("Z", "+00:00"))
+    except (TypeError, ValueError) as error:
+        raise ValueError("DATA_ORIGEM_INVALIDA") from error
     workbook = load_workbook(source, read_only=True, data_only=True)
     products: dict[str, dict[str, Any]] = {}
     records: list[dict[str, Any]] = []
@@ -280,7 +295,7 @@ def build(source: Path) -> dict[str, Any]:
         workbook.close()
     # OneDrive may replace the workbook while it is being read. Never publish a
     # payload whose records came from one version but hash/mtime from another.
-    final_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    final_digest = sha256_file(source)
     final_stat = source.stat()
     if (final_digest != digest or final_stat.st_mtime_ns != initial_stat.st_mtime_ns
             or final_stat.st_size != initial_stat.st_size):
