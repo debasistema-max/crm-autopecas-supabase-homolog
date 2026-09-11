@@ -36,6 +36,7 @@ jobs:
         env:
           MS_GRAPH_CLIENT_ID: ${{ vars.MS_GRAPH_CLIENT_ID }}
           ONEDRIVE_WORKBOOK_NAME: ${{ vars.ONEDRIVE_WORKBOOK_NAME }}
+          ONEDRIVE_FOLDER_PATH: ${{ vars.ONEDRIVE_FOLDER_PATH }}
           DATA_SYNC_EDGE_URL: ${{ vars.DATA_SYNC_EDGE_URL }}
           MS_GRAPH_REFRESH_TOKEN: ${{ secrets.MS_GRAPH_REFRESH_TOKEN }}
           DATA_SYNC_SCHEDULER_SECRET: ${{ secrets.DATA_SYNC_SCHEDULER_SECRET }}

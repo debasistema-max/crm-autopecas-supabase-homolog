@@ -149,6 +149,7 @@ Configure no GitHub, em Actions variables:
 
 - `MS_GRAPH_CLIENT_ID`;
 - `ONEDRIVE_WORKBOOK_NAME`;
+- `ONEDRIVE_FOLDER_PATH` (padrão: `Apps/IPS CRM Excel Sync`);
 - `DATA_SYNC_EDGE_URL`.
 - `DATA_SYNC_ENABLED=true` somente depois da homologação ponta a ponta.
 

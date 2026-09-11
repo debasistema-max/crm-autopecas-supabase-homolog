@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Download the master XLSX from a personal OneDrive app folder and sync it.
+"""Download the master XLSX from a restricted personal OneDrive folder and sync it.
 
-Only delegated Microsoft Graph access to the application's dedicated folder is
-used. Tokens, pre-authenticated download URLs and workbook contents are never
-printed or persisted outside a temporary directory.
+The application-folder endpoint is preferred. A configurable exact folder path
+is used as a compatibility fallback because the AppFolder API is still preview.
+Tokens, pre-authenticated download URLs and workbook contents are never printed
+or persisted outside a temporary directory.
 """
 
 from __future__ import annotations
@@ -66,7 +67,14 @@ def request_json(url: str, *, method: str = "GET", headers: dict[str, str] | Non
                 delay = error.headers.get("Retry-After")
                 time.sleep(min(int(delay) if delay and delay.isdigit() else 2 ** attempt, 30))
                 continue
-            raise SyncError(f"HTTP_{error.code}:{urllib.parse.urlparse(url).netloc}") from error
+            graph_code = ""
+            try:
+                error_body = json.loads(error.read())
+                graph_code = str(error_body.get("error", {}).get("code") or "")
+            except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                pass
+            suffix = f"_{graph_code}" if graph_code else ""
+            raise SyncError(f"HTTP_{error.code}{suffix}:{urllib.parse.urlparse(url).netloc}") from error
         except (urllib.error.URLError, TimeoutError) as error:
             if attempt + 1 < retries:
                 time.sleep(2 ** attempt)
@@ -99,7 +107,19 @@ def graph_json(path: str, token: str) -> dict[str, Any]:
     return request_json(f"{GRAPH_ROOT}{path}", headers={"Authorization": f"Bearer {token}"})
 
 
-def locate_workbook(token: str, filename: str) -> dict[str, Any]:
+def _validate_workbook_match(items: list[dict[str, Any]], filename: str) -> dict[str, Any]:
+    matches = [item for item in items if item.get("name") == filename and item.get("file")]
+    if len(matches) != 1:
+        raise SyncError("PLANILHA_NAO_ENCONTRADA_NA_PASTA_CONFIGURADA")
+    item = matches[0]
+    size = int(item.get("size") or 0)
+    if not filename.lower().endswith(".xlsx") or size <= 0 or size > MAX_WORKBOOK_BYTES:
+        raise SyncError("PLANILHA_FORA_DOS_LIMITES")
+    return item
+
+
+def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, Any]:
+    fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
     app_root = None
     for path in ("/me/drive/special/approot?$select=id", "/me/special/approot?$select=id"):
         try:
@@ -110,20 +130,19 @@ def locate_workbook(token: str, filename: str) -> dict[str, Any]:
             app_root = candidate
             break
     if app_root is None:
-        raise SyncError("PASTA_DO_APLICATIVO_INDISPONIVEL")
+        normalized_path = folder_path.strip().strip("/")
+        if not normalized_path or normalized_path in {".", ".."}:
+            raise SyncError("CAMINHO_ONEDRIVE_INVALIDO")
+        encoded_path = urllib.parse.quote(normalized_path, safe="/")
+        children = graph_json(
+            f"/me/drive/root:/{encoded_path}:/children?$select={fields}", token
+        ).get("value", [])
+        return _validate_workbook_match(children, filename)
     root_id = urllib.parse.quote(str(app_root.get("id") or ""), safe="")
     if not root_id:
         raise SyncError("PASTA_DO_APLICATIVO_INDISPONIVEL")
-    fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
     children = graph_json(f"/me/drive/items/{root_id}/children?$select={fields}", token).get("value", [])
-    matches = [item for item in children if item.get("name") == filename and item.get("file")]
-    if len(matches) != 1:
-        raise SyncError("PLANILHA_NAO_ENCONTRADA_NA_PASTA_DO_APLICATIVO")
-    item = matches[0]
-    size = int(item.get("size") or 0)
-    if not filename.lower().endswith(".xlsx") or size <= 0 or size > MAX_WORKBOOK_BYTES:
-        raise SyncError("PLANILHA_FORA_DOS_LIMITES")
-    return item
+    return _validate_workbook_match(children, filename)
 
 
 def download_workbook(token: str, item: dict[str, Any], destination: Path) -> None:
@@ -168,10 +187,11 @@ def synchronize() -> dict[str, Any]:
     client_id = required_env("MS_GRAPH_CLIENT_ID")
     refresh_token = required_env("MS_GRAPH_REFRESH_TOKEN")
     workbook_name = required_env("ONEDRIVE_WORKBOOK_NAME")
+    folder_path = (os.environ.get("ONEDRIVE_FOLDER_PATH") or "Apps/IPS CRM Excel Sync").strip()
     edge_url = required_env("DATA_SYNC_EDGE_URL")
     sync_secret = required_env("DATA_SYNC_SCHEDULER_SECRET")
     token = access_token(client_id, refresh_token)
-    before = locate_workbook(token, workbook_name)
+    before = locate_workbook(token, workbook_name, folder_path)
 
     with tempfile.TemporaryDirectory(prefix="ips-excel-sync-") as temp_dir:
         source = Path(temp_dir, "master.xlsx")

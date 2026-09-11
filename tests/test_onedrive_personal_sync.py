@@ -27,8 +27,21 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
             ]},
         ]
         with patch.object(MODULE, "graph_json", side_effect=responses):
-            item = MODULE.locate_workbook("token", "master.xlsx")
+            item = MODULE.locate_workbook("token", "master.xlsx", "Apps/IPS CRM Excel Sync")
         self.assertEqual(item["id"], "right")
+
+    def test_locate_falls_back_to_exact_configured_path(self):
+        responses = [
+            MODULE.SyncError("HTTP_400_invalidRequest:graph.microsoft.com"),
+            MODULE.SyncError("HTTP_401_UnknownError:graph.microsoft.com"),
+            {"value": [
+                {"id": "right", "name": "master.xlsx", "size": 100, "file": {"mimeType": "xlsx"}},
+            ]},
+        ]
+        with patch.object(MODULE, "graph_json", side_effect=responses) as graph:
+            item = MODULE.locate_workbook("token", "master.xlsx", "Apps/IPS CRM Excel Sync")
+        self.assertEqual(item["id"], "right")
+        self.assertIn("root:/Apps/IPS%20CRM%20Excel%20Sync:/children", graph.call_args.args[0])
 
     def test_edge_uses_only_dedicated_scheduler_secret(self):
         with patch.object(MODULE, "request_json", return_value={"ok": True}) as request:
