@@ -137,13 +137,13 @@ Antes de contatar o adapter, a Edge Function valida a sessão com `auth.getUser(
 
 É necessário registrar gratuitamente um aplicativo Microsoft que aceite contas
 pessoais, habilitar o fluxo delegado e consentir somente os escopos
-`offline_access` e `Files.ReadWrite.AppFolder`. Este último restringe o token à
-pasta própria do aplicativo; embora o Graph conceda escrita nessa pasta, o
-executor implementado realiza somente leituras.
+`offline_access` e `Files.Read`. Como `Files.Read` permite ler os arquivos da
+conta conectada, use uma conta Microsoft exclusiva para a integração e mantenha
+nela apenas a planilha mestre. O executor não solicita permissão de escrita e,
+por código, consulta somente pasta e nome de arquivo configurados.
 
-Copie a planilha mestre para a pasta `Aplicativos/<nome do aplicativo>` criada
-pelo primeiro acesso do Graph. Não gere link público e não coloque a planilha no
-repositório.
+Copie a planilha mestre para `Apps/IPS CRM Excel Sync` dentro do OneDrive dessa
+conta exclusiva. Não gere link público e não coloque a planilha no repositório.
 
 Configure no GitHub, em Actions variables:
 

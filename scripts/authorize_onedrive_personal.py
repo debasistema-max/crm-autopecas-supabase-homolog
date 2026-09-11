@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Authorize a personal OneDrive and store its refresh token in GitHub Secrets.
+"""Authorize a read-only personal OneDrive and store its refresh token securely.
 
 The refresh token is kept in memory and sent to `gh secret set` through stdin.
 It is never printed or written to disk.
@@ -17,11 +17,8 @@ import urllib.request
 
 
 AUTHORITY = "https://login.microsoftonline.com/consumers/oauth2/v2.0"
-GRAPH_APP_ROOTS = (
-    "https://graph.microsoft.com/v1.0/me/drive/special/approot",
-    "https://graph.microsoft.com/v1.0/me/special/approot",
-)
-SCOPES = "offline_access Files.ReadWrite.AppFolder"
+GRAPH_ROOT = "https://graph.microsoft.com/v1.0"
+SCOPES = "offline_access Files.Read"
 
 
 def post_form(url: str, data: dict[str, str]) -> dict:
@@ -44,7 +41,7 @@ def authorize(client_id: str) -> tuple[str, str]:
         raise RuntimeError(f"DISPOSITIVO_NAO_AUTORIZADO:{device.get('error', 'UNKNOWN')}")
     print("Abra:", device.get("verification_uri", "https://microsoft.com/devicelogin"), flush=True)
     print("Código:", device.get("user_code", ""), flush=True)
-    print("Entre com a conta que possui o OneDrive e confirme apenas a pasta do aplicativo.", flush=True)
+    print("Entre somente com a conta exclusiva da integração e confirme a permissão de leitura.", flush=True)
 
     deadline = time.monotonic() + int(device.get("expires_in", 900))
     interval = max(int(device.get("interval", 5)), 5)
@@ -67,25 +64,22 @@ def authorize(client_id: str) -> tuple[str, str]:
     raise RuntimeError("AUTORIZACAO_EXPIRADA")
 
 
-def create_app_folder(access_token: str) -> str:
-    failures = []
-    for url in GRAPH_APP_ROOTS:
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                result = json.loads(response.read())
-        except urllib.error.HTTPError as error:
-            try:
-                graph_error = json.loads(error.read() or b"{}").get("error", {})
-                code = str(graph_error.get("code") or "UNKNOWN")
-            except (ValueError, AttributeError):
-                code = "UNKNOWN"
-            failures.append(f"HTTP_{error.code}_{code}")
-            continue
-        if result.get("id"):
-            return str(result.get("name") or "IPS CRM Excel Sync")
-        failures.append("RESPOSTA_SEM_ID")
-    raise RuntimeError("PASTA_DO_APLICATIVO_NAO_CRIADA:" + ",".join(failures))
+def verify_workbook(access_token: str, folder_path: str, workbook_name: str) -> None:
+    normalized_path = folder_path.strip().strip("/")
+    if not normalized_path or not workbook_name.lower().endswith(".xlsx"):
+        raise RuntimeError("CAMINHO_OU_PLANILHA_INVALIDO")
+    encoded_path = urllib.parse.quote(normalized_path, safe="/")
+    fields = urllib.parse.quote("id,name,size,file", safe=",")
+    url = f"{GRAPH_ROOT}/me/drive/root:/{encoded_path}:/children?$select={fields}"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            items = json.loads(response.read()).get("value", [])
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"PASTA_EXCLUSIVA_INACESSIVEL:HTTP_{error.code}") from error
+    matches = [item for item in items if item.get("name") == workbook_name and item.get("file")]
+    if len(matches) != 1 or int(matches[0].get("size") or 0) <= 0:
+        raise RuntimeError("PLANILHA_EXCLUSIVA_NAO_ENCONTRADA")
 
 
 def store_github_secret(repo: str, refresh_token: str) -> None:
@@ -99,17 +93,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--client-id", required=True)
     parser.add_argument("--repo", required=True)
+    parser.add_argument("--folder-path", required=True)
+    parser.add_argument("--workbook-name", required=True)
     args = parser.parse_args()
     access_token, refresh_token = authorize(args.client_id)
+    verify_workbook(access_token, args.folder_path, args.workbook_name)
     store_github_secret(args.repo, refresh_token)
-    print("O refresh token foi salvo diretamente no GitHub Secrets e não foi exibido.")
-    try:
-        folder_name = create_app_folder(access_token)
-        print(f"Autorização concluída. Pasta privada do aplicativo: Aplicativos/{folder_name}")
-    except RuntimeError as error:
-        # Folder provisioning can be retried without another consent because the
-        # durable credential is already protected in GitHub Secrets.
-        print(f"Autorização concluída; pasta pendente: {error}")
+    print("Autorização somente leitura validada; token salvo no GitHub Secrets sem ser exibido.")
 
 
 if __name__ == "__main__":

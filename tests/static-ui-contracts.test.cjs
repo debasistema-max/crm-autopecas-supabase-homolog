@@ -117,7 +117,8 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
   assert.doesNotMatch(workflow, /pull_request:/);
   assert.doesNotMatch(workflow, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(workflow, /vars\.DATA_SYNC_ENABLED == 'true'/);
-  assert.match(runner, /Files\.ReadWrite\.AppFolder/);
+  assert.match(runner, /offline_access Files\.Read/);
+  assert.doesNotMatch(runner, /Files\.ReadWrite/);
   assert.match(runner, /CHUNK_ROWS = 500/);
   assert.match(edge, /operation === 'create'/);
   assert.match(edge, /operation === 'stage'/);

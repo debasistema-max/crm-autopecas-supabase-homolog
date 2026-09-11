@@ -1,7 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "authorize_onedrive_personal.py"
@@ -19,9 +19,16 @@ class AuthorizeOneDrivePersonalTest(unittest.TestCase):
         self.assertEqual(kwargs["input"], "secret-refresh-token")
         self.assertTrue(kwargs["check"])
 
-    def test_scope_is_limited_to_app_folder(self):
-        self.assertEqual(MODULE.SCOPES, "offline_access Files.ReadWrite.AppFolder")
-        self.assertNotIn("Files.ReadWrite.All", MODULE.SCOPES)
+    def test_scope_is_read_only(self):
+        self.assertEqual(MODULE.SCOPES, "offline_access Files.Read")
+        self.assertNotIn("ReadWrite", MODULE.SCOPES)
+
+    def test_workbook_is_verified_before_secret_can_be_stored(self):
+        response = {"value": [{"id": "item", "name": "master.xlsx", "size": 10, "file": {"mimeType": "xlsx"}}]}
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value.read.return_value = __import__("json").dumps(response).encode()
+        with patch.object(MODULE.urllib.request, "urlopen", return_value=mock_response):
+            MODULE.verify_workbook("access", "Apps/IPS CRM Excel Sync", "master.xlsx")
 
 
 if __name__ == "__main__":

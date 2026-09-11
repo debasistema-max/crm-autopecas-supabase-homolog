@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Download the master XLSX from a restricted personal OneDrive folder and sync it.
+"""Download the master XLSX from an exact personal OneDrive path and sync it.
 
-The application-folder endpoint is preferred. A configurable exact folder path
-is used as a compatibility fallback because the AppFolder API is still preview.
-Tokens, pre-authenticated download URLs and workbook contents are never printed
-or persisted outside a temporary directory.
+Only delegated read access is requested. Runtime code is constrained to one
+configured folder and filename. Tokens, pre-authenticated download URLs and
+workbook contents are never printed or persisted outside a temporary directory.
 """
 
 from __future__ import annotations
@@ -88,7 +87,7 @@ def access_token(client_id: str, refresh_token: str) -> str:
         "client_id": client_id,
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-        "scope": "offline_access Files.ReadWrite.AppFolder",
+        "scope": "offline_access Files.Read",
     }).encode("ascii")
     try:
         with urllib.request.urlopen(urllib.request.Request(
@@ -120,28 +119,13 @@ def _validate_workbook_match(items: list[dict[str, Any]], filename: str) -> dict
 
 def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, Any]:
     fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
-    app_root = None
-    for path in ("/me/drive/special/approot?$select=id", "/me/special/approot?$select=id"):
-        try:
-            candidate = graph_json(path, token)
-        except SyncError:
-            continue
-        if candidate.get("id"):
-            app_root = candidate
-            break
-    if app_root is None:
-        normalized_path = folder_path.strip().strip("/")
-        if not normalized_path or normalized_path in {".", ".."}:
-            raise SyncError("CAMINHO_ONEDRIVE_INVALIDO")
-        encoded_path = urllib.parse.quote(normalized_path, safe="/")
-        children = graph_json(
-            f"/me/drive/root:/{encoded_path}:/children?$select={fields}", token
-        ).get("value", [])
-        return _validate_workbook_match(children, filename)
-    root_id = urllib.parse.quote(str(app_root.get("id") or ""), safe="")
-    if not root_id:
-        raise SyncError("PASTA_DO_APLICATIVO_INDISPONIVEL")
-    children = graph_json(f"/me/drive/items/{root_id}/children?$select={fields}", token).get("value", [])
+    normalized_path = folder_path.strip().strip("/")
+    if not normalized_path or normalized_path in {".", ".."}:
+        raise SyncError("CAMINHO_ONEDRIVE_INVALIDO")
+    encoded_path = urllib.parse.quote(normalized_path, safe="/")
+    children = graph_json(
+        f"/me/drive/root:/{encoded_path}:/children?$select={fields}", token
+    ).get("value", [])
     return _validate_workbook_match(children, filename)
 
 
