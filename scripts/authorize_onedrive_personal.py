@@ -17,7 +17,10 @@ import urllib.request
 
 
 AUTHORITY = "https://login.microsoftonline.com/consumers/oauth2/v2.0"
-GRAPH_APP_ROOT = "https://graph.microsoft.com/v1.0/me/drive/special/approot?$select=id,name"
+GRAPH_APP_ROOTS = (
+    "https://graph.microsoft.com/v1.0/me/drive/special/approot",
+    "https://graph.microsoft.com/v1.0/me/special/approot",
+)
 SCOPES = "offline_access Files.ReadWrite.AppFolder"
 
 
@@ -65,15 +68,24 @@ def authorize(client_id: str) -> tuple[str, str]:
 
 
 def create_app_folder(access_token: str) -> str:
-    request = urllib.request.Request(GRAPH_APP_ROOT, headers={"Authorization": f"Bearer {access_token}"})
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            result = json.loads(response.read())
-    except urllib.error.HTTPError as error:
-        raise RuntimeError(f"PASTA_DO_APLICATIVO_HTTP_{error.code}") from error
-    if not result.get("id"):
-        raise RuntimeError("PASTA_DO_APLICATIVO_NAO_CRIADA")
-    return str(result.get("name") or "IPS CRM Excel Sync")
+    failures = []
+    for url in GRAPH_APP_ROOTS:
+        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                result = json.loads(response.read())
+        except urllib.error.HTTPError as error:
+            try:
+                graph_error = json.loads(error.read() or b"{}").get("error", {})
+                code = str(graph_error.get("code") or "UNKNOWN")
+            except (ValueError, AttributeError):
+                code = "UNKNOWN"
+            failures.append(f"HTTP_{error.code}_{code}")
+            continue
+        if result.get("id"):
+            return str(result.get("name") or "IPS CRM Excel Sync")
+        failures.append("RESPOSTA_SEM_ID")
+    raise RuntimeError("PASTA_DO_APLICATIVO_NAO_CRIADA:" + ",".join(failures))
 
 
 def store_github_secret(repo: str, refresh_token: str) -> None:
@@ -89,10 +101,15 @@ def main() -> None:
     parser.add_argument("--repo", required=True)
     args = parser.parse_args()
     access_token, refresh_token = authorize(args.client_id)
-    folder_name = create_app_folder(access_token)
     store_github_secret(args.repo, refresh_token)
-    print(f"Autorização concluída. Pasta privada do aplicativo: Aplicativos/{folder_name}")
     print("O refresh token foi salvo diretamente no GitHub Secrets e não foi exibido.")
+    try:
+        folder_name = create_app_folder(access_token)
+        print(f"Autorização concluída. Pasta privada do aplicativo: Aplicativos/{folder_name}")
+    except RuntimeError as error:
+        # Folder provisioning can be retried without another consent because the
+        # durable credential is already protected in GitHub Secrets.
+        print(f"Autorização concluída; pasta pendente: {error}")
 
 
 if __name__ == "__main__":

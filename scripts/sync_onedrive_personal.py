@@ -100,7 +100,17 @@ def graph_json(path: str, token: str) -> dict[str, Any]:
 
 
 def locate_workbook(token: str, filename: str) -> dict[str, Any]:
-    app_root = graph_json("/me/drive/special/approot?$select=id", token)
+    app_root = None
+    for path in ("/me/drive/special/approot?$select=id", "/me/special/approot?$select=id"):
+        try:
+            candidate = graph_json(path, token)
+        except SyncError:
+            continue
+        if candidate.get("id"):
+            app_root = candidate
+            break
+    if app_root is None:
+        raise SyncError("PASTA_DO_APLICATIVO_INDISPONIVEL")
     root_id = urllib.parse.quote(str(app_root.get("id") or ""), safe="")
     if not root_id:
         raise SyncError("PASTA_DO_APLICATIVO_INDISPONIVEL")
