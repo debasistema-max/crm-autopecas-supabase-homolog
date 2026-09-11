@@ -254,10 +254,10 @@ async function supabaseSearchProducts(params) {
     limit_count: Number(params.limite || 40)
   });
   if (error) throw error;
-  return enrichProductsWithBranchAvailability(data || []);
+  return enrichProductsWithBranchAvailability(data || [], params.regiao || 'SP');
 }
 
-async function enrichProductsWithBranchAvailability(products) {
+async function enrichProductsWithBranchAvailability(products, region = 'SP') {
   const rows = Array.isArray(products) ? products : [];
   const codes = Array.from(new Set(rows.map((product) => String(product.codigo || '').trim()).filter(Boolean)));
   if (!codes.length) return rows;
@@ -267,9 +267,22 @@ async function enrichProductsWithBranchAvailability(products) {
     });
     if (error) throw error;
     const byCode = new Map((data || []).map((row) => [row.product_code, row]));
-    return rows.map((product) => Object.assign({}, product, {
-      branch_stock: byCode.get(product.codigo) || null
-    }));
+    const branch = String(region || 'SP').trim().toUpperCase() === 'PR' ? 'pr' : 'sp';
+    return rows.map((product) => {
+      const values = byCode.get(product.codigo) || null;
+      if (!values) return Object.assign({}, product, { branch_stock: null });
+      const quantity = values[`${branch}_available_qty`];
+      const display = values[`${branch}_source_display_value`];
+      const price = values[`${branch}_price`];
+      return Object.assign({}, product, {
+        branch_stock: values,
+        estoque: display || (quantity == null ? '' : formatQuantity(quantity)),
+        estoque_quantidade: quantity == null ? null : Number(quantity),
+        preco_sp: values.sp_price == null ? product.preco_sp : Number(values.sp_price),
+        preco_pr: values.pr_price == null ? product.preco_pr : Number(values.pr_price),
+        preco: price == null ? null : Number(price)
+      });
+    });
   } catch (error) {
     if (!isMissingSupabaseResource(error)) console.info('Disponibilidade por filial indisponivel:', error.message || error);
     return rows;
@@ -359,10 +372,11 @@ async function supabaseListProducts(params = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map((product) => Object.assign({}, product, {
+  const rows = (data || []).map((product) => Object.assign({}, product, {
     linha: product.categoria,
     preco: region === 'PR' ? product.preco_pr : product.preco_sp
   }));
+  return enrichProductsWithBranchAvailability(rows, region);
 }
 
 function normalizeBillingUf(value) {

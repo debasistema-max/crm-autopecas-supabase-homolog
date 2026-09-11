@@ -130,3 +130,15 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
   assert.match(edge, /operation === 'commit'/);
   assert.match(edge, /PUSH_EXIGE_SEGREDO_DO_AGENDADOR/);
 });
+
+test('quotes read synchronized branch price and stock instead of legacy product fields', () => {
+  const store = read('js/supabase_store.js');
+  const migration = read('supabase/migrations/065_quote_reads_branch_price_stock.sql');
+  assert.match(store, /get_branch_product_availability/);
+  assert.match(store, /\$\{branch\}_available_qty/);
+  assert.match(store, /\$\{branch\}_price/);
+  assert.match(migration, /product_branch_prices/);
+  assert.match(migration, /product_branch_stock/);
+  assert.match(migration, /create or replace function public\.search_products/);
+  assert.doesNotMatch(migration, /then p\.preco_pr else p\.preco_sp/);
+});
