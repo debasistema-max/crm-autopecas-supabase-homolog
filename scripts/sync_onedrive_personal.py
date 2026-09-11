@@ -118,14 +118,19 @@ def _validate_workbook_match(items: list[dict[str, Any]], filename: str) -> dict
 
 
 def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, Any]:
-    fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
     normalized_path = folder_path.strip().strip("/")
-    if not normalized_path or normalized_path in {".", ".."}:
+    if not normalized_path or "/" in normalized_path or normalized_path in {".", ".."}:
         raise SyncError("CAMINHO_ONEDRIVE_INVALIDO")
-    encoded_path = urllib.parse.quote(normalized_path, safe="/")
-    children = graph_json(
-        f"/me/drive/root:/{encoded_path}:/children?$select={fields}", token
-    ).get("value", [])
+    root_fields = urllib.parse.quote("id,name,folder", safe=",")
+    root_items = graph_json(f"/me/drive/root/children?$select={root_fields}", token).get("value", [])
+    folders = [item for item in root_items if item.get("name") == normalized_path and item.get("folder") is not None]
+    if len(folders) != 1:
+        raise SyncError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
+    folder_id = urllib.parse.quote(str(folders[0].get("id") or ""), safe="")
+    if not folder_id:
+        raise SyncError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
+    fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
+    children = graph_json(f"/me/drive/items/{folder_id}/children?$select={fields}", token).get("value", [])
     return _validate_workbook_match(children, filename)
 
 

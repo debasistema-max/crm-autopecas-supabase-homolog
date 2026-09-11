@@ -24,10 +24,15 @@ class AuthorizeOneDrivePersonalTest(unittest.TestCase):
         self.assertNotIn("ReadWrite", MODULE.SCOPES)
 
     def test_workbook_is_verified_before_secret_can_be_stored(self):
-        response = {"value": [{"id": "item", "name": "master.xlsx", "size": 10, "file": {"mimeType": "xlsx"}}]}
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = __import__("json").dumps(response).encode()
-        with patch.object(MODULE.urllib.request, "urlopen", return_value=mock_response):
+        root_response = MagicMock()
+        root_response.__enter__.return_value.read.return_value = __import__("json").dumps({
+            "value": [{"id": "folder-id", "name": "IPS CRM Excel Sync", "folder": {}}]
+        }).encode()
+        file_response = MagicMock()
+        file_response.__enter__.return_value.read.return_value = __import__("json").dumps({
+            "value": [{"id": "item", "name": "master.xlsx", "size": 10, "file": {"mimeType": "xlsx"}}]
+        }).encode()
+        with patch.object(MODULE.urllib.request, "urlopen", side_effect=[root_response, file_response]):
             MODULE.verify_workbook("access", "IPS CRM Excel Sync", "master.xlsx")
 
 

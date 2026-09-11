@@ -66,14 +66,26 @@ def authorize(client_id: str) -> tuple[str, str]:
 
 def verify_workbook(access_token: str, folder_path: str, workbook_name: str) -> None:
     normalized_path = folder_path.strip().strip("/")
-    if not normalized_path or not workbook_name.lower().endswith(".xlsx"):
+    if not normalized_path or "/" in normalized_path or not workbook_name.lower().endswith(".xlsx"):
         raise RuntimeError("CAMINHO_OU_PLANILHA_INVALIDO")
-    encoded_path = urllib.parse.quote(normalized_path, safe="/")
-    fields = urllib.parse.quote("id,name,size,file", safe=",")
-    url = f"{GRAPH_ROOT}/me/drive/root:/{encoded_path}:/children?$select={fields}"
-    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
+    headers = {"Authorization": f"Bearer {access_token}"}
+    root_fields = urllib.parse.quote("id,name,folder", safe=",")
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with urllib.request.urlopen(urllib.request.Request(
+            f"{GRAPH_ROOT}/me/drive/root/children?$select={root_fields}", headers=headers
+        ), timeout=60) as response:
+            root_items = json.loads(response.read()).get("value", [])
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"RAIZ_ONEDRIVE_INACESSIVEL:HTTP_{error.code}") from error
+    folders = [item for item in root_items if item.get("name") == normalized_path and item.get("folder") is not None]
+    if len(folders) != 1:
+        raise RuntimeError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
+    folder_id = urllib.parse.quote(str(folders[0].get("id") or ""), safe="")
+    fields = urllib.parse.quote("id,name,size,file", safe=",")
+    try:
+        with urllib.request.urlopen(urllib.request.Request(
+            f"{GRAPH_ROOT}/me/drive/items/{folder_id}/children?$select={fields}", headers=headers
+        ), timeout=60) as response:
             items = json.loads(response.read()).get("value", [])
     except urllib.error.HTTPError as error:
         raise RuntimeError(f"PASTA_EXCLUSIVA_INACESSIVEL:HTTP_{error.code}") from error
