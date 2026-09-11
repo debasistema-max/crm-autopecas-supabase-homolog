@@ -205,7 +205,10 @@ def read_prices(workbook, records: list[dict[str, Any]]):
     calculations: dict[tuple[str, str], dict[str, Any]] = {}
     if "Cálculo Fiscal" in workbook.sheetnames:
         ws = workbook["Cálculo Fiscal"]
-        _, mapping = find_header(ws, {"rota", "codigo", "total c tributos", "status"})
+        _, mapping = find_header(ws, {"rota", "codigo", "status"})
+        final_price_field = next((name for name in ("preco final", "total c tributos") if name in mapping), None)
+        if final_price_field is None:
+            raise ValueError("Preço final não encontrado em Cálculo Fiscal")
         for values in ws.iter_rows(min_row=4, values_only=True):
             row = row_dict(values, mapping)
             route, code = text(row.get("rota")), product_code(row.get("codigo"))
@@ -213,12 +216,13 @@ def read_prices(workbook, records: list[dict[str, Any]]):
                 continue
             calculations[(route, code)] = {
                 "base_price": number(row.get("preco s imp")),
-                "final_price": number(row.get("total c tributos")),
-                "total_taxes": number(row.get("total tributos")),
+                "final_price": number(row.get(final_price_field)),
+                "total_taxes": number(row.get("total tributos") if "total tributos" in mapping else row.get("ipi icms st")),
                 "calculation_status": text(row.get("status")) or "UNKNOWN",
                 "tax_breakdown": {
                     name: value for name, value in {
-                        "ipi": number(row.get("ipi")), "icms_proprio": number(row.get("icms proprio")),
+                        "ipi": number(row.get("ipi")),
+                        "icms_proprio": number(row.get("icms proprio") if "icms proprio" in mapping else row.get("icms proprio info")),
                         "icms_st": number(row.get("icms st")), "pis": number(row.get("pis n d")),
                         "cofins": number(row.get("cofins n d")), "fcp": number(row.get("fcp n d"))
                     }.items() if value is not None

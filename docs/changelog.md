@@ -8,6 +8,7 @@
 - auditoria por campo e movimento `SYNC_ERP` identificam origem, lote, filial, rota, valor anterior e valor novo;
 - criada Central de Dados administrativa e preservada a importação manual como “Importação e Integrações”;
 - o adapter rejeita o lote se o OneDrive substituir o XLSX durante a leitura;
+- a cópia oficial de 18 abas na raiz do OneDrive foi validada, incluindo o novo cabeçalho `PREÇO FINAL`;
 - a Edge Function valida sessão e perfil ADMIN antes de contatar o adapter; chave anônima retorna 401;
 - migrations 060–061 e Edge Function versão 2 aplicadas somente em homologação; produção não foi acessada;
 - adicionados testes de contrato, integração, autorização e carga de 4.000 registros;

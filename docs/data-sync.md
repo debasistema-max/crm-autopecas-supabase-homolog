@@ -82,9 +82,9 @@ Campo ausente não entra na `field_mask`. Campo vazio é ignorado. Limpeza exige
 | `Cálculo Fiscal` | memória e status consolidados usados pelas listas |
 | `Dados Fiscais`, `dados fiscais sap pr/sp` | suporte ao cálculo no Excel; não são copiadas integralmente |
 
-Não sincronizar abas de amostra, validação SAP, pesquisa, conferência, diagnóstico ou memória auxiliar. A versão analisada em 10/09/2026 não continha “Regras por Grupo” nem as abas de validação citadas no escopo. Se aparecerem depois, permanecem excluídas até uma revisão explícita do adapter.
+Não sincronizar abas de amostra, validação SAP, pesquisa, conferência, diagnóstico ou memória auxiliar. Elas permanecem excluídas mesmo quando ocupam grande parte do arquivo.
 
-O arquivo solicitado `calculos-impostos-PR-SP-SC-corrigido-seguro(3).xlsx` não estava presente no workspace. O mapeamento foi validado no arquivo disponível `calculos-impostos-PR-SC-corrigido.xlsx`; antes de apontar produção para outra versão, execute novamente a inspeção de cabeçalhos e os testes de referência.
+Em 10/09/2026, o mapeamento foi revalidado na cópia oficial disponível na raiz do OneDrive, `calculos-impostos-PR-SP-SC-corrigido-seguro.xlsx`. Ela contém 18 abas, incluindo `Regras por Grupo`, `Pesquisa Marcas` e as três validações SAP. O adapter aceita tanto `PREÇO FINAL` quanto o cabeçalho legado `TOTAL C/TRIBUTOS` em `Cálculo Fiscal`, mas não sincroniza as abas auxiliares.
 
 Observação importante: a fórmula atual de `LISTA SP-SP` consulta estoque PR. O adapter usa o preço final dessa lista, mas nunca usa suas colunas de estoque/quantidade. Estoque SP vem exclusivamente de `PORTAL ESTOQUE SP`.
 
