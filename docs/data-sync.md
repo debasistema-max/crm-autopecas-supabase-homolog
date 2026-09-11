@@ -142,14 +142,14 @@ conta conectada, use uma conta Microsoft exclusiva para a integração e mantenh
 nela apenas a planilha mestre. O executor não solicita permissão de escrita e,
 por código, consulta somente pasta e nome de arquivo configurados.
 
-Copie a planilha mestre para `Apps/IPS CRM Excel Sync` dentro do OneDrive dessa
-conta exclusiva. Não gere link público e não coloque a planilha no repositório.
+Crie `IPS CRM Excel Sync` na raiz do OneDrive dessa conta e copie a planilha
+mestre para essa pasta. Não gere link público e não coloque a planilha no repositório.
 
 Configure no GitHub, em Actions variables:
 
 - `MS_GRAPH_CLIENT_ID`;
 - `ONEDRIVE_WORKBOOK_NAME`;
-- `ONEDRIVE_FOLDER_PATH` (padrão: `Apps/IPS CRM Excel Sync`);
+- `ONEDRIVE_FOLDER_PATH` (padrão: `IPS CRM Excel Sync`);
 - `DATA_SYNC_EDGE_URL`.
 - `DATA_SYNC_ENABLED=true` somente depois da homologação ponta a ponta.
 

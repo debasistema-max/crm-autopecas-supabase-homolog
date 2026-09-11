@@ -24,7 +24,7 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                 {"id": "right", "name": "master.xlsx", "size": 100, "file": {"mimeType": "xlsx"}},
             ]}
         with patch.object(MODULE, "graph_json", return_value=response):
-            item = MODULE.locate_workbook("token", "master.xlsx", "Apps/IPS CRM Excel Sync")
+            item = MODULE.locate_workbook("token", "master.xlsx", "IPS CRM Excel Sync")
         self.assertEqual(item["id"], "right")
 
     def test_locate_uses_only_exact_configured_path(self):
@@ -32,9 +32,9 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                 {"id": "right", "name": "master.xlsx", "size": 100, "file": {"mimeType": "xlsx"}},
             ]}
         with patch.object(MODULE, "graph_json", return_value=response) as graph:
-            item = MODULE.locate_workbook("token", "master.xlsx", "Apps/IPS CRM Excel Sync")
+            item = MODULE.locate_workbook("token", "master.xlsx", "IPS CRM Excel Sync")
         self.assertEqual(item["id"], "right")
-        self.assertIn("root:/Apps/IPS%20CRM%20Excel%20Sync:/children", graph.call_args.args[0])
+        self.assertIn("root:/IPS%20CRM%20Excel%20Sync:/children", graph.call_args.args[0])
 
     def test_edge_uses_only_dedicated_scheduler_secret(self):
         with patch.object(MODULE, "request_json", return_value={"ok": True}) as request:

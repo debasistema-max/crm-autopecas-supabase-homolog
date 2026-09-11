@@ -28,7 +28,7 @@ class AuthorizeOneDrivePersonalTest(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.__enter__.return_value.read.return_value = __import__("json").dumps(response).encode()
         with patch.object(MODULE.urllib.request, "urlopen", return_value=mock_response):
-            MODULE.verify_workbook("access", "Apps/IPS CRM Excel Sync", "master.xlsx")
+            MODULE.verify_workbook("access", "IPS CRM Excel Sync", "master.xlsx")
 
 
 if __name__ == "__main__":

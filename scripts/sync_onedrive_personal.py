@@ -171,7 +171,7 @@ def synchronize() -> dict[str, Any]:
     client_id = required_env("MS_GRAPH_CLIENT_ID")
     refresh_token = required_env("MS_GRAPH_REFRESH_TOKEN")
     workbook_name = required_env("ONEDRIVE_WORKBOOK_NAME")
-    folder_path = (os.environ.get("ONEDRIVE_FOLDER_PATH") or "Apps/IPS CRM Excel Sync").strip()
+    folder_path = (os.environ.get("ONEDRIVE_FOLDER_PATH") or "IPS CRM Excel Sync").strip()
     edge_url = required_env("DATA_SYNC_EDGE_URL")
     sync_secret = required_env("DATA_SYNC_SCHEDULER_SECRET")
     token = access_token(client_id, refresh_token)
