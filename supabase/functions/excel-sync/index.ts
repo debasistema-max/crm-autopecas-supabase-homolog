@@ -65,6 +65,7 @@ Deno.serve(async (request) => {
 
   let batchId = '';
   let integrationSource = 'EXCEL_API';
+  let operation = '';
   try {
     const requestBody = await request.json().catch(() => ({}));
     const source = String(requestBody.source || 'EXCEL_API').trim().toUpperCase();
@@ -73,7 +74,7 @@ Deno.serve(async (request) => {
 
     // A cloud runner sends small, authenticated chunks. This keeps the XLSX and
     // service-role key out of the browser and avoids a single oversized request.
-    const operation = String(requestBody.operation || '').trim().toLowerCase();
+    operation = String(requestBody.operation || '').trim().toLowerCase();
     if (operation) {
       if (!scheduled) return response(403, { error: 'PUSH_EXIGE_SEGREDO_DO_AGENDADOR' });
       if (operation === 'create') {
@@ -97,6 +98,28 @@ Deno.serve(async (request) => {
         return response(200, await rpc(client, 'stage_data_sync_rows', {
           target_batch_id: batchId,
           rows: records
+        }));
+      }
+      if (operation === 'prepare') {
+        return response(200, await rpc(client, 'prepare_data_sync_batch_retry', {
+          target_batch_id: batchId
+        }));
+      }
+      if (operation === 'status') {
+        return response(200, { batch: await rpc(client, 'get_data_sync_batch', {
+          target_batch_id: batchId
+        }) });
+      }
+      if (operation === 'validate') {
+        return response(200, await rpc(client, 'validate_data_sync_batch_chunk', {
+          target_batch_id: batchId,
+          chunk_size: 500
+        }));
+      }
+      if (operation === 'commit') {
+        return response(200, await rpc(client, 'commit_data_sync_batch_chunk', {
+          target_batch_id: batchId,
+          chunk_size: 500
         }));
       }
       if (operation === 'finalize') {
@@ -165,15 +188,23 @@ Deno.serve(async (request) => {
       : { batch: result.batch });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'FALHA_NAO_DETALHADA';
-    if (batchId) {
+    const resumableOperation = ['stage', 'prepare', 'status', 'validate', 'commit'].includes(operation);
+    if (batchId && !resumableOperation) {
       await rpc(client, 'mark_data_sync_failure', { target_batch_id: batchId, error_message: message }).catch(() => null);
-    } else {
+    } else if (!batchId) {
       await rpc(client, 'mark_data_sync_source_failure', {
         target_source: integrationSource,
         error_message: message
       }).catch(() => null);
     }
-    const safeMessage = message.startsWith('CONFIGURACAO_AUSENTE:') ? message : 'Não foi possível concluir a sincronização.';
-    return response(message.startsWith('CONFIGURACAO_AUSENTE:') ? 503 : 500, { error: safeMessage, batch_id: batchId || null });
+    const safeScheduledMessage = message.replace(/[^A-Za-z0-9_:. -]/g, '_').slice(0, 240);
+    const safeMessage = message.startsWith('CONFIGURACAO_AUSENTE:')
+      ? message
+      : scheduled ? safeScheduledMessage : 'Não foi possível concluir a sincronização.';
+    return response(message.startsWith('CONFIGURACAO_AUSENTE:') ? 503 : 500, {
+      error: safeMessage,
+      batch_id: batchId || null,
+      resumable: resumableOperation
+    });
   }
 });

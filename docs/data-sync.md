@@ -164,6 +164,13 @@ simultâneas, limita a execução a 20 minutos e não mantém cache/artifact do 
 O refresh token é revogável; falha de autorização deve gerar reconsentimento
 assistido, sem apagar os últimos dados válidos do CRM.
 
+Validação e aplicação são executadas em blocos retomáveis de até 500 linhas.
+Cada bloco é transacional: uma interrupção antes do commit reverte apenas aquele
+bloco, e uma resposta perdida depois do commit pode ser repetida sem duplicar
+auditoria ou movimentos. Lotes `DRAFT`, `PREVIEWED` ou `COMMITTING` continuam do
+ponto confirmado; somente `COMMITTED` é considerado concluído. Falha HTTP
+transitória não transforma automaticamente um lote retomável em `FAILED`.
+
 ## Diagnóstico e reprocessamento
 
 1. Abra Central de Dados e confira conexão, último lote e contadores.

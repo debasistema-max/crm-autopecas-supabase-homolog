@@ -46,6 +46,27 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
         self.assertEqual(request.call_args.kwargs["headers"], {"x-sync-secret": "private"})
         self.assertNotIn("Authorization", request.call_args.kwargs["headers"])
 
+    def test_process_batch_resumes_in_idempotent_chunks(self):
+        responses = [
+            {"batch": {"state": "DRAFT"}},
+            {"staged_rows": 1},
+            {"batch": {"state": "DRAFT"}},
+            {"done": True, "batch": {"state": "PREVIEWED"}},
+            {"done": False, "processed": 1, "remaining": 1},
+            {"done": True, "batch": {"state": "COMMITTED"}},
+        ]
+        with patch.object(MODULE, "edge_call", side_effect=responses) as edge:
+            result = MODULE.process_batch("https://example.test", "secret", "batch", [{"row_number": 1}])
+        operations = [call.args[2]["operation"] for call in edge.call_args_list]
+        self.assertEqual(operations, ["prepare", "stage", "status", "validate", "commit", "commit"])
+        self.assertEqual(result["state"], "COMMITTED")
+
+    def test_process_batch_skips_completed_duplicate(self):
+        with patch.object(MODULE, "edge_call", return_value={"batch": {"state": "COMMITTED"}}) as edge:
+            result = MODULE.process_batch("https://example.test", "secret", "batch", [])
+        self.assertEqual(result["state"], "COMMITTED")
+        self.assertEqual(edge.call_count, 1)
+
     def test_graph_timestamp_overrides_download_mtime(self):
         with patch.dict(os.environ, {
             "MS_GRAPH_CLIENT_ID": "client", "MS_GRAPH_REFRESH_TOKEN": "refresh",
@@ -63,7 +84,10 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                     "source_name": "Excel Mestre", "source_version": "hash", "source_updated_at": "2026-09-10T22:33:33Z",
                     "file_hash": "0" * 64, "original_filename": "master.xlsx", "file_size": 4,
                     "records": [], "summary": {"records": 0},
-                }) as build, patch.object(MODULE, "edge_call", return_value={"duplicate": True, "batch_id": "batch"}):
+                }) as build, patch.object(MODULE, "edge_call", side_effect=[
+                    {"duplicate": True, "batch_id": "batch"},
+                    {"batch": {"state": "COMMITTED"}},
+                ]):
             result = MODULE.synchronize()
         download.assert_called_once()
         self.assertEqual(build.call_args.args[1], "2026-09-10T22:33:33Z")

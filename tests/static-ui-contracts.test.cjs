@@ -120,7 +120,13 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
   assert.match(runner, /offline_access Files\.Read/);
   assert.doesNotMatch(runner, /Files\.ReadWrite/);
   assert.match(runner, /CHUNK_ROWS = 500/);
+  assert.match(runner, /"operation": "prepare"/);
+  assert.match(runner, /"operation": "validate"/);
+  assert.match(runner, /"operation": "commit"/);
+  assert.doesNotMatch(runner, /"operation": "fail"/);
   assert.match(edge, /operation === 'create'/);
   assert.match(edge, /operation === 'stage'/);
+  assert.match(edge, /operation === 'validate'/);
+  assert.match(edge, /operation === 'commit'/);
   assert.match(edge, /PUSH_EXIGE_SEGREDO_DO_AGENDADOR/);
 });

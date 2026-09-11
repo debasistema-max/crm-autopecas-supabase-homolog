@@ -50,14 +50,15 @@ def required_env(name: str) -> str:
 
 
 def request_json(url: str, *, method: str = "GET", headers: dict[str, str] | None = None,
-                 payload: dict[str, Any] | None = None, retries: int = 4) -> dict[str, Any]:
+                 payload: dict[str, Any] | None = None, retries: int = 4,
+                 timeout: int = 150) -> dict[str, Any]:
     encoded = None if payload is None else json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     request_headers = {"Accept": "application/json", **(headers or {})}
     if encoded is not None:
         request_headers["Content-Type"] = "application/json"
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, data=encoded, headers=request_headers, method=method), timeout=150) as response:
+            with urllib.request.urlopen(urllib.request.Request(url, data=encoded, headers=request_headers, method=method), timeout=timeout) as response:
                 body = response.read()
                 return json.loads(body) if body else {}
         except urllib.error.HTTPError as error:
@@ -69,7 +70,8 @@ def request_json(url: str, *, method: str = "GET", headers: dict[str, str] | Non
             graph_code = ""
             try:
                 error_body = json.loads(error.read())
-                graph_code = str(error_body.get("error", {}).get("code") or "")
+                raw_error = error_body.get("error", {})
+                graph_code = str(raw_error.get("code") or "") if isinstance(raw_error, dict) else str(raw_error or "")
             except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
                 pass
             suffix = f"_{graph_code}" if graph_code else ""
@@ -168,8 +170,66 @@ def download_workbook(token: str, item: dict[str, Any], destination: Path) -> No
             raise SyncError("ARQUIVO_XLSX_INVALIDO")
 
 
-def edge_call(edge_url: str, secret: str, body: dict[str, Any]) -> dict[str, Any]:
-    return request_json(edge_url, method="POST", headers={"x-sync-secret": secret}, payload=body)
+def edge_call(edge_url: str, secret: str, body: dict[str, Any], *, timeout: int = 130) -> dict[str, Any]:
+    return request_json(
+        edge_url, method="POST", headers={"x-sync-secret": secret}, payload=body, timeout=timeout
+    )
+
+
+def process_batch(edge_url: str, secret: str, batch_id: str,
+                  records: list[dict[str, Any]]) -> dict[str, Any]:
+    prepared = edge_call(edge_url, secret, {
+        "source": "EXCEL_API", "operation": "prepare", "batch_id": batch_id,
+    })
+    batch = prepared.get("batch") or {}
+    state = str(batch.get("state") or "").upper()
+    if state == "COMMITTED":
+        return batch
+    if state == "DRAFT":
+        staged_rows = 0
+        for index in range(0, len(records), CHUNK_ROWS):
+            staged = edge_call(edge_url, secret, {
+                "source": "EXCEL_API", "operation": "stage", "batch_id": batch_id,
+                "records": records[index:index + CHUNK_ROWS],
+            })
+            staged_rows = int(staged.get("staged_rows") or 0)
+        if staged_rows != len(records):
+            raise SyncError(f"STAGING_INCOMPLETO:{staged_rows}:{len(records)}")
+
+    max_calls = max(10, (len(records) + CHUNK_ROWS - 1) // CHUNK_ROWS + 10)
+    for _ in range(max_calls):
+        status = edge_call(edge_url, secret, {
+            "source": "EXCEL_API", "operation": "status", "batch_id": batch_id,
+        }).get("batch") or {}
+        state = str(status.get("state") or "").upper()
+        if state in {"PREVIEWED", "COMMITTING", "COMMITTED"}:
+            break
+        if state != "DRAFT":
+            raise SyncError(f"ESTADO_VALIDACAO_INESPERADO:{state or 'AUSENTE'}")
+        validated = edge_call(edge_url, secret, {
+            "source": "EXCEL_API", "operation": "validate", "batch_id": batch_id,
+        })
+        if validated.get("done"):
+            state = str((validated.get("batch") or {}).get("state") or "").upper()
+            break
+    else:
+        raise SyncError("VALIDACAO_NAO_CONCLUIDA")
+
+    if state == "COMMITTED":
+        return status
+    if state not in {"PREVIEWED", "COMMITTING"}:
+        raise SyncError(f"LOTE_SEM_LINHAS_VALIDAS:{state or 'AUSENTE'}")
+
+    for _ in range(max_calls):
+        committed = edge_call(edge_url, secret, {
+            "source": "EXCEL_API", "operation": "commit", "batch_id": batch_id,
+        })
+        if committed.get("done"):
+            result = committed.get("batch") or {}
+            if str(result.get("state") or "").upper() != "COMMITTED":
+                raise SyncError("COMMIT_RETORNOU_ESTADO_INVALIDO")
+            return result
+    raise SyncError("COMMIT_NAO_CONCLUIDO")
 
 
 def synchronize() -> dict[str, Any]:
@@ -198,30 +258,14 @@ def synchronize() -> dict[str, Any]:
         )}
         metadata["original_filename"] = workbook_name
         created = edge_call(edge_url, sync_secret, {"source": "EXCEL_API", "operation": "create", "metadata": metadata})
-        if created.get("duplicate"):
-            return {"duplicate": True, "batch_id": created.get("batch_id"), "summary": payload["summary"]}
         batch_id = str(created.get("batch_id") or "")
         if not batch_id:
             raise SyncError("LOTE_NAO_CRIADO")
-        try:
-            for index in range(0, len(payload["records"]), CHUNK_ROWS):
-                edge_call(edge_url, sync_secret, {
-                    "source": "EXCEL_API", "operation": "stage", "batch_id": batch_id,
-                    "records": payload["records"][index:index + CHUNK_ROWS],
-                })
-            completed = edge_call(edge_url, sync_secret, {
-                "source": "EXCEL_API", "operation": "finalize", "batch_id": batch_id,
-            })
-        except Exception:
-            try:
-                edge_call(edge_url, sync_secret, {
-                    "source": "EXCEL_API", "operation": "fail", "batch_id": batch_id,
-                    "message": "FALHA_NO_EXECUTOR_ONEDRIVE",
-                })
-            except Exception:
-                pass
-            raise
-        return {"duplicate": False, "batch_id": batch_id, "summary": payload["summary"], "result": completed.get("batch")}
+        completed = process_batch(edge_url, sync_secret, batch_id, payload["records"])
+        return {
+            "duplicate": bool(created.get("duplicate")), "batch_id": batch_id,
+            "summary": payload["summary"], "result": completed,
+        }
 
 
 def main() -> None:
