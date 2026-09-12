@@ -14,23 +14,13 @@ async function renderOrders(container) {
     <div class="module-page commercial-operation-page">
       ${CrmUi.renderPageHeader(
         'Novo pedido',
-        'Confirme cliente, rota fiscal, estoque da filial e condicoes antes de salvar.',
+        'Cliente, produtos e condicoes da venda.',
         '',
         'Comercial'
       )}
     <section class="sap-document commercial-document" data-document-kind="order">
-      <div class="sap-titlebar">
-        <div class="sap-title"><span class="sap-title-icon">1</span><h2>Cliente e rota</h2></div>
-        <strong class="sap-document-number">Rascunho</strong>
-      </div>
-      <ol class="commercial-steps" aria-label="Fluxo do pedido">
-        <li class="is-active"><span>1</span><strong>Cliente e rota</strong></li>
-        <li><span>2</span><strong>Adicionar produtos</strong></li>
-        <li><span>3</span><strong>Revisar e salvar</strong></li>
-      </ol>
       <div class="sap-window">
         <section class="sap-section sap-general-section">
-          <div class="sap-section-heading"><div><h3>Para quem e de onde?</h3><p>Localize o cliente e confirme apenas a filial e o tipo da operacao.</p></div></div>
           <div class="commercial-context-grid">
             <label class="commercial-client-search">Buscar cliente
               <span class="sap-search-field">
@@ -40,14 +30,14 @@ async function renderOrders(container) {
             </label>
             <label>Filial de faturamento<select id="orderRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
             <label>Tipo de venda<select id="orderUsage"><option>Revenda</option><option>Consumo</option></select></label>
-            <label>Codigo SAP<input id="orderClientSapCode" type="text" placeholder="Preenchido ao selecionar"></label>
-            <label>CNPJ<input id="orderCnpj" type="text" placeholder="00.000.000/0000-00"></label>
-            <label class="commercial-client-name">Cliente<input id="orderClient" type="text" placeholder="Selecione ou informe o cliente"></label>
           </div>
           <input id="orderBillingState" type="hidden">
           <details class="commercial-more-fields">
-            <summary>Mais dados do cliente e validade</summary>
+            <summary>Dados complementares</summary>
             <div class="commercial-more-grid">
+              <label>Cliente<input id="orderClient" type="text"></label>
+              <label>Codigo SAP<input id="orderClientSapCode" type="text"></label>
+              <label>CNPJ<input id="orderCnpj" type="text"></label>
               <label>Contato<input id="orderPhone" type="text"></label>
               <label>Referencia do cliente<input id="orderClientRef" type="text"></label>
               <label>Endereco<input id="orderAddress" type="text"></label>
@@ -57,9 +47,7 @@ async function renderOrders(container) {
               <button class="btn btn-secondary" id="orderCadastroSearchButton" type="button">Buscar pelos dados informados</button>
             </div>
           </details>
-          <div id="orderCadastroResults" class="sap-search-results">
-            ${CrmUi.renderState('empty', 'Nenhum cliente selecionado', 'Pesquise por codigo SAP, CNPJ ou nome da empresa.')}
-          </div>
+          <div id="orderCadastroResults" class="sap-search-results" hidden></div>
         </section>
 
         <section class="sap-section sap-tabs-section">
@@ -68,10 +56,7 @@ async function renderOrders(container) {
             <button type="button" role="tab" aria-selected="false" data-sap-tab="freight">Entrega e pagamento</button>
           </div>
           <div class="sap-tab-panel" role="tabpanel" data-sap-panel="items">
-            <div class="sap-tab-tools">
-              <span class="fiscal-auto-indicator"><strong>✓</strong> Impostos calculados automaticamente pela rota</span>
-              <span id="cartCount">0 itens</span>
-            </div>
+            <span id="cartCount" hidden>0 itens</span>
             <div id="cartItems" class="sap-items-wrap"></div>
             <div class="sap-bottom-grid">
               <div class="sap-add-item">
@@ -98,7 +83,7 @@ async function renderOrders(container) {
                     <button class="btn btn-ghost" id="orderClearProductButton" type="button">Limpar</button>
                   </div>
                 </form>
-                <div id="orderSearchResults" class="sap-product-results">${CrmUi.renderState('empty', 'Pesquise um produto', 'Use codigo, EAN, nome ou grupo para adicionar itens.')}</div>
+                <div id="orderSearchResults" class="sap-product-results"></div>
               </div>
               <div class="sap-totals" id="cartTotals"></div>
             </div>
@@ -328,7 +313,7 @@ function clearOrderProductSelection() {
   document.getElementById('orderProductTerm').value = '';
   document.getElementById('orderProductNamePreview').value = '';
   setOrderProductGroup('');
-  document.getElementById('orderSearchResults').innerHTML = '<div class="empty-state compact-state">Pesquise para adicionar itens ao pedido.</div>';
+  document.getElementById('orderSearchResults').innerHTML = '';
   updateOrderProductSelection(null);
 }
 
@@ -512,13 +497,11 @@ function renderCart() {
   const count = document.getElementById('cartCount');
   const totals = document.getElementById('cartTotals');
   count.textContent = orderItems.length + (orderItems.length === 1 ? ' item' : ' itens');
-  const subtotal = orderItems.reduce((sum, item) => sum + item.preco * item.quantidade, 0);
   const total = orderItems.reduce((sum, item) => sum + item.preco * item.quantidade * (1 - item.desconto_percentual / 100), 0);
-  const discount = subtotal - total;
   if (!orderItems.length) {
     list.className = 'sap-items-wrap';
-    list.innerHTML = renderSapOrderItemsTable([]);
-    totals.innerHTML = renderSapTotals(0, 0, 0);
+    list.innerHTML = '<p class="commercial-empty-items">Nenhum produto adicionado.</p>';
+    totals.innerHTML = renderCommercialTotal(0);
     return;
   }
   list.className = 'sap-items-wrap';
@@ -541,12 +524,10 @@ function renderCart() {
       renderCart();
     });
   });
-  totals.innerHTML = renderSapTotals(subtotal, discount, total);
+  totals.innerHTML = renderCommercialTotal(total);
 }
 
 function renderSapOrderItemsTable(items) {
-  const totalQty = items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
-  const total = items.reduce((sum, item) => sum + item.preco * item.quantidade * (1 - item.desconto_percentual / 100), 0);
   const rows = items.length ? items.map((item, index) => {
     const finalUnit = item.preco * (1 - item.desconto_percentual / 100);
     const rowTotal = finalUnit * item.quantidade;
@@ -555,35 +536,37 @@ function renderSapOrderItemsTable(items) {
       <tr>
         <td class="commercial-item-product"><strong><span class="sap-code">${escapeHtml(item.codigo)}</span> · ${escapeHtml(item.descricao || '')}</strong>
           <small>${escapeHtml([item.marca,item.aplicacao].filter(Boolean).join(' · '))}</small>
-          ${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
-          <small>Base ${money(item.preco_sem_imposto || 0)} · Tributos ${money(item.tributos || 0)} · Estoque ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
-          <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
-          <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
-          ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}</td>
+          <small>Estoque ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+          <details class="commercial-item-details">
+            <summary>Preco e impostos</summary>
+            ${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
+            <small>Base ${money(item.preco_sem_imposto || 0)} · Tributos ${money(item.tributos || 0)}</small>
+            <small class="fiscal-breakdown">${escapeHtml(formatFiscalBreakdown(item.fiscal_details))}</small>
+            <small class="fiscal-inline-status">${escapeHtml(formatFiscalStatus(item.fiscal_status))}</small>
+            ${item.fiscal_warnings?.length ? `<small class="fiscal-warning">${escapeHtml(formatFiscalWarnings(item.fiscal_warnings))}</small>` : ''}
+          </details></td>
         <td><input type="number" min="1" value="${escapeHtml(item.quantidade)}" data-cart-qty="${index}"></td>
         <td>${money(item.preco)}</td>
         <td><input type="number" min="0" step="0.01" value="${escapeHtml(item.desconto_percentual)}" data-cart-discount="${index}"></td>
-        <td>${money(finalUnit)}</td>
         <td>${money(rowTotal)}</td>
         <td><button class="sap-remove-button" type="button" data-cart-remove="${index}" title="Remover" aria-label="Remover ${escapeHtml(item.codigo)}">×</button></td>
       </tr>
     `;
-  }).join('') : '<tr><td colspan="7" class="sap-empty-row">Nenhum produto adicionado ainda.</td></tr>';
+  }).join('') : '<tr><td colspan="6" class="sap-empty-row">Nenhum produto adicionado ainda.</td></tr>';
   return `
     <table class="sap-items-table">
       <thead>
         <tr>
-          <th>Produto</th><th>Qtde</th><th>Preco</th><th>Desc. %</th><th>Preco final</th><th>Total</th><th></th>
+          <th>Produto</th><th>Qtde</th><th>Preco</th><th>Desc. %</th><th>Total</th><th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
-      <tfoot>
-        <tr>
-          <td>Total de produtos</td><td>${totalQty}</td><td colspan="3"></td><td>${money(total)}</td><td></td>
-        </tr>
-      </tfoot>
     </table>
   `;
+}
+
+function renderCommercialTotal(total) {
+  return `<div class="commercial-grand-total"><span>Total</span><strong>${money(total)}</strong></div>`;
 }
 
 function renderSapTotals(subtotal, discount, total) {
@@ -749,6 +732,7 @@ function scheduleOrderClientAutoSearch(event) {
 
 async function searchCadastrosForOrder(options = {}) {
   const target = document.getElementById('orderCadastroResults');
+  target.hidden = false;
   const term = options.term !== undefined ? options.term : getOrderClientSearchTerm();
   if (!isClientLookupReady(term)) {
     target.innerHTML = '<div class="empty-state compact-state">Digite pelo menos 3 caracteres ou CNPJ/codigo para buscar.</div>';
@@ -760,7 +744,6 @@ async function searchCadastrosForOrder(options = {}) {
     const exact = findExactClientMatch(rows, term);
     if (exact) {
       applyCadastroToOrder(exact);
-      target.innerHTML = '<div class="empty-state compact-state">Cliente encontrado e carregado automaticamente.</div>';
       return;
     }
     target.innerHTML = renderOrderCadastrosResults(rows);
@@ -806,11 +789,14 @@ function renderOrderCadastrosResults(rows) {
 }
 
 function applyCadastroToOrder(row) {
+  const clientName = row.razao_social || row.nome_fantasia || '';
   document.getElementById('orderClientSapCode').value = row.codigo_sap_cliente || '';
-  document.getElementById('orderClient').value = row.razao_social || row.nome_fantasia || '';
+  document.getElementById('orderClient').value = clientName;
+  document.getElementById('orderCadastroSearch').value = clientName;
   document.getElementById('orderCnpj').value = formatCnpj(row.cnpj || '');
   document.getElementById('orderPhone').value = row.whatsapp || row.telefone || '';
   document.getElementById('orderAddress').value = formatCadastroAddress(row);
+  document.getElementById('orderCadastroResults').hidden = true;
   document.getElementById('orderTerm').value = row.prazo_desejado || '';
   document.getElementById('orderCarrier').value = row.transportadora || '';
   const billingChanged = applyBillingRegionToOrder(row.estado);
