@@ -5,6 +5,7 @@ let quoteImportPreviewItems = [];
 let quoteCreateSaved = false;
 
 async function renderCreateQuotation(container) {
+  if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   quoteItems = [];
   quoteSelectedProduct = null;
   quoteCreateSaved = false;
@@ -840,6 +841,7 @@ async function openDocumentCreateScreen(kind) {
     applyQuoteDraft(window.pendingQuoteDraft || null);
     window.pendingQuoteDraft = null;
   }
+  setCommercialFocusMode(true);
   content.focus();
 }
 

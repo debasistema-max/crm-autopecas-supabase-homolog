@@ -165,8 +165,24 @@ function toggleMobileMenu(force) {
 }
 
 function setCommercialFocusMode(enabled) {
-  document.body.classList.toggle('commercial-focus-mode', Boolean(enabled));
-  if (enabled) toggleMobileMenu(false);
+  const active = Boolean(enabled);
+  document.body.classList.toggle('commercial-focus-mode', active);
+  ['sidebar', 'sidebarBackdrop', 'mobileNav'].forEach((id) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.hidden = active;
+    if (active) element.setAttribute('aria-hidden', 'true');
+    else element.removeAttribute('aria-hidden');
+  });
+  const topbar = document.querySelector('.topbar');
+  if (topbar) {
+    topbar.hidden = active;
+    if (active) topbar.setAttribute('aria-hidden', 'true');
+    else topbar.removeAttribute('aria-hidden');
+  }
+  const shell = document.querySelector('.app-shell');
+  if (shell) shell.style.display = active ? 'block' : '';
+  if (active) toggleMobileMenu(false);
 }
 
 async function openModule(name) {

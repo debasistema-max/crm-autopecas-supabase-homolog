@@ -5,6 +5,7 @@ let orderImportPreviewItems = [];
 let orderCreateSaved = false;
 
 async function renderOrders(container) {
+  if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   orderItems = [];
   orderSelectedProduct = null;
   orderCreateSaved = false;

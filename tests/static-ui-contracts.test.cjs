@@ -172,7 +172,11 @@ test('commercial creation uses a focused shell and supports standalone mobile la
   const css = read('css/app.css');
   assert.match(app, /function setCommercialFocusMode\(enabled\)/);
   assert.match(app, /setCommercialFocusMode\(false\)/);
+  assert.match(app, /topbar\.hidden = active/);
+  assert.match(app, /element\.hidden = active/);
+  assert.match(app, /shell\.style\.display = active \? 'block' : ''/);
   assert.match(read('js/quotes.js'), /setCommercialFocusMode\(true\)/);
+  assert.match(read('js/orders.js'), /setCommercialFocusMode\(true\)/);
   assert.match(css, /body\.commercial-focus-mode \.topbar/);
   assert.match(css, /body\.commercial-focus-mode \.mobile-nav/);
   assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
