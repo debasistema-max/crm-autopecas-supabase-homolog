@@ -74,6 +74,20 @@ Registro normalizado:
 - `BASE_PRICE`: preço-base da filial em `product_branch_prices`;
 - `ROUTE_PRICE`: resultado fiscal final em `product_route_prices`.
 
+## Uso comercial dos preços
+
+Cotação e pedido operam somente como **Revenda**. A filial de faturamento e a UF
+do cliente definem a rota: PR→PR, PR→SC ou SP→SP. Nessas rotas, o CRM usa
+primeiro o `final_price` aprovado e persistido em `product_route_prices`, sem
+reexecutar no navegador as fórmulas da planilha.
+
+Se o Excel não tiver enviado a rota ou o status não estiver aprovado, o motor
+fiscal interno pode calcular uma contingência. O snapshot do item identifica a
+origem como `SUPABASE_FISCAL_FALLBACK` e inclui o alerta
+`PRECO_ROTA_EXCEL_AUSENTE` ou `PRECO_ROTA_EXCEL_NAO_APROVADO`; portanto a
+contingência não é silenciosa. O resultado aprovado do Excel é identificado por
+`price_source = EXCEL_ROUTE_PRICE` e preservado no documento.
+
 Campo ausente não entra na `field_mask`. Campo vazio é ignorado. Limpeza exige que o campo esteja em `clear_fields` e somente campos textuais autorizados podem ser limpos. Zero numérico é valor explícito e válido.
 
 ## Abas utilizadas

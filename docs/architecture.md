@@ -21,8 +21,10 @@ Navegador
 - módulos de domínio: orquestração de tela e regras comerciais.
 - migrations: regra transacional, fiscal, RLS e integridade.
 
-O cálculo fiscal autoritativo continua no PostgreSQL. O frontend apenas envia
-o contexto da operação e apresenta o resultado.
+Para as rotas comerciais aprovadas, o preço final autoritativo é o resultado
+consolidado pelo Excel e persistido no PostgreSQL. O motor fiscal interno do
+PostgreSQL permanece como contingência identificada quando a origem não entrega
+um resultado aprovado. O frontend apenas envia o contexto e apresenta o valor.
 
 ## Risco de reprodutibilidade
 
@@ -48,5 +50,6 @@ origem -> adapter -> DTO Data Sync v1 -> Edge Function -> staging/RPCs -> tabela
 
 Estoque continua em `product_branch_stock`; preço-base continua em
 `product_branch_prices`. `product_route_prices` guarda apenas o resultado fiscal
-consolidado por rota, um conceito diferente. Detalhes operacionais e instruções
-de extensão estão em [data-sync.md](data-sync.md).
+consolidado por rota, um conceito diferente. Cotações e pedidos consultam essa
+tabela primeiro para PR→PR, PR→SC e SP→SP. Detalhes operacionais e instruções de
+extensão estão em [data-sync.md](data-sync.md).

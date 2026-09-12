@@ -61,7 +61,7 @@ body.commercial-focus-mode .content {
 
 .commercial-context-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(180px, 220px) minmax(150px, 190px);
+  grid-template-columns: minmax(300px, 1fr) minmax(180px, 220px);
   gap: 12px;
   align-items: end;
 }

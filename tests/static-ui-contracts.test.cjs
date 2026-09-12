@@ -152,6 +152,8 @@ test('quotation and order creation keep only the essential commercial workflow v
     assert.match(createView, /FocusBackButton/);
     assert.match(createView, /Dados complementares/);
     assert.match(createView, /Codigo, nome ou aplicacao/);
+    assert.match(createView, /id="(?:quote|order)Usage" type="hidden" value="Revenda"/);
+    assert.doesNotMatch(createView, /<option>Consumo<\/option>/);
     assert.match(createView, /type="number" min="1" value="1"/);
     assert.doesNotMatch(createView, /class="commercial-steps"/);
     assert.doesNotMatch(createView, /class="sap-titlebar"/);
@@ -161,9 +163,26 @@ test('quotation and order creation keep only the essential commercial workflow v
     assert.match(source, /colspan="6" class="sap-empty-row"/);
     assert.match(source, /class="commercial-item-details"/);
     assert.match(source, /renderCommercialTotal/);
+    assert.match(source, /customer_type: 'REVENDA'/);
     assert.doesNotMatch(createView, /Status SAP<input/);
     assert.doesNotMatch(createView, /Autorizacao portal<input/);
   }
+});
+
+test('commercial pricing prioritizes approved Excel route results and fixes resale context', () => {
+  const store = read('js/supabase_store.js');
+  const migration = read('supabase/migrations/066_prioritize_excel_route_prices.sql');
+  const regression = read('supabase/tests/066_excel_route_price_priority_regression.sql');
+  assert.match(store, /customerType = 'REVENDA'/);
+  assert.match(store, /customerType \|\| 'REVENDA'/);
+  assert.match(migration, /from public\.product_route_prices/);
+  assert.match(migration, /'price_source','EXCEL_ROUTE_PRICE'/);
+  assert.match(migration, /'price_source','SUPABASE_FISCAL_FALLBACK'/);
+  assert.match(migration, /'customer_type','REVENDA'/);
+  assert.match(regression, /'PR','PR',current_date,'CONSUMO'/);
+  assert.match(regression, /PRECO_ROTA_EXCEL_NAO_PRIORIZADO/);
+  assert.match(regression, /DOCUMENTO_NAO_PRESERVOU_PRECO_EXCEL_REVENDA/);
+  assert.match(regression, /PRECO_ROTA_EXCEL_AUSENTE/);
 });
 
 test('commercial creation uses a focused shell and supports standalone mobile launch', () => {

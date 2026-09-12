@@ -28,7 +28,7 @@ async function renderCreateQuotation(container) {
               </span>
             </label>
             <label>Filial de faturamento<select id="quoteRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
-            <label>Tipo de venda<select id="quoteUsage"><option>Revenda</option><option>Consumo</option></select></label>
+            <input id="quoteUsage" type="hidden" value="Revenda">
           </div>
           <input id="quoteBillingState" type="hidden">
           <details class="commercial-more-fields">
@@ -199,11 +199,6 @@ async function renderCreateQuotation(container) {
     renderQuoteCart();
     document.getElementById('quoteSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para obter precos do estado selecionado.</div>';
   });
-  document.getElementById('quoteUsage').addEventListener('change', () => {
-    quoteItems = [];
-    renderQuoteCart();
-    document.getElementById('quoteSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para recalcular os impostos conforme a utilizacao.</div>';
-  });
   document.getElementById('saveQuoteButton').addEventListener('click', saveCurrentQuote);
   const closeQuoteCreation = () => {
     if (hasUnsavedQuoteDraft() && !window.confirm('Existem alteracoes nao salvas. Deseja sair?')) return;
@@ -235,7 +230,7 @@ async function renderCreateQuotation(container) {
 function applyQuoteDraft(draft) {
   if (!draft) return;
   document.getElementById('quoteRegion').value = draft.regiao || 'PR';
-  document.getElementById('quoteUsage').value = /^consumo$/i.test(draft.customer_type || draft.tipo_cliente || '') ? 'Consumo' : 'Revenda';
+  document.getElementById('quoteUsage').value = 'Revenda';
   document.getElementById('quoteBillingState').value = draft.estado || '';
   document.getElementById('quoteClientSapCode').value = draft.codigo_sap_cliente || '';
   document.getElementById('quoteCnpj').value = formatCnpj(draft.cnpj || '');
@@ -335,7 +330,7 @@ async function hydrateQuoteItemCommercialPrice(item) {
   try {
     const origin = document.getElementById('quoteRegion')?.value || 'PR';
     const destination = document.getElementById('quoteBillingState')?.value || origin;
-    const customerType = document.getElementById('quoteUsage')?.value || 'Revenda';
+    const customerType = 'REVENDA';
     const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination, customerType);
     item.fiscal_status = result.status;
     item.preco_sem_imposto = Number(result.base_price || 0);
@@ -538,7 +533,7 @@ async function saveCurrentQuote() {
       sessionId: getSessionId(),
       regiao: document.getElementById('quoteRegion').value,
       cliente_estado: document.getElementById('quoteBillingState').value,
-      customer_type: document.getElementById('quoteUsage').value.toUpperCase(),
+      customer_type: 'REVENDA',
       codigo_sap_cliente: document.getElementById('quoteClientSapCode').value,
       cliente: document.getElementById('quoteClient').value,
       cnpj: document.getElementById('quoteCnpj').value,
@@ -1263,7 +1258,9 @@ function formatFiscalWarnings(warnings) {
     ICMS_INTERESTADUAL_AUSENTE: 'ICMS interestadual ausente',
     ICMS_INTERNO_AUSENTE: 'ICMS interno ausente',
     MVA_AUSENTE: 'MVA ausente',
-    ESTOQUE_NAO_IMPORTADO: 'Estoque da filial não importado'
+    ESTOQUE_NAO_IMPORTADO: 'Estoque da filial não importado',
+    PRECO_ROTA_EXCEL_AUSENTE: 'Preço final da rota ausente no Excel; contingência fiscal utilizada',
+    PRECO_ROTA_EXCEL_NAO_APROVADO: 'Preço da rota não aprovado no Excel; contingência fiscal utilizada'
   };
   return (Array.isArray(warnings) ? warnings : [])
     .map((warning) => labels[warning] || warning)

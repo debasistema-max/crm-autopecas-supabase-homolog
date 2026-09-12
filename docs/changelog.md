@@ -1,5 +1,18 @@
 # Changelog técnico
 
+## 2026-09-12 — preço comercial por rota e Revenda
+
+- cotação e pedido passam a operar somente como Revenda, removendo a escolha de
+  Consumo da criação e normalizando também rascunhos e payloads antigos;
+- PR→PR, PR→SC e SP→SP passam a priorizar o preço final aprovado que o Excel já
+  consolidou e sincronizou em `product_route_prices`;
+- o motor fiscal interno permanece como contingência explicitamente marcada
+  quando o preço da rota está ausente ou não aprovado;
+- preço, tributos, origem, versão e lote do Excel são preservados no snapshot do
+  item para auditoria;
+- alteração preparada e validada somente para homologação; produção permanece
+  fora do escopo.
+
 ## 2026-09-10 — Central de Dados e sincronização Excel
 
 - adicionada camada Excel/adapter → normalização → validação → lotes → Supabase, sem dependência do arquivo em tempo de execução do CRM;

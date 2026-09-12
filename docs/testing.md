@@ -198,3 +198,11 @@ Em 10/09/2026, as migrations 060–061 foram aplicadas somente na homologação.
 regressão 060 e o teste de 4.000 registros passaram novamente contra o schema
 instalado com `ROLLBACK`; a carga levou 4,85 s. A Edge Function versão 2 ficou
 ativa e respondeu HTTP 401 tanto sem credencial quanto com a chave anônima.
+
+Em 12/09/2026, a migration 066 foi aplicada somente na homologação. A regressão
+`066_excel_route_price_priority_regression.sql`, executada com `ROLLBACK`,
+comprovou prioridade do preço final Excel, normalização de Consumo para Revenda,
+snapshot de cotação e contingência identificada para rota ausente. Uma consulta
+somente leitura confirmou `EXCEL_ROUTE_PRICE` para o produto `6111032201` em
+PR→PR, PR→SC e SP→SP. Os 13 contratos JavaScript, 15 testes Python e o smoke de
+cotação/pedido em 390 e 1440 px passaram sem overflow.

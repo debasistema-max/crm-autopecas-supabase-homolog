@@ -28,7 +28,7 @@ async function renderOrders(container) {
               </span>
             </label>
             <label>Filial de faturamento<select id="orderRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
-            <label>Tipo de venda<select id="orderUsage"><option>Revenda</option><option>Consumo</option></select></label>
+            <input id="orderUsage" type="hidden" value="Revenda">
           </div>
           <input id="orderBillingState" type="hidden">
           <details class="commercial-more-fields">
@@ -201,11 +201,6 @@ async function renderOrders(container) {
     renderCart();
     document.getElementById('orderSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para obter precos do estado selecionado.</div>';
   });
-  document.getElementById('orderUsage').addEventListener('change', () => {
-    orderItems = [];
-    renderCart();
-    document.getElementById('orderSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para recalcular os impostos conforme a utilizacao.</div>';
-  });
 
   document.getElementById('saveOrderButton').addEventListener('click', saveCurrentOrder);
   const closeOrderCreation = () => {
@@ -238,7 +233,7 @@ async function renderOrders(container) {
 function applyOrderDraft(draft) {
   if (!draft) return;
   document.getElementById('orderRegion').value = draft.regiao || 'PR';
-  document.getElementById('orderUsage').value = /^consumo$/i.test(draft.customer_type || draft.tipo_cliente || '') ? 'Consumo' : 'Revenda';
+  document.getElementById('orderUsage').value = 'Revenda';
   document.getElementById('orderBillingState').value = draft.estado || '';
   document.getElementById('orderClientSapCode').value = draft.codigo_sap_cliente || '';
   document.getElementById('orderCnpj').value = formatCnpj(draft.cnpj || '');
@@ -358,7 +353,7 @@ async function hydrateOrderItemCommercialPrice(item) {
   try {
     const origin = document.getElementById('orderRegion')?.value || 'PR';
     const destination = document.getElementById('orderBillingState')?.value || origin;
-    const customerType = document.getElementById('orderUsage')?.value || 'Revenda';
+    const customerType = 'REVENDA';
     const result = await supabaseGetProductCommercialPrice(item.codigo, origin, destination, customerType);
     item.fiscal_status = result.status;
     item.preco_sem_imposto = Number(result.base_price || 0);
@@ -606,7 +601,7 @@ async function saveCurrentOrder() {
       sessionId: getSessionId(),
       regiao: document.getElementById('orderRegion').value,
       cliente_estado: document.getElementById('orderBillingState').value,
-      customer_type: document.getElementById('orderUsage').value.toUpperCase(),
+      customer_type: 'REVENDA',
       codigo_sap_cliente: document.getElementById('orderClientSapCode').value,
       cliente: document.getElementById('orderClient').value,
       cnpj: document.getElementById('orderCnpj').value,
