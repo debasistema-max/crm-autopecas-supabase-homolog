@@ -291,6 +291,93 @@ body.commercial-focus-mode .content {
   display: block;
 }
 
+.b2b-access-form {
+  display: grid;
+  grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.2fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 18px 0 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.b2b-access-form .form-message {
+  grid-column: 1 / -1;
+}
+
+.b2b-change-heading {
+  margin-top: 24px;
+}
+
+.b2b-change-list {
+  display: grid;
+  gap: 12px;
+}
+
+.b2b-change-list article {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, .8fr) auto;
+  gap: 16px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.b2b-change-list article > div:first-child,
+.b2b-change-list article > div:first-child span {
+  display: grid;
+  gap: 4px;
+}
+
+.b2b-change-list label {
+  margin: 0;
+}
+
+.b2b-account-list {
+  display: grid;
+  gap: 8px;
+}
+
+.b2b-account-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.b2b-account-list article > div,
+.b2b-account-list span,
+.b2b-account-list small {
+  display: block;
+}
+
+.b2b-account-list article > div {
+  min-width: 0;
+}
+
+.b2b-account-list article > div span,
+.b2b-account-list article > div small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .b2b-access-form,
+  .b2b-change-list article,
+  .b2b-account-list article {
+    grid-template-columns: 1fr;
+  }
+}
+
 .commercial-transfer-summary p {
   margin: 6px 0 0;
   line-height: 1.4;

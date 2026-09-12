@@ -1,5 +1,22 @@
 # Changelog técnico
 
+## 2026-09-12 — Portal B2B isolado por cliente
+
+- criada uma área separada para o cliente consultar exclusivamente seu cadastro,
+  catálogo, preço final da rota, último estoque importado, cotações e pedidos;
+- contas B2B ficam vinculadas a um único `client_id` e não recebem perfil nem
+  acesso às tabelas internas do CRM;
+- ADMIN pode convidar, revogar ou reativar o acesso dentro de Parceiros;
+- cliente cria cotação ou pedido sem escolher outro cadastro, rota ou desconto;
+- pedido SP→SP preserva a consulta PR e a solicitação de transferência para a
+  falta confirmada;
+- reenvio usa idempotência, documentos internos são vinculados por SAP/CNPJ e
+  alterações cadastrais dependem de aprovação administrativa auditada;
+- o lint remoto identificou e a migration 072 corrigiu a ambiguidade de variável
+  que impediria a busca do catálogo em execução;
+- migrations e Edge Function preparadas somente para homologação; produção não
+  foi alterada.
+
 ## 2026-09-12 — preço comercial por rota e Revenda
 
 - o diagnóstico do pedido `000038` confirmou que o item `6175522372` tinha

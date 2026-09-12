@@ -1938,6 +1938,16 @@ function formatProductImportLookupError(error, chunk = []) {
   ].filter(Boolean).join(' '));
 }
 
+async function supabaseManageB2BAccess(action, payload = {}) {
+  if (getStoredSession()?.perfil !== 'ADMIN') throw new Error('Apenas administradores podem gerenciar o Portal B2B.');
+  const { data, error } = await supabaseClient.functions.invoke('b2b-admin', {
+    body: Object.assign({}, payload, { action })
+  });
+  if (error) throw new Error(data?.error || error.message || 'Não foi possível gerenciar o acesso B2B.');
+  if (data?.error) throw new Error(data.error);
+  return data || {};
+}
+
 async function supabaseGetProductCommercialPrice(productCode, originBranch, destinationUf, customerType = 'REVENDA') {
   const { data, error } = await supabaseClient.rpc('get_product_commercial_price', {
     product_code: productCode,

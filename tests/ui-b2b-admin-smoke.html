@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../css/theme.css"><link rel="stylesheet" href="../css/app.css"><title>Smoke admin B2B</title></head>
+<body class="app-page"><output id="smokeResult" hidden></output><main id="target" class="content"></main>
+<script src="../js/utils/format.js"></script><script src="../js/components/ui.js"></script>
+<script>
+  function getStoredSession(){return{perfil:'ADMIN'}}
+  function formatCnpj(value){return String(value||'')}
+  function formatDateTime(value){return value?new Date(value).toLocaleString('pt-BR'):'—'}
+  async function supabaseListBusinessClients(){return[{id:'11111111-1111-4111-8111-111111111111',nome:'Cliente A Ltda',nome_fantasia:'Cliente A',cnpj:'11111111000111',codigo_sap_cliente:'1001',cidade:'Joinville',estado:'SC',telefone:'47999999999',email:'compras@cliente-a.test',ativo:true}]}
+  async function supabaseListBusinessCarriers(){return[]}
+  async function supabaseSaveBusinessClient(){return{}}
+  async function supabaseSaveBusinessCarrier(){return{}}
+  async function supabaseManageB2BAccess(action){if(action==='list')return{accounts:[{user_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'compras@cliente-a.test',contact_name:'Ana',active:true,last_login_at:null}],change_requests:[{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'PENDING',created_at:'2026-09-12T12:00:00Z',requested_data:{telefone:'47999990000',cidade:'Joinville'}}]};return{account:{active:true}}}
+  async function supabaseGetCustomerCommercialProfile(){return{}}
+  async function fetchBusinessRegistryByCnpj(){return{}}
+</script>
+<script src="../js/partners.js"></script>
+<script>
+  (async()=>{await renderBusinessPartners(document.getElementById('target'));await openClientB2BAccess(partnersState.clients[0]);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const text=document.getElementById('target').innerText;const required=['Acesso B2B','compras@cliente-a.test','Enviar convite seguro','Revogar','Alterações cadastrais solicitadas','47999990000','Aprovar','Rejeitar'];const missing=required.filter(value=>!text.includes(value));const passed=missing.length===0;document.documentElement.dataset.smoke=passed?'pass':'fail';document.getElementById('smokeResult').value=passed?'PASS':`FAIL:${missing.join('|')}`})();
+</script>
+</body></html>

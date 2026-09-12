@@ -26,6 +26,14 @@ consolidado pelo Excel e persistido no PostgreSQL. O motor fiscal interno do
 PostgreSQL permanece como contingência identificada quando a origem não entrega
 um resultado aprovado. O frontend apenas envia o contexto e apresenta o valor.
 
+## Portal B2B
+
+O portal de clientes é uma superfície separada do shell interno. A identidade
+`auth.users` é ligada a exatamente um `clients` por
+`customer_portal_accounts`; RPCs `SECURITY DEFINER` retornam somente catálogo e
+documentos daquele vínculo. A administração de convites e acessos passa por uma
+Edge Function que exige sessão ADMIN. Consulte [b2b-portal.md](b2b-portal.md).
+
 ## Risco de reprodutibilidade
 
 O banco de homologação possui migrations 001–059 aplicadas, mas o repositório

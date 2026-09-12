@@ -2,7 +2,8 @@ let partnersState = {
   tab: 'clientes',
   clients: [],
   carriers: [],
-  currentClientProfile: null
+  currentClientProfile: null,
+  currentB2BClient: null
 };
 
 async function renderBusinessPartners(container) {
@@ -64,6 +65,7 @@ async function renderClientsTab(target) {
         <button class="btn btn-secondary" id="partnerClientSearchButton" type="button">Pesquisar</button>
       </div>
       <section id="clientCommercialProfile" class="commercial-profile" hidden></section>
+      <section id="clientB2BAccess" class="commercial-profile" hidden></section>
       <div class="section-heading partner-list-heading"><div><h3>Clientes cadastrados</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} encontrado${rows.length === 1 ? '' : 's'}.</p></div></div>
       ${renderClientsTable(rows)}
     `;
@@ -127,6 +129,7 @@ function renderClientsTable(rows) {
               <td>
                 <div class="actions-row compact-actions">
                   <button class="btn btn-secondary" type="button" data-open-client="${index}">Historico</button>
+                  ${getStoredSession()?.perfil === 'ADMIN' ? `<button class="btn btn-secondary" type="button" data-b2b-client="${index}">Acesso B2B</button>` : ''}
                   <button class="btn btn-ghost" type="button" data-edit-client="${index}">Editar</button>
                 </div>
               </td>
@@ -144,6 +147,116 @@ function bindClientButtons() {
   });
   document.querySelectorAll('[data-open-client]').forEach((button) => {
     button.addEventListener('click', () => openClientCommercialProfile(partnersState.clients[Number(button.dataset.openClient)]));
+  });
+  document.querySelectorAll('[data-b2b-client]').forEach((button) => {
+    button.addEventListener('click', () => openClientB2BAccess(partnersState.clients[Number(button.dataset.b2bClient)]));
+  });
+}
+
+async function openClientB2BAccess(client) {
+  const target = document.getElementById('clientB2BAccess');
+  if (!target || !client) return;
+  partnersState.currentB2BClient = client;
+  target.hidden = false;
+  target.innerHTML = '<div class="empty-state compact-state">Consultando acessos B2B...</div>';
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const result = await supabaseManageB2BAccess('list', { client_id: client.id });
+    target.innerHTML = renderClientB2BAccess(client, result.accounts || [], result.change_requests || []);
+    bindClientB2BAccess(client);
+  } catch (error) {
+    target.innerHTML = `<div class="empty-state compact-state">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function b2bChangeFieldLabel(field) {
+  return ({ telefone: 'Telefone', email: 'E-mail', endereco: 'Endereço', cidade: 'Cidade', estado: 'UF' })[field] || field;
+}
+
+function renderClientB2BAccess(client, accounts, changeRequests = []) {
+  const pendingRequests = changeRequests.filter((request) => request.status === 'PENDING');
+  return `
+    <div class="panel-header">
+      <div><p class="eyebrow">Portal exclusivo</p><h2>Acesso B2B — ${escapeHtml(client.nome_fantasia || client.nome || '')}</h2><p>O usuário verá somente este cadastro, seus documentos e o catálogo da sua rota.</p></div>
+      <div class="actions-row"><a class="btn btn-secondary" href="b2b/" target="_blank" rel="noopener">Abrir portal</a><button class="btn btn-ghost" id="clientB2BClose" type="button">Fechar</button></div>
+    </div>
+    <form id="clientB2BInviteForm" class="b2b-access-form">
+      <label>Nome do contato<input id="clientB2BContact" autocomplete="name"></label>
+      <label>E-mail de acesso<input id="clientB2BEmail" type="email" autocomplete="email" value="${escapeHtml(client.email || '')}" required></label>
+      <button class="btn btn-primary" type="submit">Enviar convite seguro</button>
+      <p id="clientB2BMessage" class="form-message"></p>
+    </form>
+    <div class="section-heading"><div><h3>Usuários vinculados</h3><p>${accounts.length} acesso${accounts.length === 1 ? '' : 's'} configurado${accounts.length === 1 ? '' : 's'}.</p></div></div>
+    ${accounts.length ? `<div class="b2b-account-list">${accounts.map((account) => `
+      <article><div><strong>${escapeHtml(account.contact_name || account.email)}</strong><span>${escapeHtml(account.email)}</span><small>Último acesso: ${escapeHtml(account.last_login_at ? formatDateTime(account.last_login_at) : 'ainda não acessou')}</small></div><span class="status-pill ${account.active ? 'ok' : 'warn'}">${account.active ? 'Ativo' : 'Revogado'}</span><button class="btn ${account.active ? 'btn-ghost' : 'btn-secondary'}" data-b2b-user="${escapeHtml(account.user_id)}" data-b2b-active="${account.active ? 'false' : 'true'}" type="button">${account.active ? 'Revogar' : 'Reativar'}</button></article>
+    `).join('')}</div>` : '<div class="empty-state compact-state">Nenhum usuário B2B vinculado.</div>'}
+    <div class="section-heading b2b-change-heading"><div><h3>Alterações cadastrais solicitadas</h3><p>${pendingRequests.length ? `${pendingRequests.length} aguardando análise.` : 'Nenhuma solicitação pendente.'}</p></div></div>
+    ${pendingRequests.length ? `<div class="b2b-change-list">${pendingRequests.map((request) => `
+      <article>
+        <div><strong>Solicitação de ${escapeHtml(formatDateTime(request.created_at))}</strong>${Object.entries(request.requested_data || {}).map(([field, value]) => `<span><b>${escapeHtml(b2bChangeFieldLabel(field))}:</b> ${escapeHtml(String(value))}</span>`).join('')}</div>
+        <label>Observação da análise<input data-b2b-review-note="${escapeHtml(request.id)}" maxlength="500" placeholder="Opcional"></label>
+        <div class="actions-row"><button class="btn btn-primary" data-b2b-review="${escapeHtml(request.id)}" data-b2b-decision="APPROVED" type="button">Aprovar</button><button class="btn btn-ghost" data-b2b-review="${escapeHtml(request.id)}" data-b2b-decision="REJECTED" type="button">Rejeitar</button></div>
+      </article>
+    `).join('')}</div>` : ''}
+  `;
+}
+
+function bindClientB2BAccess(client) {
+  document.getElementById('clientB2BClose')?.addEventListener('click', () => {
+    document.getElementById('clientB2BAccess').hidden = true;
+  });
+  document.getElementById('clientB2BInviteForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = document.getElementById('clientB2BMessage');
+    message.style.color = 'var(--muted)';
+    message.textContent = 'Criando vínculo e enviando convite...';
+    try {
+      await supabaseManageB2BAccess('invite', {
+        client_id: client.id,
+        email: document.getElementById('clientB2BEmail').value,
+        contact_name: document.getElementById('clientB2BContact').value
+      });
+      message.style.color = 'var(--success)';
+      message.textContent = 'Convite enviado. O cliente definirá a própria senha.';
+      setTimeout(() => openClientB2BAccess(client), 700);
+    } catch (error) {
+      message.style.color = 'var(--accent)';
+      message.textContent = error.message;
+    }
+  });
+  document.querySelectorAll('[data-b2b-user]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await supabaseManageB2BAccess('set_active', {
+          client_id: client.id,
+          user_id: button.dataset.b2bUser,
+          active: button.dataset.b2bActive === 'true'
+        });
+        await openClientB2BAccess(client);
+      } catch (error) {
+        button.disabled = false;
+        window.alert(error.message);
+      }
+    });
+  });
+  document.querySelectorAll('[data-b2b-review]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const requestId = button.dataset.b2bReview;
+      try {
+        await supabaseManageB2BAccess('review_change', {
+          client_id: client.id,
+          request_id: requestId,
+          decision: button.dataset.b2bDecision,
+          review_notes: document.querySelector(`[data-b2b-review-note="${requestId}"]`)?.value || ''
+        });
+        await openClientB2BAccess(client);
+      } catch (error) {
+        button.disabled = false;
+        window.alert(error.message);
+      }
+    });
   });
 }
 

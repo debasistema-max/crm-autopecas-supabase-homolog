@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b7063">
+  <title>Portal B2B | IPS do Brasil</title>
+  <link rel="stylesheet" href="css/portal.css?v=20260912-1">
+</head>
+<body>
+  <main id="authView" class="auth-shell">
+    <section class="auth-card">
+      <img src="../assets/logo-neutral.svg" alt="IPS do Brasil" class="brand-logo">
+      <p class="eyebrow">Portal exclusivo para clientes</p>
+      <h1>Pedidos e cotações B2B</h1>
+      <p class="muted">Consulte preços e estoque da sua rota comercial com segurança.</p>
+      <form id="loginForm" class="stack">
+        <label>E-mail<input id="loginEmail" type="email" autocomplete="username" required></label>
+        <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button class="button primary" type="submit">Entrar</button>
+        <button class="link-button" id="forgotPassword" type="button">Esqueci minha senha</button>
+        <p id="loginMessage" class="message" aria-live="polite"></p>
+      </form>
+      <form id="passwordForm" class="stack" hidden>
+        <h2>Defina sua senha</h2>
+        <label>Nova senha<input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirmar senha<input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="button primary" type="submit">Salvar senha</button>
+        <p id="passwordMessage" class="message" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <div id="portalView" class="portal" hidden>
+    <header class="topbar">
+      <div class="brand"><img src="../assets/logo-neutral.svg" alt="IPS do Brasil"><div><strong>Portal B2B</strong><small id="companyName"></small></div></div>
+      <div class="top-actions"><span id="routeBadge" class="route-badge"></span><button id="logoutButton" class="button ghost" type="button">Sair</button></div>
+    </header>
+    <nav class="portal-nav" aria-label="Navegação principal">
+      <button class="active" data-view="home" type="button">Início</button>
+      <button data-view="catalog" type="button">Produtos</button>
+      <button data-view="quotes" type="button">Cotações</button>
+      <button data-view="orders" type="button">Pedidos</button>
+      <button data-view="profile" type="button">Minha empresa</button>
+    </nav>
+    <main class="portal-content">
+      <section id="homeView" class="view"></section>
+      <section id="catalogView" class="view" hidden></section>
+      <section id="quotesView" class="view" hidden></section>
+      <section id="ordersView" class="view" hidden></section>
+      <section id="profileView" class="view" hidden></section>
+    </main>
+    <button id="cartButton" class="cart-fab" type="button" hidden><span id="cartCount">0</span> Ver seleção</button>
+  </div>
+
+  <dialog id="cartDialog" class="dialog"><div id="cartContent"></div></dialog>
+  <dialog id="documentDialog" class="dialog"><div id="documentContent"></div></dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260912-1"></script>
+  <script src="js/app.js?v=20260912-2"></script>
+</body>
+</html>

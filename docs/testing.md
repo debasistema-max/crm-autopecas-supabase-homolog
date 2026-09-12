@@ -95,6 +95,28 @@
 7. executar regressões SQL somente em banco descartável ou transação controlada;
 8. confirmar que nenhuma migration de produção foi acionada.
 
+## Portal B2B — 2026-09-12
+
+- contratos estáticos verificam identidade exclusiva, políticas internas,
+  catálogo, documentos, idempotência, transferência SP→PR e ausência de chave
+  privilegiada no navegador;
+- `tests/ui-b2b-smoke.html` valida login simulado, rota PR→SC, catálogo, carrinho
+  e criação de cotação em mobile, tablet e desktop;
+- `tests/ui-b2b-admin-smoke.html` valida convite, revogação e análise de alteração
+  cadastral no painel ADMIN;
+- chamadas anônimas às RPCs B2B devem retornar 401;
+- `b2b-admin` deve recusar chamadas sem sessão e chamadas de não-ADMIN;
+- aprovação cadastral e vínculo de documentos internos são cobertos pela
+  migration 071 com trava concorrente e auditoria.
+- resultado final: 15/15 contratos Node, 15/15 testes Python, 30 arquivos com
+  sintaxe JavaScript válida e 6/6 cenários visuais B2B aprovados, sem overflow;
+- migrations 069–072 estão registradas na homologação e o lint remoto não aponta
+  erros nas funções B2B. Os avisos restantes pertencem a funções legadas fora
+  deste escopo;
+- o arquivo SQL 071 foi preparado, mas o runner `pg_prove` da CLI não pôde ser
+  iniciado porque o Docker Desktop não está instalado. A compilação das quatro
+  migrations e os testes externos de negação anônima foram concluídos.
+
 ## Lacunas
 
 Há um runner estático mínimo, mas ainda não há runner visual/integração,

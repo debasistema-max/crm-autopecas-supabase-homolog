@@ -13,10 +13,10 @@ function filesIn(directory, extension) {
     return file.endsWith(extension) ? [file] : [];
   });
 }
-const htmlFiles = ['index.html', 'app.html', ...filesIn('tests', '.html'), ...filesIn('cadastro-publico', '.html')];
+const htmlFiles = ['index.html', 'app.html', ...filesIn('tests', '.html'), ...filesIn('cadastro-publico', '.html'), ...filesIn('b2b', '.html')];
 
 test('application and public registration JavaScript parses without execution', () => {
-  for (const file of [...filesIn('js', '.js'), ...filesIn('cadastro-publico/js', '.js')]) {
+  for (const file of [...filesIn('js', '.js'), ...filesIn('cadastro-publico/js', '.js'), ...filesIn('b2b/js', '.js')]) {
     assert.doesNotThrow(() => new vm.Script(read(file), { filename: file }), file);
   }
 });
@@ -222,4 +222,41 @@ test('commercial creation uses a focused shell and supports standalone mobile la
   assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
   assert.match(html, /rel="manifest" href="manifest\.webmanifest/);
   assert.ok(JSON.parse(read('manifest.webmanifest')).display === 'standalone');
+});
+
+test('B2B portal isolates customers and exposes only scoped RPCs', () => {
+  const identity = read('supabase/migrations/069_b2b_customer_identity_and_isolation.sql');
+  const documents = read('supabase/migrations/070_b2b_catalog_and_documents.sql');
+  const internalLink = read('supabase/migrations/071_link_internal_documents_to_b2b_clients.sql');
+  const catalogFix = read('supabase/migrations/072_fix_b2b_catalog_variable_ambiguity.sql');
+  const portal = read('b2b/js/app.js');
+  const admin = read('supabase/functions/b2b-admin/index.ts');
+  assert.match(identity, /customer_portal_accounts/);
+  assert.match(identity, /where a\.user_id = auth\.uid\(\)/);
+  assert.match(identity, /create policy clients_read[\s\S]+public\.is_internal_user\(\)/);
+  assert.match(identity, /create policy logs_insert[\s\S]+public\.is_internal_user\(\)/);
+  assert.match(documents, /public\.b2b_search_catalog/);
+  assert.match(documents, /public\.b2b_create_document/);
+  assert.match(documents, /portal_idempotency_key/);
+  assert.match(documents, /source_channel='B2B_PORTAL'/);
+  assert.match(documents, /ESTOQUE_B2B_NAO_IMPORTADO/);
+  assert.match(documents, /B2B_ORDER_SP_SHORTAGE_PR_TRANSFER/);
+  assert.match(internalLink, /link_commercial_document_client/);
+  assert.match(internalLink, /admin_review_b2b_profile_change/);
+  assert.match(internalLink, /for update/);
+  assert.match(internalLink, /APROVAR_ALTERACAO_CADASTRAL_B2B/);
+  assert.match(catalogFix, /v_origin_code/);
+  assert.doesNotMatch(catalogFix, /when origin_code=/);
+  assert.match(portal, /get_b2b_session/);
+  assert.match(portal, /b2b_search_catalog/);
+  assert.match(portal, /b2b_create_document/);
+  assert.match(portal, /pendingSubmission/);
+  assert.match(portal, /requestFingerprint/);
+  assert.doesNotMatch(read('b2b/js/config.js') + portal, /service[_ -]?role|SUPABASE_SERVICE_ROLE_KEY/i);
+  assert.match(admin, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(admin, /caller\.perfil !== 'ADMIN'/);
+  assert.match(admin, /inviteUserByEmail/);
+  assert.match(admin, /admin_review_b2b_profile_change/);
+  assert.match(read('js/partners.js'), /data-b2b-client/);
+  assert.match(read('js/partners.js'), /data-b2b-review/);
 });
