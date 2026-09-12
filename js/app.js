@@ -164,12 +164,18 @@ function toggleMobileMenu(force) {
   document.body.classList.toggle('menu-open', next);
 }
 
+function setCommercialFocusMode(enabled) {
+  document.body.classList.toggle('commercial-focus-mode', Boolean(enabled));
+  if (enabled) toggleMobileMenu(false);
+}
+
 async function openModule(name) {
   const route = getModuleRoute(name);
   const moduleName = route.module;
   const module = MODULES[moduleName] || MODULES.dashboard;
   const allowed = getCurrentSessionModules();
   const content = document.getElementById('content');
+  setCommercialFocusMode(false);
   toggleMobileMenu(false);
 
   if (module.adminOnly && !isCurrentUserAdmin()) {

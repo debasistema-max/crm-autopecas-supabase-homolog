@@ -12,12 +12,10 @@ async function renderOrders(container) {
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
     <div class="module-page commercial-operation-page">
-      ${CrmUi.renderPageHeader(
-        'Novo pedido',
-        'Cliente, produtos e condicoes da venda.',
-        '',
-        'Comercial'
-      )}
+      <header class="commercial-focus-header">
+        <button class="btn btn-ghost" id="orderFocusBackButton" type="button" aria-label="Voltar para pedidos">← Voltar</button>
+        <strong>Novo pedido</strong>
+      </header>
     <section class="sap-document commercial-document" data-document-kind="order">
       <div class="sap-window">
         <section class="sap-section sap-general-section">
@@ -209,10 +207,12 @@ async function renderOrders(container) {
   });
 
   document.getElementById('saveOrderButton').addEventListener('click', saveCurrentOrder);
-  document.getElementById('closeOrderButton').addEventListener('click', () => {
+  const closeOrderCreation = () => {
     if (hasUnsavedOrderDraft() && !window.confirm('Existem alteracoes nao salvas. Deseja sair?')) return;
     openModule('ordersReport');
-  });
+  };
+  document.getElementById('closeOrderButton').addEventListener('click', closeOrderCreation);
+  document.getElementById('orderFocusBackButton').addEventListener('click', closeOrderCreation);
   document.getElementById('orderAddSelectedProductButton').addEventListener('click', () => {
     if (!orderSelectedProduct) return;
     addProductToOrder(orderSelectedProduct);

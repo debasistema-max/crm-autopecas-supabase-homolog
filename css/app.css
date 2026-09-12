@@ -4,6 +4,57 @@
 }
 
 /* Fluxo comercial enxuto: cotacoes e pedidos */
+body.commercial-focus-mode {
+  padding-bottom: 0;
+}
+
+body.commercial-focus-mode .app-shell {
+  display: block;
+}
+
+body.commercial-focus-mode .sidebar,
+body.commercial-focus-mode .sidebar-backdrop,
+body.commercial-focus-mode .topbar,
+body.commercial-focus-mode .mobile-nav {
+  display: none !important;
+}
+
+body.commercial-focus-mode .workspace {
+  display: block;
+  min-height: 100vh;
+}
+
+body.commercial-focus-mode .content {
+  width: min(1680px, 100%);
+  padding: 12px;
+}
+
+.commercial-focus-header {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+}
+
+.commercial-focus-header strong {
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
+.commercial-focus-header .btn {
+  min-height: 36px;
+  padding: 6px 11px;
+}
+
 .commercial-document .sap-window {
   border-radius: var(--radius-lg);
 }
@@ -258,6 +309,19 @@
 }
 
 @media (max-width: 720px) {
+  body.commercial-focus-mode .content {
+    padding: 6px;
+  }
+
+  .commercial-focus-header {
+    min-height: 44px;
+    border-radius: 8px;
+  }
+
+  .commercial-focus-header strong {
+    font-size: 15px;
+  }
+
   .commercial-context-grid,
   .commercial-more-grid {
     grid-template-columns: 1fr;
@@ -307,7 +371,7 @@
   .commercial-document .sap-footer-actions {
     position: static;
     bottom: auto;
-    margin-top: 10px;
+    margin: 10px 0 0;
   }
 
   .commercial-document .sap-footer-actions .form-message {

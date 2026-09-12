@@ -148,6 +148,8 @@ test('quotation and order creation keep only the essential commercial workflow v
     const source = read(file);
     const createView = source.slice(0, source.indexOf('\nfunction apply'));
     assert.match(createView, /class="commercial-more-fields"/);
+    assert.match(createView, /class="commercial-focus-header"/);
+    assert.match(createView, /FocusBackButton/);
     assert.match(createView, /Dados complementares/);
     assert.match(createView, /Codigo, nome ou aplicacao/);
     assert.match(createView, /type="number" min="1" value="1"/);
@@ -162,4 +164,18 @@ test('quotation and order creation keep only the essential commercial workflow v
     assert.doesNotMatch(createView, /Status SAP<input/);
     assert.doesNotMatch(createView, /Autorizacao portal<input/);
   }
+});
+
+test('commercial creation uses a focused shell and supports standalone mobile launch', () => {
+  const app = read('js/app.js');
+  const html = read('app.html');
+  const css = read('css/app.css');
+  assert.match(app, /function setCommercialFocusMode\(enabled\)/);
+  assert.match(app, /setCommercialFocusMode\(false\)/);
+  assert.match(read('js/quotes.js'), /setCommercialFocusMode\(true\)/);
+  assert.match(css, /body\.commercial-focus-mode \.topbar/);
+  assert.match(css, /body\.commercial-focus-mode \.mobile-nav/);
+  assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
+  assert.match(html, /rel="manifest" href="manifest\.webmanifest/);
+  assert.ok(JSON.parse(read('manifest.webmanifest')).display === 'standalone');
 });

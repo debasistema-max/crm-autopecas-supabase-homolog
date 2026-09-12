@@ -12,12 +12,10 @@ async function renderCreateQuotation(container) {
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
     <div class="module-page commercial-operation-page">
-      ${CrmUi.renderPageHeader(
-        'Nova cotacao',
-        'Cliente, produtos e condicoes da venda.',
-        '',
-        'Comercial'
-      )}
+      <header class="commercial-focus-header">
+        <button class="btn btn-ghost" id="quoteFocusBackButton" type="button" aria-label="Voltar para cotacoes">← Voltar</button>
+        <strong>Nova cotacao</strong>
+      </header>
     <section class="sap-document commercial-document" data-document-kind="quotation">
       <div class="sap-window">
         <section class="sap-section sap-general-section">
@@ -206,10 +204,12 @@ async function renderCreateQuotation(container) {
     document.getElementById('quoteSearchResults').innerHTML = '<div class="empty-state">Pesquise novamente para recalcular os impostos conforme a utilizacao.</div>';
   });
   document.getElementById('saveQuoteButton').addEventListener('click', saveCurrentQuote);
-  document.getElementById('closeQuoteButton').addEventListener('click', () => {
+  const closeQuoteCreation = () => {
     if (hasUnsavedQuoteDraft() && !window.confirm('Existem alteracoes nao salvas. Deseja sair?')) return;
     openModule('quoteReports');
-  });
+  };
+  document.getElementById('closeQuoteButton').addEventListener('click', closeQuoteCreation);
+  document.getElementById('quoteFocusBackButton').addEventListener('click', closeQuoteCreation);
   document.getElementById('quoteAddSelectedProductButton').addEventListener('click', () => {
     if (!quoteSelectedProduct) return;
     addProductToQuote(quoteSelectedProduct);
@@ -829,6 +829,7 @@ function userHasModulePermission(permission) {
 
 async function openDocumentCreateScreen(kind) {
   const content = document.getElementById('content');
+  setCommercialFocusMode(true);
   document.getElementById('pageTitle').textContent = kind === 'pedidos' ? 'Novo Pedido' : 'Nova Cotacao';
   if (kind === 'pedidos') {
     await renderOrders(content);
