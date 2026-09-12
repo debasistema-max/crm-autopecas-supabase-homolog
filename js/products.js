@@ -155,7 +155,7 @@ async function searchProductsInto(target, params, onAdd) {
       return;
     }
     if (onAdd) {
-      renderProductPickerResults(target, products, onAdd);
+      renderProductPickerResults(target, products, onAdd, params);
       return;
     }
     productState.results = products;
@@ -166,23 +166,28 @@ async function searchProductsInto(target, params, onAdd) {
   }
 }
 
-function renderProductPickerResults(target, products, onAdd) {
+function renderProductPickerResults(target, products, onAdd, params = {}) {
+  const region = String(params.regiao || 'PR').trim().toUpperCase();
   target.innerHTML = `
     <div class="table-wrap">
       <table>
         <thead><tr><th>Codigo</th><th>Descricao</th><th>Marca</th><th>Aplicacao</th><th>Estoque</th><th>Preco</th><th></th></tr></thead>
         <tbody>
-          ${products.map((p, index) => `
-            <tr>
-              <td>${escapeHtml(p.codigo)}</td>
-              <td>${escapeHtml(p.descricao)}</td>
-              <td>${escapeHtml(p.marca)}</td>
-              <td>${escapeHtml(p.aplicacao)}</td>
-              <td>${escapeHtml(p.estoque)}</td>
-              <td>${money(p.preco)}</td>
-              <td><button class="btn btn-secondary" type="button" data-add-product="${index}">Selecionar</button></td>
-            </tr>
-          `).join('')}
+          ${products.map((p, index) => {
+            const branchInfo = formatBranchAvailability(p, region, 1);
+            const stockDisplay = p.estoque === null || p.estoque === undefined || p.estoque === '' ? 'Nao importado' : p.estoque;
+            return `
+              <tr>
+                <td>${escapeHtml(p.codigo)}</td>
+                <td>${escapeHtml(p.descricao)}</td>
+                <td>${escapeHtml(p.marca)}</td>
+                <td>${escapeHtml(p.aplicacao)}</td>
+                <td class="product-picker-stock"><strong>${escapeHtml(stockDisplay)}</strong><small>${escapeHtml(branchInfo)}</small></td>
+                <td>${money(p.preco)}</td>
+                <td><button class="btn btn-secondary" type="button" data-add-product="${index}">Selecionar</button></td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>

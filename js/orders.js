@@ -295,7 +295,8 @@ function updateOrderProductSelection(product) {
   document.getElementById('orderProductNamePreview').value = product.descricao || '';
   setOrderProductGroup(product.grupo || product.linha || product.categoria || '');
   const branchInfo = formatBranchAvailability(product, document.getElementById('orderRegion').value, 1);
-  document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>' + (branchInfo ? '<br><small>' + escapeHtml(branchInfo) + '</small>' : '');
+  const stockDisplay = product.estoque === null || product.estoque === undefined || product.estoque === '' ? 'Nao importado' : product.estoque;
+  document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(stockDisplay) + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>' + (branchInfo ? '<br><small>' + escapeHtml(branchInfo) + '</small>' : '');
   document.getElementById('orderAddQuantity').value = 1;
 }
 
@@ -501,7 +502,7 @@ function renderCart() {
     return;
   }
   list.className = 'sap-items-wrap';
-  list.innerHTML = renderSapOrderItemsTable(orderItems);
+  list.innerHTML = renderOrderTransferSummary(orderItems) + renderSapOrderItemsTable(orderItems);
   list.querySelectorAll('[data-cart-qty]').forEach((input) => {
     input.addEventListener('change', () => {
       orderItems[Number(input.dataset.cartQty)].quantidade = Math.max(1, Number(input.value || 1));
@@ -561,6 +562,19 @@ function renderSapOrderItemsTable(items) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+  `;
+}
+
+function renderOrderTransferSummary(items) {
+  const region = document.getElementById('orderRegion')?.value || 'PR';
+  const notices = items.map((item) => ({ item, notice: getBranchTransferNotice(item, region, item.quantidade) }))
+    .filter((entry) => entry.notice);
+  if (!notices.length) return '';
+  return `
+    <section class="commercial-transfer-summary" aria-live="polite">
+      <strong>Verificacao de estoque SP / PR</strong>
+      ${notices.map(({ item, notice }) => `<p class="is-${escapeHtml(notice.level)}"><span>${escapeHtml(item.codigo)}</span> ${escapeHtml(notice.message)}</p>`).join('')}
+    </section>
   `;
 }
 
@@ -628,13 +642,14 @@ async function saveCurrentOrder() {
     orderItems = [];
     orderCreateSaved = true;
     renderCart();
-    message.style.color = 'var(--success)';
     const transferSummary = data.transferencias || {};
     const transferCount = Number(transferSummary.created || 0) + Number(transferSummary.updated || 0);
+    const transferWarnings = Array.isArray(transferSummary.warnings) ? transferSummary.warnings : [];
+    message.style.color = transferWarnings.length ? 'var(--warning)' : 'var(--success)';
     message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.'
       + formatFiscalSaveSummary(data.fiscal)
       + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '')
-      + formatOrderTransferWarnings(transferSummary.warnings);
+      + formatOrderTransferWarnings(transferWarnings);
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;

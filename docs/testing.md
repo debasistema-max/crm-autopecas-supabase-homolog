@@ -15,6 +15,18 @@
 - regressões SQL em `supabase/tests/`;
 - inspeção responsiva nos breakpoints definidos.
 
+## Evidência SP → PR — 2026-09-12
+
+- pedido real `000038`, item `6175522372`, quantidade 8: SP sem snapshot
+  importado e PR com disponibilidade `50+`;
+- o backend retornou `ESTOQUE_SP_NAO_IMPORTADO` e não criou transferência nem
+  linha falsa de estoque zero;
+- smoke de pedido aprovado em 390×844 e 1440×1000, sem overflow horizontal;
+- cenário SP zero confirmado exibiu a futura solicitação PR→SP; cenário SP
+  ausente exibiu o bloqueio e o saldo transferível PR 50; PR totalmente
+  reservado não foi apresentado como disponível para transferência;
+- 14 contratos Node e 15 testes Python aprovados.
+
 ## Evidência da Fase 2 — entrega 1
 
 - Dashboard, Produtos e Parceiros inspecionados em 320, 360, 375, 390, 430,

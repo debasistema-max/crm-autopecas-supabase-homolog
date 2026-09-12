@@ -16,7 +16,9 @@
   <script src="../js/config.js"></script>
   <script src="../js/utils/format.js"></script>
   <script src="../js/components/ui.js"></script>
+  <script src="../js/supabase_store.js"></script>
   <script>
+    const commercialSmokeParams = new URLSearchParams(location.search);
     async function loadCompanySettings() { return {}; }
     function formatCompanyBranchLabel() { return 'International Parts Service do Brasil Ltda'; }
     function getStoredSession() { return { nome: 'Administrador Homologacao' }; }
@@ -24,11 +26,6 @@
     function openModule() {}
     function formatDateInput(value) { return new Date(value).toLocaleDateString('pt-BR'); }
     function formatCnpj(value) { return String(value || ''); }
-    function formatBranchAvailability() { return 'Transferencia PR -> SP de 2 unidade(s) sera solicitada ao salvar o pedido.'; }
-    function getBranchTransferNotice(product, region, requestedQty) {
-      if (region !== 'SP' || !product.branch_stock || Number(product.branch_stock.sp_available_qty) >= Number(requestedQty)) return null;
-      return { level: 'transfer', message: 'Transferencia PR -> SP de 2 unidade(s) sera solicitada ao salvar o pedido.' };
-    }
     async function supabaseSearchProducts() { return []; }
     async function supabaseGetProductCommercialPrice(productCode, origin, destination) {
       return {
@@ -58,6 +55,7 @@
   <script src="../js/quotes.js"></script>
   <script>
     (async () => {
+      const stockMode = commercialSmokeParams.get('stock') || 'known';
       await renderCreateQuotation(document.getElementById('quoteSmoke'));
       await renderOrders(document.getElementById('orderSmoke'));
       document.getElementById('quoteBillingState').value = 'PR';
@@ -66,18 +64,39 @@
       const product = {
         codigo: '6111032201', descricao: 'FAROL AUXILIAR DIREITO', marca: 'IPS', aplicacao: 'HILUX 2016+',
         ncm: '85122011', preco_sem_imposto: 232, preco: 232,
-        branch_stock: { sp_available_qty: 0, pr_available_qty: 50 }
+        estoque: stockMode.startsWith('unknown') ? null : 0,
+        branch_stock: {
+          sp_available_qty: stockMode.startsWith('unknown') ? null : 0,
+          pr_available_qty: 50,
+          sp_transfer_available_qty: stockMode.startsWith('unknown') ? null : 0,
+          pr_transfer_available_qty: stockMode === 'unknown-all' ? null : (stockMode === 'reserved' ? 0 : 50)
+        }
       };
+      updateOrderProductSelection(product);
       addProductToQuote(product, 1);
       addProductToOrder(product, 2);
       await new Promise((resolve) => setTimeout(resolve, 80));
       const quotePrice = Number(quoteItems[0] && quoteItems[0].preco);
       const orderPrice = Number(orderItems[0] && orderItems[0].preco);
+      const noticeText = document.querySelector('.commercial-transfer-summary')?.textContent || '';
+      const expectedNotice = stockMode === 'unknown'
+        ? noticeText.includes('Estoque SP nao importado') && noticeText.includes('Matriz PR: 50 transferivel')
+        : stockMode === 'unknown-all'
+          ? noticeText.includes('Estoque SP nao importado') && noticeText.includes('Estoque PR tambem nao importado')
+          : stockMode === 'reserved'
+            ? noticeText.includes('sem disponibilidade na Matriz PR') && !noticeText.includes('sera solicitada')
+            : noticeText.includes('sera solicitada ao salvar o pedido');
+      const stockLine = document.getElementById('orderProductStockLine').textContent;
+      const expectedStockDisplay = stockMode.startsWith('unknown')
+        ? stockLine.includes('Nao importado')
+        : stockLine.includes('Disp. Venda: 0') && !stockLine.includes('Nao importado');
       const passed = Math.abs(quotePrice - 347.85446) < 0.000001
         && Math.abs(orderPrice - quotePrice) < 0.000001
         && quoteItems[0].fiscal_status === 'OK'
         && orderItems[0].fiscal_status === 'OK'
-        && Boolean(document.querySelector('.commercial-transfer-warning'));
+        && Boolean(document.querySelector('.commercial-transfer-warning'))
+        && expectedNotice
+        && expectedStockDisplay;
       const selected = new URLSearchParams(location.search).get('doc') || 'quote';
       document.getElementById('quoteSmoke').hidden = selected !== 'quote';
       document.getElementById('orderSmoke').hidden = selected !== 'order';

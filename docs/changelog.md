@@ -2,6 +2,14 @@
 
 ## 2026-09-12 — preço comercial por rota e Revenda
 
+- o diagnóstico do pedido `000038` confirmou que o item `6175522372` tinha
+  saldo PR `50+`, enquanto SP ainda não possuía snapshot importado; o backend
+  preservou a regra “ausente não é zero” e registrou
+  `ESTOQUE_SP_NAO_IMPORTADO`, sem criar uma transferência indevida;
+- a criação do pedido agora destaca, acima dos itens, o resultado da verificação
+  SP/PR e a busca de produtos mostra os dois saldos; o aviso usa o saldo
+  transferível líquido de reservas, e zero confirmado continua diferente de
+  estoque não importado;
 - cotação e pedido passam a operar somente como Revenda, removendo a escolha de
   Consumo da criação e normalizando também rascunhos e payloads antigos;
 - PR→PR, PR→SC e SP→SP passam a priorizar o preço final aprovado que o Excel já

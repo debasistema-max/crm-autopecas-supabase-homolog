@@ -275,6 +275,42 @@ body.commercial-focus-mode .content {
   background: #fff0f0;
 }
 
+.commercial-transfer-summary {
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border: 1px solid #e8bd68;
+  border-radius: 8px;
+  color: #6e4600;
+  background: var(--warning-soft);
+}
+
+.commercial-transfer-summary > strong,
+.commercial-transfer-summary p,
+.product-picker-stock strong,
+.product-picker-stock small {
+  display: block;
+}
+
+.commercial-transfer-summary p {
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.commercial-transfer-summary p.is-blocked {
+  color: #8b1f1f;
+}
+
+.commercial-transfer-summary p span {
+  font-weight: 850;
+}
+
+.product-picker-stock small {
+  min-width: 190px;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .commercial-document .sap-footer-actions {
   position: sticky;
   bottom: 0;

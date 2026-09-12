@@ -262,7 +262,7 @@ async function enrichProductsWithBranchAvailability(products, region = 'SP') {
   const codes = Array.from(new Set(rows.map((product) => String(product.codigo || '').trim()).filter(Boolean)));
   if (!codes.length) return rows;
   try {
-    const { data, error } = await supabaseClient.rpc('get_branch_product_availability', {
+    const { data, error } = await supabaseClient.rpc('get_branch_product_availability_v2', {
       product_codes: codes
     });
     if (error) throw error;
@@ -298,12 +298,13 @@ function branchQuantityOrNull(value) {
 function getBranchTransferNotice(product, region, requestedQty = 1) {
   if (String(region || '').trim().toUpperCase() !== 'SP') return null;
   const stock = product && product.branch_stock;
-  const sp = branchQuantityOrNull(stock && stock.sp_available_qty);
-  const pr = branchQuantityOrNull(stock && stock.pr_available_qty);
+  const sp = branchQuantityOrNull(stock && stock.sp_transfer_available_qty);
+  const pr = branchQuantityOrNull(stock && stock.pr_transfer_available_qty);
   const requested = Math.max(Number(requestedQty || 0), 0);
 
   if (sp === null) {
-    return { code: 'ESTOQUE_SP_NAO_IMPORTADO', level: 'blocked', message: 'Estoque SP nao importado. A transferencia automatica nao sera gerada sem confirmar o saldo.' };
+    const prStatus = pr === null ? 'Estoque PR tambem nao importado.' : 'Matriz PR: ' + formatQuantity(pr) + ' transferivel.';
+    return { code: 'ESTOQUE_SP_NAO_IMPORTADO', level: 'blocked', message: 'Estoque SP nao importado. ' + prStatus + ' A transferencia automatica aguarda um saldo SP confirmado.' };
   }
   const shortage = Math.max(requested - sp, 0);
   if (shortage <= 0) return null;
@@ -328,6 +329,12 @@ function formatBranchAvailability(product, region, requestedQty = 1) {
   if (!stock) return 'Estoque das filiais nao importado.';
   const notice = getBranchTransferNotice(product, region, requestedQty);
   if (notice) return notice.message;
+  if (String(region || '').trim().toUpperCase() === 'SP') {
+    const spTransfer = branchQuantityOrNull(stock.sp_transfer_available_qty);
+    const prTransfer = branchQuantityOrNull(stock.pr_transfer_available_qty);
+    return 'SP transferivel: ' + (spTransfer === null ? 'nao importado' : formatQuantity(spTransfer))
+      + ' / PR transferivel: ' + (prTransfer === null ? 'nao importado' : formatQuantity(prTransfer));
+  }
   const sp = branchQuantityOrNull(stock.sp_available_qty);
   const pr = branchQuantityOrNull(stock.pr_available_qty);
   return 'SP: ' + (sp === null ? 'nao importado' : formatQuantity(sp))

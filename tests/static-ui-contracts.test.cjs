@@ -134,7 +134,7 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
 test('quotes read synchronized branch price and stock instead of legacy product fields', () => {
   const store = read('js/supabase_store.js');
   const migration = read('supabase/migrations/065_quote_reads_branch_price_stock.sql');
-  assert.match(store, /get_branch_product_availability/);
+  assert.match(store, /get_branch_product_availability_v2/);
   assert.match(store, /\$\{branch\}_available_qty/);
   assert.match(store, /\$\{branch\}_price/);
   assert.match(migration, /product_branch_prices/);
@@ -192,8 +192,12 @@ test('SP orders warn and create safe PR transfer requests without inventing stoc
   const regression = read('supabase/tests/067_safe_sp_pr_order_transfers_regression.sql');
   assert.match(store, /function getBranchTransferNotice/);
   assert.match(store, /ESTOQUE_SP_NAO_IMPORTADO/);
+  assert.match(store, /sp_transfer_available_qty/);
+  assert.match(store, /pr_transfer_available_qty/);
   assert.match(orders, /commercial-transfer-warning/);
+  assert.match(orders, /commercial-transfer-summary/);
   assert.match(orders, /formatOrderTransferWarnings/);
+  assert.match(read('js/products.js'), /product-picker-stock/);
   assert.match(migration, /PEDIDO_NAO_EH_SP_SP/);
   assert.match(migration, /ORDER_SP_SHORTAGE_PR_TRANSFER/);
   assert.match(migration, /source_stock\.available_qty/);
