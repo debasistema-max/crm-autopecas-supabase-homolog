@@ -294,7 +294,7 @@ function updateOrderProductSelection(product) {
   document.getElementById('orderProductTerm').value = product.codigo || '';
   document.getElementById('orderProductNamePreview').value = product.descricao || '';
   setOrderProductGroup(product.grupo || product.linha || product.categoria || '');
-  const branchInfo = formatBranchAvailability(product, document.getElementById('orderRegion').value);
+  const branchInfo = formatBranchAvailability(product, document.getElementById('orderRegion').value, 1);
   document.getElementById('orderProductStockLine').innerHTML = 'Disp. Venda: <strong>' + escapeHtml(product.estoque || '0') + '</strong> / Pr.Unit.: <strong>' + money(Number(product.preco || 0)) + '</strong>' + (branchInfo ? '<br><small>' + escapeHtml(branchInfo) + '</small>' : '');
   document.getElementById('orderAddQuantity').value = 1;
 }
@@ -527,12 +527,15 @@ function renderSapOrderItemsTable(items) {
   const rows = items.length ? items.map((item, index) => {
     const finalUnit = item.preco * (1 - item.desconto_percentual / 100);
     const rowTotal = finalUnit * item.quantidade;
-    const branchInfo = formatBranchAvailability(item, document.getElementById('orderRegion')?.value || 'PR');
+    const region = document.getElementById('orderRegion')?.value || 'PR';
+    const branchInfo = formatBranchAvailability(item, region, item.quantidade);
+    const transferNotice = getBranchTransferNotice(item, region, item.quantidade);
     return `
       <tr>
         <td class="commercial-item-product"><strong><span class="sap-code">${escapeHtml(item.codigo)}</span> · ${escapeHtml(item.descricao || '')}</strong>
           <small>${escapeHtml([item.marca,item.aplicacao].filter(Boolean).join(' · '))}</small>
           <small>Estoque ${escapeHtml(item.commercial_availability || '—')} ${escapeHtml(item.commercial_available_qty || '')}</small>
+          ${transferNotice ? `<small class="commercial-transfer-warning is-${escapeHtml(transferNotice.level)}">&#9888; ${escapeHtml(transferNotice.message)}</small>` : ''}
           <details class="commercial-item-details">
             <summary>Preco e impostos</summary>
             ${branchInfo ? '<small>' + escapeHtml(branchInfo) + '</small>' : ''}
@@ -626,10 +629,12 @@ async function saveCurrentOrder() {
     orderCreateSaved = true;
     renderCart();
     message.style.color = 'var(--success)';
-    const transferCount = Number((data.transferencias && data.transferencias.created) || 0);
+    const transferSummary = data.transferencias || {};
+    const transferCount = Number(transferSummary.created || 0) + Number(transferSummary.updated || 0);
     message.textContent = 'Pedido ' + data.numero_pedido + ' salvo com sucesso. Documentos podem ser gerados em uma etapa separada.'
       + formatFiscalSaveSummary(data.fiscal)
-      + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '');
+      + (transferCount > 0 ? ' Solicitacao de transferencia PR -> SP criada para ' + transferCount + (transferCount === 1 ? ' item.' : ' itens.') : '')
+      + formatOrderTransferWarnings(transferSummary.warnings);
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;
@@ -637,6 +642,18 @@ async function saveCurrentOrder() {
     button.disabled = false;
     button.textContent = 'Salvar pedido';
   }
+}
+
+function formatOrderTransferWarnings(warnings) {
+  const rows = Array.isArray(warnings) ? warnings : [];
+  if (!rows.length) return '';
+  const labels = {
+    ESTOQUE_SP_NAO_IMPORTADO: 'Estoque SP nao importado; transferencia automatica nao gerada',
+    ESTOQUE_PR_NAO_IMPORTADO: 'Estoque PR nao importado; transferencia automatica nao gerada',
+    ESTOQUE_PR_INDISPONIVEL: 'Sem saldo PR para transferencia',
+    TRANSFERENCIA_PARCIAL: 'Saldo PR atende somente parte da transferencia'
+  };
+  return ' Avisos: ' + rows.map((row) => (labels[row.code] || row.code) + (row.product_code ? ' (' + row.product_code + ')' : '')).join('; ') + '.';
 }
 
 function formatFiscalSaveSummary(fiscal) {

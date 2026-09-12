@@ -24,7 +24,11 @@
     function openModule() {}
     function formatDateInput(value) { return new Date(value).toLocaleDateString('pt-BR'); }
     function formatCnpj(value) { return String(value || ''); }
-    function formatBranchAvailability() { return 'Filial PR: DISPONIVEL 50+'; }
+    function formatBranchAvailability() { return 'Transferencia PR -> SP de 2 unidade(s) sera solicitada ao salvar o pedido.'; }
+    function getBranchTransferNotice(product, region, requestedQty) {
+      if (region !== 'SP' || !product.branch_stock || Number(product.branch_stock.sp_available_qty) >= Number(requestedQty)) return null;
+      return { level: 'transfer', message: 'Transferencia PR -> SP de 2 unidade(s) sera solicitada ao salvar o pedido.' };
+    }
     async function supabaseSearchProducts() { return []; }
     async function supabaseGetProductCommercialPrice(productCode, origin, destination) {
       return {
@@ -57,20 +61,23 @@
       await renderCreateQuotation(document.getElementById('quoteSmoke'));
       await renderOrders(document.getElementById('orderSmoke'));
       document.getElementById('quoteBillingState').value = 'PR';
-      document.getElementById('orderBillingState').value = 'PR';
+      document.getElementById('orderRegion').value = 'SP';
+      document.getElementById('orderBillingState').value = 'SP';
       const product = {
         codigo: '6111032201', descricao: 'FAROL AUXILIAR DIREITO', marca: 'IPS', aplicacao: 'HILUX 2016+',
-        ncm: '85122011', preco_sem_imposto: 232, preco: 232, branch_stock: { PR: 50 }
+        ncm: '85122011', preco_sem_imposto: 232, preco: 232,
+        branch_stock: { sp_available_qty: 0, pr_available_qty: 50 }
       };
       addProductToQuote(product, 1);
-      addProductToOrder(product, 1);
+      addProductToOrder(product, 2);
       await new Promise((resolve) => setTimeout(resolve, 80));
       const quotePrice = Number(quoteItems[0] && quoteItems[0].preco);
       const orderPrice = Number(orderItems[0] && orderItems[0].preco);
       const passed = Math.abs(quotePrice - 347.85446) < 0.000001
         && Math.abs(orderPrice - quotePrice) < 0.000001
         && quoteItems[0].fiscal_status === 'OK'
-        && orderItems[0].fiscal_status === 'OK';
+        && orderItems[0].fiscal_status === 'OK'
+        && Boolean(document.querySelector('.commercial-transfer-warning'));
       const selected = new URLSearchParams(location.search).get('doc') || 'quote';
       document.getElementById('quoteSmoke').hidden = selected !== 'quote';
       document.getElementById('orderSmoke').hidden = selected !== 'order';

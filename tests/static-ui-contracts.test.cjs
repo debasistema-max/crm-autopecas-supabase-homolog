@@ -185,6 +185,23 @@ test('commercial pricing prioritizes approved Excel route results and fixes resa
   assert.match(regression, /PRECO_ROTA_EXCEL_AUSENTE/);
 });
 
+test('SP orders warn and create safe PR transfer requests without inventing stock zero', () => {
+  const store = read('js/supabase_store.js');
+  const orders = read('js/orders.js');
+  const migration = read('supabase/migrations/067_safe_sp_pr_order_transfers.sql');
+  const regression = read('supabase/tests/067_safe_sp_pr_order_transfers_regression.sql');
+  assert.match(store, /function getBranchTransferNotice/);
+  assert.match(store, /ESTOQUE_SP_NAO_IMPORTADO/);
+  assert.match(orders, /commercial-transfer-warning/);
+  assert.match(orders, /formatOrderTransferWarnings/);
+  assert.match(migration, /PEDIDO_NAO_EH_SP_SP/);
+  assert.match(migration, /ORDER_SP_SHORTAGE_PR_TRANSFER/);
+  assert.match(migration, /source_stock\.available_qty/);
+  assert.doesNotMatch(migration, /insert into public\.product_branch_stock/i);
+  assert.match(regression, /TRANSFERENCIA_SP_PR_NAO_CRIADA/);
+  assert.match(regression, /SNAPSHOT_SP_AUSENTE_FOI_TRATADO_COMO_ZERO/);
+});
+
 test('commercial creation uses a focused shell and supports standalone mobile launch', () => {
   const app = read('js/app.js');
   const html = read('app.html');

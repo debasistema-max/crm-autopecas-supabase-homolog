@@ -289,15 +289,49 @@ async function enrichProductsWithBranchAvailability(products, region = 'SP') {
   }
 }
 
-function formatBranchAvailability(product, region) {
+function branchQuantityOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getBranchTransferNotice(product, region, requestedQty = 1) {
+  if (String(region || '').trim().toUpperCase() !== 'SP') return null;
   const stock = product && product.branch_stock;
-  if (!stock) return '';
-  const sp = Number(stock.sp_available_qty || 0);
-  const pr = Number(stock.pr_available_qty || 0);
-  if (String(region || '').toUpperCase() === 'SP' && sp <= 0 && pr > 0) {
-    return 'Sem saldo em SP. Disponivel na Matriz PR: ' + formatQuantity(pr) + '. Sera solicitada transferencia ao salvar pedido.';
+  const sp = branchQuantityOrNull(stock && stock.sp_available_qty);
+  const pr = branchQuantityOrNull(stock && stock.pr_available_qty);
+  const requested = Math.max(Number(requestedQty || 0), 0);
+
+  if (sp === null) {
+    return { code: 'ESTOQUE_SP_NAO_IMPORTADO', level: 'blocked', message: 'Estoque SP nao importado. A transferencia automatica nao sera gerada sem confirmar o saldo.' };
   }
-  return 'SP: ' + formatQuantity(sp) + ' / PR: ' + formatQuantity(pr);
+  const shortage = Math.max(requested - sp, 0);
+  if (shortage <= 0) return null;
+  if (pr === null) {
+    return { code: 'ESTOQUE_PR_NAO_IMPORTADO', level: 'blocked', message: 'Saldo SP insuficiente e estoque PR nao importado. Verifique antes de salvar.' };
+  }
+  if (pr <= 0) {
+    return { code: 'ESTOQUE_PR_INDISPONIVEL', level: 'blocked', message: 'Saldo SP insuficiente e sem disponibilidade na Matriz PR.' };
+  }
+  const transferQty = Math.min(shortage, pr);
+  return {
+    code: transferQty < shortage ? 'TRANSFERENCIA_PARCIAL' : 'TRANSFERENCIA_PR_SP',
+    level: transferQty < shortage ? 'partial' : 'transfer',
+    transferQty,
+    message: 'Transferencia PR -> SP de ' + formatQuantity(transferQty) + ' unidade(s) sera solicitada ao salvar o pedido.'
+      + (transferQty < shortage ? ' O saldo PR atende apenas parte da falta.' : '')
+  };
+}
+
+function formatBranchAvailability(product, region, requestedQty = 1) {
+  const stock = product && product.branch_stock;
+  if (!stock) return 'Estoque das filiais nao importado.';
+  const notice = getBranchTransferNotice(product, region, requestedQty);
+  if (notice) return notice.message;
+  const sp = branchQuantityOrNull(stock.sp_available_qty);
+  const pr = branchQuantityOrNull(stock.pr_available_qty);
+  return 'SP: ' + (sp === null ? 'nao importado' : formatQuantity(sp))
+    + ' / PR: ' + (pr === null ? 'nao importado' : formatQuantity(pr));
 }
 
 function formatQuantity(value) {

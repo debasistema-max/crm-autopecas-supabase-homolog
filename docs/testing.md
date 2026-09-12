@@ -206,3 +206,9 @@ snapshot de cotação e contingência identificada para rota ausente. Uma consul
 somente leitura confirmou `EXCEL_ROUTE_PRICE` para o produto `6111032201` em
 PR→PR, PR→SC e SP→SP. Os 13 contratos JavaScript, 15 testes Python e o smoke de
 cotação/pedido em 390 e 1440 px passaram sem overflow.
+
+A migration 067 e sua regressão transacional comprovaram que um pedido SP→SP
+com saldo SP zero e saldo PR disponível cria uma solicitação PR→SP com a
+quantidade correta. Um segundo cenário sem snapshot SP comprovou ausência de
+transferência e ausência de criação artificial de estoque zero. O aviso visual
+foi validado em 390 e 1440 px sem overflow.

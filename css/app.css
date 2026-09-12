@@ -259,6 +259,22 @@ body.commercial-focus-mode .content {
   line-height: 1.35;
 }
 
+.commercial-item-product .commercial-transfer-warning {
+  margin-top: 7px;
+  padding: 7px 9px;
+  border: 1px solid #e8bd68;
+  border-radius: 7px;
+  color: #6e4600;
+  background: var(--warning-soft);
+  font-weight: 800;
+}
+
+.commercial-item-product .commercial-transfer-warning.is-blocked {
+  border-color: #e7a7a7;
+  color: #8b1f1f;
+  background: #fff0f0;
+}
+
 .commercial-document .sap-footer-actions {
   position: sticky;
   bottom: 0;

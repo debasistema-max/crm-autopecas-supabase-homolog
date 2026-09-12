@@ -12,6 +12,12 @@
   item para auditoria;
 - alteração preparada e validada somente para homologação; produção permanece
   fora do escopo.
+- pedidos SP→SP com saldo SP insuficiente agora consultam PR, exibem o aviso no
+  item e criam solicitação de transferência PR→SP ao salvar;
+- a quantidade transferida corresponde somente à falta e fica limitada ao saldo
+  disponível de PR, com aviso quando o atendimento for parcial;
+- removida a criação técnica de estoque zero: snapshot SP/PR ausente permanece
+  desconhecido e impede transferência automática até a próxima importação.
 
 ## 2026-09-10 — Central de Dados e sincronização Excel
 

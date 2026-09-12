@@ -124,6 +124,13 @@ O snapshot altera somente campos presentes. Mudança no estoque físico cria `st
 
 `products_import_audit` registra uma linha por campo alterado com produto, antes, depois, filial/rota, origem, versão, lote, usuário/sistema e status.
 
+Em pedidos SP→SP, falta confirmada no saldo disponível de SP consulta o saldo
+disponível de PR. Havendo saldo, `create_order_transfer_requests` cria uma
+solicitação PR→SP para a falta, limitada à disponibilidade de PR, e o pedido
+fica sinalizado para logística. Se o snapshot de SP ou PR estiver ausente, a
+função devolve um aviso e não presume estoque zero nem cria transferência falsa.
+Uma disponibilidade parcial em PR gera solicitação parcial e aviso explícito.
+
 ## Configuração e execução
 
 Instale a dependência do adapter em ambiente Python isolado:
