@@ -16,15 +16,23 @@ comercial na próxima chamada.
 ## Fluxo do cliente
 
 1. o ADMIN abre **Parceiros → Clientes → Acesso B2B**;
-2. informa o contato e envia o convite para o e-mail do cliente;
-3. o cliente abre o link e define a própria senha;
-4. acessa `b2b/` para consultar seu cadastro, catálogo, preços, estoque,
+2. cria um usuário (o CNPJ normalizado pode ser usado) e uma senha inicial;
+3. entrega as credenciais ao cliente por um canal seguro;
+4. no primeiro acesso, o cliente é obrigado a trocar a senha antes de consultar
+   qualquer dado;
+5. como alternativa, o ADMIN ainda pode enviar convite por e-mail;
+6. acessa `b2b/` para consultar seu cadastro, catálogo, preços, estoque,
    cotações e pedidos;
-5. novas cotações e pedidos ficam vinculados ao mesmo `client_id` e ao usuário
+7. novas cotações e pedidos ficam vinculados ao mesmo `client_id` e ao usuário
    B2B que os criou;
-6. alterações de telefone, e-mail ou endereço viram solicitação pendente. O
+8. alterações de telefone, e-mail ou endereço viram solicitação pendente. O
    ADMIN aprova ou rejeita no cadastro do cliente; a aprovação é transacional e
    auditada.
+
+O Supabase Auth continua usando internamente uma identidade técnica não
+entregável para contas por usuário. Esse identificador não é mostrado ao
+cliente, não recebe mensagens e não exige que o cliente possua e-mail. A senha
+inicial nunca é gravada nos logs do CRM.
 
 ## Regras comerciais preservadas
 
@@ -43,6 +51,8 @@ comercial na próxima chamada.
 
 - convites, revogações e reativações passam pela Edge Function `b2b-admin`, que
   exige sessão ADMIN;
+- criação e redefinição de usuário/senha também passam pela mesma função; a
+  conta fica bloqueada para catálogo e documentos até a troca da senha inicial;
 - a chave privilegiada existe apenas no ambiente da Edge Function;
 - `idempotency_key` impede duplicação por reenvio do navegador;
 - o preço e a origem do Excel são copiados para o snapshot do item;
@@ -65,6 +75,8 @@ código.
 
 - **Convite não abre o portal:** conferir a URL de redirecionamento do Auth e o
   prazo do e-mail.
+- **Usuário esqueceu a senha:** o ADMIN abre o cliente, redefine a senha inicial
+  e a entrega por canal seguro; o portal volta a exigir troca no primeiro acesso.
 - **Acesso não autorizado:** conferir se o vínculo está ativo e se o cliente
   permanece ativo.
 - **Preço indisponível:** conferir sincronização e aprovação da rota no Excel.

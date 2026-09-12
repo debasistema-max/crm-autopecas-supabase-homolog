@@ -173,6 +173,21 @@ function b2bChangeFieldLabel(field) {
   return ({ telefone: 'Telefone', email: 'E-mail', endereco: 'Endereço', cidade: 'Cidade', estado: 'UF' })[field] || field;
 }
 
+function normalizeB2BUsername(value) {
+  return String(value || '').trim().toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '').slice(0, 50);
+}
+
+function defaultB2BUsername(client) {
+  return normalizeB2BUsername(client.cnpj || client.codigo_sap_cliente || client.nome_fantasia || client.nome || '');
+}
+
+function generateB2BInitialPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return `Ip9!${Array.from(bytes, (value) => alphabet[value % alphabet.length]).join('')}`;
+}
+
 function renderClientB2BAccess(client, accounts, changeRequests = []) {
   const pendingRequests = changeRequests.filter((request) => request.status === 'PENDING');
   return `
@@ -180,15 +195,28 @@ function renderClientB2BAccess(client, accounts, changeRequests = []) {
       <div><p class="eyebrow">Portal exclusivo</p><h2>Acesso B2B — ${escapeHtml(client.nome_fantasia || client.nome || '')}</h2><p>O usuário verá somente este cadastro, seus documentos e o catálogo da sua rota.</p></div>
       <div class="actions-row"><a class="btn btn-secondary" href="b2b/" target="_blank" rel="noopener">Abrir portal</a><button class="btn btn-ghost" id="clientB2BClose" type="button">Fechar</button></div>
     </div>
-    <form id="clientB2BInviteForm" class="b2b-access-form">
-      <label>Nome do contato<input id="clientB2BContact" autocomplete="name"></label>
-      <label>E-mail de acesso<input id="clientB2BEmail" type="email" autocomplete="email" value="${escapeHtml(client.email || '')}" required></label>
-      <button class="btn btn-primary" type="submit">Enviar convite seguro</button>
-      <p id="clientB2BMessage" class="form-message"></p>
-    </form>
+    <section class="b2b-credentials-panel">
+      <div><p class="eyebrow">Recomendado</p><h3>Acesso sem e-mail</h3><p>Crie usuário e senha inicial. O cliente será obrigado a trocar a senha ao entrar.</p></div>
+      <form id="clientB2BCredentialsForm" class="b2b-access-form">
+        <label>Nome do contato<input id="clientB2BCredentialContact" autocomplete="name"></label>
+        <label>Usuário de acesso<input id="clientB2BUsername" autocomplete="off" autocapitalize="none" spellcheck="false" value="${escapeHtml(defaultB2BUsername(client))}" required></label>
+        <label>Senha inicial<input id="clientB2BInitialPassword" type="text" autocomplete="off" minlength="10" required></label>
+        <button class="btn btn-secondary" id="clientB2BGeneratePassword" type="button">Gerar senha</button>
+        <button class="btn btn-primary" type="submit">Criar ou redefinir acesso</button>
+        <p id="clientB2BCredentialMessage" class="form-message"></p>
+      </form>
+    </section>
+    <details class="b2b-email-invite"><summary>Usar convite por e-mail (opcional)</summary>
+      <form id="clientB2BInviteForm" class="b2b-access-form">
+        <label>Nome do contato<input id="clientB2BContact" autocomplete="name"></label>
+        <label>E-mail de acesso<input id="clientB2BEmail" type="email" autocomplete="email" value="${escapeHtml(client.email || '')}" required></label>
+        <button class="btn btn-primary" type="submit">Enviar convite seguro</button>
+        <p id="clientB2BMessage" class="form-message"></p>
+      </form>
+    </details>
     <div class="section-heading"><div><h3>Usuários vinculados</h3><p>${accounts.length} acesso${accounts.length === 1 ? '' : 's'} configurado${accounts.length === 1 ? '' : 's'}.</p></div></div>
     ${accounts.length ? `<div class="b2b-account-list">${accounts.map((account) => `
-      <article><div><strong>${escapeHtml(account.contact_name || account.email)}</strong><span>${escapeHtml(account.email)}</span><small>Último acesso: ${escapeHtml(account.last_login_at ? formatDateTime(account.last_login_at) : 'ainda não acessou')}</small></div><span class="status-pill ${account.active ? 'ok' : 'warn'}">${account.active ? 'Ativo' : 'Revogado'}</span><button class="btn ${account.active ? 'btn-ghost' : 'btn-secondary'}" data-b2b-user="${escapeHtml(account.user_id)}" data-b2b-active="${account.active ? 'false' : 'true'}" type="button">${account.active ? 'Revogar' : 'Reativar'}</button></article>
+      <article><div><strong>${escapeHtml(account.contact_name || account.username || account.email)}</strong><span>${escapeHtml(account.login_mode === 'USERNAME' ? `Usuário: ${account.username}` : account.email)}</span><small>${account.must_change_password ? 'Aguardando troca da senha inicial · ' : ''}Último acesso: ${escapeHtml(account.last_login_at ? formatDateTime(account.last_login_at) : 'ainda não acessou')}</small></div><span class="status-pill ${account.active ? 'ok' : 'warn'}">${account.activation_pending ? 'Aguardando senha' : account.active ? 'Ativo' : 'Revogado'}</span>${account.must_change_password && !account.activation_pending ? '<button class="btn btn-secondary" type="button" disabled title="Crie uma nova senha inicial acima">Redefinir acima</button>' : `<button class="btn ${account.active ? 'btn-ghost' : 'btn-secondary'}" data-b2b-user="${escapeHtml(account.user_id)}" data-b2b-active="${account.activation_pending || account.active ? 'false' : 'true'}" type="button">${account.activation_pending ? 'Cancelar acesso' : account.active ? 'Revogar' : 'Reativar'}</button>`}</article>
     `).join('')}</div>` : '<div class="empty-state compact-state">Nenhum usuário B2B vinculado.</div>'}
     <div class="section-heading b2b-change-heading"><div><h3>Alterações cadastrais solicitadas</h3><p>${pendingRequests.length ? `${pendingRequests.length} aguardando análise.` : 'Nenhuma solicitação pendente.'}</p></div></div>
     ${pendingRequests.length ? `<div class="b2b-change-list">${pendingRequests.map((request) => `
@@ -204,6 +232,35 @@ function renderClientB2BAccess(client, accounts, changeRequests = []) {
 function bindClientB2BAccess(client) {
   document.getElementById('clientB2BClose')?.addEventListener('click', () => {
     document.getElementById('clientB2BAccess').hidden = true;
+  });
+  const initialPassword = document.getElementById('clientB2BInitialPassword');
+  const generatePassword = () => {
+    if (!initialPassword) return;
+    initialPassword.value = generateB2BInitialPassword();
+    initialPassword.focus();
+    initialPassword.select();
+  };
+  document.getElementById('clientB2BGeneratePassword')?.addEventListener('click', generatePassword);
+  if (initialPassword && !initialPassword.value) generatePassword();
+  document.getElementById('clientB2BCredentialsForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = document.getElementById('clientB2BCredentialMessage');
+    const username = normalizeB2BUsername(document.getElementById('clientB2BUsername').value);
+    message.style.color = 'var(--muted)';
+    message.textContent = 'Criando credencial segura...';
+    try {
+      await supabaseManageB2BAccess('create_credentials', {
+        client_id: client.id,
+        username,
+        password: initialPassword.value,
+        contact_name: document.getElementById('clientB2BCredentialContact').value
+      });
+      message.style.color = 'var(--success)';
+      message.textContent = `Acesso pronto. Entregue o usuário “${username}” e a senha acima por um canal seguro.`;
+    } catch (error) {
+      message.style.color = 'var(--accent)';
+      message.textContent = error.message;
+    }
   });
   document.getElementById('clientB2BInviteForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();

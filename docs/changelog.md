@@ -248,3 +248,14 @@ mudança de comportamento.
 Risco principal: módulos legados ainda possuem HTML próprio e serão migrados
 progressivamente. A camada compartilhada foi adicionada sem remover contratos
 anteriores.
+
+## 2026-09-12 — Acesso B2B sem e-mail
+
+- ADMIN pode criar ou redefinir acesso por usuário/CNPJ e senha inicial;
+- o cliente não precisa informar nem possuir e-mail;
+- a primeira entrada exige troca de senha antes de liberar catálogo, estoque,
+  preços, cotações ou pedidos;
+- senha inicial não é gravada em logs e a identidade técnica permanece restrita
+  ao backend/autenticação;
+- convite por e-mail continua disponível como opção administrativa;
+- migration 073 e Edge Function `b2b-admin` publicadas somente na homologação.

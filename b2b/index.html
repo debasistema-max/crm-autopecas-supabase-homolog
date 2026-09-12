@@ -15,14 +15,15 @@
       <h1>Pedidos e cotações B2B</h1>
       <p class="muted">Consulte preços e estoque da sua rota comercial com segurança.</p>
       <form id="loginForm" class="stack">
-        <label>E-mail<input id="loginEmail" type="email" autocomplete="username" required></label>
+        <label>Usuário, CNPJ ou e-mail<input id="loginIdentifier" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
         <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required></label>
         <button class="button primary" type="submit">Entrar</button>
-        <button class="link-button" id="forgotPassword" type="button">Esqueci minha senha</button>
+        <button class="link-button" id="forgotPassword" type="button">Esqueci meu acesso ou senha</button>
         <p id="loginMessage" class="message" aria-live="polite"></p>
       </form>
       <form id="passwordForm" class="stack" hidden>
-        <h2>Defina sua senha</h2>
+        <h2>Defina sua nova senha</h2>
+        <p class="muted" id="passwordHelp">No primeiro acesso, troque a senha inicial entregue pela IPS.</p>
         <label>Nova senha<input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
         <label>Confirmar senha<input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></label>
         <button class="button primary" type="submit">Salvar senha</button>
@@ -57,6 +58,6 @@
   <dialog id="documentDialog" class="dialog"><div id="documentContent"></div></dialog>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js?v=20260912-1"></script>
-  <script src="js/app.js?v=20260912-2"></script>
+  <script src="js/app.js?v=20260912-3"></script>
 </body>
 </html>

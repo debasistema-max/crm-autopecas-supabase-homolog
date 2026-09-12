@@ -39,6 +39,21 @@ function email(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : '';
 }
 
+function username(value: unknown) {
+  const text = String(value || '').trim().toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '');
+  return /^[a-z0-9][a-z0-9._-]{2,48}[a-z0-9]$/.test(text) ? text : '';
+}
+
+function technicalLoginEmail(loginName: string) {
+  return `${loginName}@login.b2b.ipsdobrasil.com.br`;
+}
+
+function validInitialPassword(value: unknown) {
+  const text = String(value || '');
+  return text.length >= 10 && text.length <= 72 && /[A-Za-z]/.test(text) && /[0-9]/.test(text) ? text : '';
+}
+
 async function findUserByEmail(admin: ReturnType<typeof createClient>, targetEmail: string) {
   for (let page = 1; page <= 20; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
@@ -87,7 +102,7 @@ Deno.serve(async (request) => {
     if (action === 'list') {
       const [accountsResult, requestsResult] = await Promise.all([
         admin.from('customer_portal_accounts')
-          .select('user_id,client_id,email,contact_name,active,can_create_quotations,can_create_orders,can_view_stock,can_view_prices,owner_profile_id,invited_at,last_login_at,created_at')
+          .select('user_id,client_id,email,username,login_mode,must_change_password,activation_pending,contact_name,active,can_create_quotations,can_create_orders,can_view_stock,can_view_prices,owner_profile_id,invited_at,last_login_at,created_at')
           .eq('client_id', clientId).order('created_at', { ascending: false }),
         admin.from('customer_portal_change_requests')
           .select('id,client_id,requested_by,requested_data,status,reviewed_by,reviewed_at,review_notes,created_at')
@@ -100,6 +115,92 @@ Deno.serve(async (request) => {
         accounts: accountsResult.data || [],
         change_requests: requestsResult.data || []
       });
+    }
+
+    if (action === 'create_credentials') {
+      if (client.ativo === false) return json(request, 409, { error: 'CLIENTE_INATIVO' });
+      const loginName = username(body.username || '');
+      const initialPassword = validInitialPassword(body.password);
+      if (!loginName) return json(request, 400, { error: 'USUARIO_INVALIDO' });
+      if (!initialPassword) return json(request, 400, { error: 'SENHA_INICIAL_FRACA' });
+      const loginEmail = technicalLoginEmail(loginName);
+
+      const { data: existingAccount, error: existingError } = await admin
+        .from('customer_portal_accounts').select('user_id,client_id,username')
+        .ilike('username', loginName).maybeSingle();
+      if (existingError) throw existingError;
+      if (existingAccount && existingAccount.client_id !== clientId) {
+        return json(request, 409, { error: 'USUARIO_JA_VINCULADO_A_OUTRO_CLIENTE' });
+      }
+
+      const requestedOwner = uuid(body.owner_profile_id) || caller.id;
+      const { data: owner } = await admin.from('profiles').select('id').eq('id', requestedOwner).eq('ativo', true).maybeSingle();
+      if (!owner) return json(request, 400, { error: 'RESPONSAVEL_INTERNO_INVALIDO' });
+
+      let targetUser = null;
+      if (existingAccount) {
+        const { data, error } = await admin.auth.admin.getUserById(existingAccount.user_id);
+        if (error) throw error;
+        targetUser = data.user;
+      } else {
+        targetUser = await findUserByEmail(admin, loginEmail);
+      }
+      if (targetUser && !existingAccount) {
+        const metadataClient = String(targetUser.app_metadata?.client_id || '');
+        if (targetUser.app_metadata?.account_type !== 'b2b' || metadataClient !== clientId) {
+          return json(request, 409, { error: 'USUARIO_JA_EXISTE' });
+        }
+      }
+      if (targetUser) {
+        const { data: internalProfile } = await admin.from('profiles').select('id').eq('id', targetUser.id).maybeSingle();
+        if (internalProfile) return json(request, 409, { error: 'USUARIO_PERTENCE_A_EQUIPE_INTERNA' });
+        const { data, error } = await admin.auth.admin.updateUserById(targetUser.id, {
+          password: initialPassword,
+          email_confirm: true,
+          app_metadata: { ...(targetUser.app_metadata || {}), account_type: 'b2b', client_id: clientId, login_mode: 'username' }
+        });
+        if (error) throw error;
+        targetUser = data.user;
+      } else {
+        const { data, error } = await admin.auth.admin.createUser({
+          email: loginEmail,
+          password: initialPassword,
+          email_confirm: true,
+          app_metadata: { account_type: 'b2b', client_id: clientId, login_mode: 'username' },
+          user_metadata: { account_type: 'b2b', client_name: client.nome, username: loginName }
+        });
+        if (error) throw error;
+        targetUser = data.user;
+      }
+      if (!targetUser) throw new Error('USUARIO_B2B_NAO_CRIADO');
+
+      const { data: account, error: accountError } = await admin.from('customer_portal_accounts').upsert({
+        user_id: targetUser.id,
+        client_id: clientId,
+        email: loginEmail,
+        username: loginName,
+        login_mode: 'USERNAME',
+        must_change_password: true,
+        contact_name: String(body.contact_name || '').trim() || null,
+        active: false,
+        activation_pending: true,
+        can_create_quotations: body.can_create_quotations !== false,
+        can_create_orders: body.can_create_orders !== false,
+        can_view_stock: body.can_view_stock !== false,
+        can_view_prices: body.can_view_prices !== false,
+        owner_profile_id: owner.id,
+        invited_by: caller.id,
+        invited_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' }).select().single();
+      if (accountError) throw accountError;
+      await admin.from('logs').insert({
+        user_id: caller.id, usuario: caller.usuario,
+        acao: existingAccount ? 'REDEFINIR_CREDENCIAL_B2B' : 'CRIAR_CREDENCIAL_B2B',
+        entidade: 'customer_portal_accounts', id_entidade: targetUser.id,
+        dados_novos: { client_id: clientId, username: loginName, login_mode: 'USERNAME', must_change_password: true }
+      });
+      return json(request, 200, { account, username: loginName, password_change_required: true });
     }
 
     if (action === 'invite') {
@@ -137,6 +238,10 @@ Deno.serve(async (request) => {
         user_id: targetUser.id,
         client_id: clientId,
         email: targetEmail,
+        username: null,
+        login_mode: 'EMAIL',
+        must_change_password: false,
+        activation_pending: false,
         contact_name: String(body.contact_name || '').trim() || null,
         active: true,
         can_create_quotations: body.can_create_quotations !== false,
@@ -165,8 +270,16 @@ Deno.serve(async (request) => {
     if (action === 'set_active') {
       const userId = uuid(body.user_id);
       if (!userId) return json(request, 400, { error: 'USUARIO_INVALIDO' });
+      const { data: currentAccount, error: currentError } = await admin.from('customer_portal_accounts')
+        .select('user_id,must_change_password,activation_pending').eq('user_id', userId).eq('client_id', clientId).maybeSingle();
+      if (currentError) throw currentError;
+      if (!currentAccount) return json(request, 404, { error: 'ACESSO_B2B_NAO_ENCONTRADO' });
+      if (body.active === true && currentAccount.must_change_password) {
+        return json(request, 409, { error: 'CLIENTE_PRECISA_TROCAR_SENHA_INICIAL' });
+      }
       const { data, error } = await admin.from('customer_portal_accounts').update({
         active: body.active === true,
+        activation_pending: false,
         updated_at: new Date().toISOString()
       }).eq('user_id', userId).eq('client_id', clientId).select().maybeSingle();
       if (error) throw error;

@@ -11,12 +11,12 @@
   async function supabaseListBusinessCarriers(){return[]}
   async function supabaseSaveBusinessClient(){return{}}
   async function supabaseSaveBusinessCarrier(){return{}}
-  async function supabaseManageB2BAccess(action){if(action==='list')return{accounts:[{user_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'compras@cliente-a.test',contact_name:'Ana',active:true,last_login_at:null}],change_requests:[{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'PENDING',created_at:'2026-09-12T12:00:00Z',requested_data:{telefone:'47999990000',cidade:'Joinville'}}]};return{account:{active:true}}}
+  async function supabaseManageB2BAccess(action){if(action==='list')return{accounts:[{user_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'11111111000111@login.b2b.ipsdobrasil.com.br',username:'11111111000111',login_mode:'USERNAME',must_change_password:true,activation_pending:true,contact_name:'Ana',active:false,last_login_at:null}],change_requests:[{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',status:'PENDING',created_at:'2026-09-12T12:00:00Z',requested_data:{telefone:'47999990000',cidade:'Joinville'}}]};return{account:{active:true}}}
   async function supabaseGetCustomerCommercialProfile(){return{}}
   async function fetchBusinessRegistryByCnpj(){return{}}
 </script>
 <script src="../js/partners.js"></script>
 <script>
-  (async()=>{await renderBusinessPartners(document.getElementById('target'));await openClientB2BAccess(partnersState.clients[0]);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const text=document.getElementById('target').innerText;const required=['Acesso B2B','compras@cliente-a.test','Enviar convite seguro','Revogar','Alterações cadastrais solicitadas','47999990000','Aprovar','Rejeitar'];const missing=required.filter(value=>!text.includes(value));const passed=missing.length===0;document.documentElement.dataset.smoke=passed?'pass':'fail';document.getElementById('smokeResult').value=passed?'PASS':`FAIL:${missing.join('|')}`})();
+  (async()=>{await renderBusinessPartners(document.getElementById('target'));await openClientB2BAccess(partnersState.clients[0]);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const text=document.getElementById('target').innerText;const required=['Acesso B2B','Acesso sem e-mail','Usuário: 11111111000111','Criar ou redefinir acesso','Gerar senha','Aguardando troca da senha inicial','Cancelar acesso','Alterações cadastrais solicitadas','47999990000','Aprovar','Rejeitar'];const missing=required.filter(value=>!text.includes(value));const passed=missing.length===0;document.documentElement.dataset.smoke=passed?'pass':'fail';document.getElementById('smokeResult').value=passed?'PASS':`FAIL:${missing.join('|')}`})();
 </script>
 </body></html>

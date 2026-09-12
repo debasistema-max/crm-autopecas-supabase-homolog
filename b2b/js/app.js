@@ -20,6 +20,17 @@ const dateTime = (value) => value ? new Date(value).toLocaleString(B2B_CONFIG.lo
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
+const technicalLoginDomain = '@login.b2b.ipsdobrasil.com.br';
+
+function normalizeLoginName(value) {
+  return String(value || '').trim().toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '');
+}
+
+function loginIdentifierToEmail(value) {
+  const identifier = String(value || '').trim().toLowerCase();
+  return identifier.includes('@') ? identifier : normalizeLoginName(identifier) + technicalLoginDomain;
+}
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -45,7 +56,7 @@ function bindAuth() {
     const message = document.getElementById('loginMessage');
     setMessage(message, 'Entrando...', '');
     const { data, error } = await b2b.auth.signInWithPassword({
-      email: document.getElementById('loginEmail').value.trim(),
+      email: loginIdentifierToEmail(document.getElementById('loginIdentifier').value),
       password: document.getElementById('loginPassword').value
     });
     if (error) return setMessage(message, translateError(error), 'error');
@@ -53,9 +64,13 @@ function bindAuth() {
   });
 
   document.getElementById('forgotPassword').addEventListener('click', async () => {
-    const email = document.getElementById('loginEmail').value.trim();
+    const identifier = document.getElementById('loginIdentifier').value.trim();
     const message = document.getElementById('loginMessage');
-    if (!email) return setMessage(message, 'Informe seu e-mail primeiro.', 'error');
+    if (!identifier) return setMessage(message, 'Informe seu usuário, CNPJ ou e-mail primeiro.', 'error');
+    if (!identifier.includes('@')) {
+      return setMessage(message, 'Peça ao seu representante ou administrador da IPS uma nova senha inicial.', 'error');
+    }
+    const email = identifier.toLowerCase();
     const { error } = await b2b.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     setMessage(message, error ? translateError(error) : 'Enviamos o link de recuperação para o seu e-mail.', error ? 'error' : 'success');
   });
@@ -69,6 +84,14 @@ function bindAuth() {
     if (password !== confirmation) return setMessage(message, 'As senhas não conferem.', 'error');
     const { error } = await b2b.auth.updateUser({ password });
     if (error) return setMessage(message, translateError(error), 'error');
+    if (state.context?.account?.must_change_password) {
+      try {
+        await rpc('complete_b2b_password_change');
+        state.context.account.must_change_password = false;
+      } catch (completionError) {
+        return setMessage(message, translateError(completionError), 'error');
+      }
+    }
     history.replaceState({}, '', location.pathname);
     const { data } = await b2b.auth.getSession();
     await openPortal(data.session);
@@ -98,6 +121,12 @@ async function openPortal(session) {
     await b2b.auth.signOut();
     showAuth();
     setMessage(document.getElementById('loginMessage'), 'Este e-mail ainda não está vinculado a um cliente ativo. Fale com seu representante.', 'error');
+    return;
+  }
+  if (state.context.account?.must_change_password) {
+    showPasswordForm();
+    document.getElementById('passwordHelp').textContent = 'Por segurança, troque a senha inicial entregue pela IPS antes de acessar seus dados.';
+    setMessage(document.getElementById('passwordMessage'), 'Troque a senha inicial antes de acessar o portal.', '');
     return;
   }
   document.getElementById('authView').hidden = true;

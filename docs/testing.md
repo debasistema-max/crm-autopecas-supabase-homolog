@@ -246,3 +246,16 @@ com saldo SP zero e saldo PR disponível cria uma solicitação PR→SP com a
 quantidade correta. Um segundo cenário sem snapshot SP comprovou ausência de
 transferência e ausência de criação artificial de estoque zero. O aviso visual
 foi validado em 390 e 1440 px sem overflow.
+
+## Portal B2B sem e-mail
+
+Em 12/09/2026, a migration 073 foi aplicada somente na homologação. Os 15
+contratos estáticos, 15 testes Python e 6 cenários visuais do portal e painel
+administrativo passaram em 390×844, 768×1024 e 1440×1000. A função `b2b-admin`
+foi republicada e respondeu HTTP 401 sem autenticação. O lint remoto não apontou
+erros no módulo B2B; os avisos exibidos pertencem a funções legadas já
+existentes.
+
+Os contratos verificam usuário/CNPJ normalizado, identidade técnica somente no
+backend, ausência de senha na auditoria, bloqueio antes da troca da senha
+inicial e manutenção do convite por e-mail como contingência opcional.
