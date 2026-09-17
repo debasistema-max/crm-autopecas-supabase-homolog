@@ -187,8 +187,8 @@ async function renderHome() {
 function renderCatalogShell() {
   const target = document.getElementById('catalogView');
   target.innerHTML = `
-    <div class="page-heading"><div><p class="eyebrow">Catálogo ${escapeHtml(state.context.route || '')}</p><h1>Produtos</h1><p>Busque por código, descrição, marca ou aplicação.</p></div></div>
-    <form id="catalogSearch" class="searchbar"><input id="catalogTerm" type="search" placeholder="Ex.: farol Hilux ou código IPS" autocomplete="off"><label><input id="catalogAvailable" type="checkbox"> Somente disponíveis</label><button class="button primary" type="submit">Buscar</button></form>
+    <div class="page-heading"><div><p class="eyebrow">Catálogo ${escapeHtml(state.context.route || '')}</p><h1>Produtos</h1><p>Busque por código, OEM, descrição, marca, veículo ou aplicação. Você pode combinar palavras.</p></div></div>
+    <form id="catalogSearch" class="searchbar"><input id="catalogTerm" type="search" placeholder="Ex.: caixa Hilux, farol Corolla ou código IPS" autocomplete="off"><label><input id="catalogAvailable" type="checkbox"> Somente disponíveis</label><button class="button primary" type="submit">Buscar</button></form>
     <div id="catalogResults" class="product-grid"><div class="empty">Digite uma busca para consultar o catálogo.</div></div>`;
   document.getElementById('catalogSearch').addEventListener('submit', searchCatalog);
 }

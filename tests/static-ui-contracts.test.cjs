@@ -230,6 +230,7 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   const internalLink = read('supabase/migrations/071_link_internal_documents_to_b2b_clients.sql');
   const catalogFix = read('supabase/migrations/072_fix_b2b_catalog_variable_ambiguity.sql');
   const usernameAccess = read('supabase/migrations/073_b2b_username_password_access.sql');
+  const catalogSearch = read('supabase/migrations/074_improve_b2b_catalog_search.sql');
   const portal = read('b2b/js/app.js');
   const admin = read('supabase/functions/b2b-admin/index.ts');
   assert.match(identity, /customer_portal_accounts/);
@@ -251,6 +252,11 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(usernameAccess, /login_mode in \('EMAIL','USERNAME'\)/);
   assert.match(usernameAccess, /complete_b2b_password_change/);
   assert.match(usernameAccess, /must_change_password/);
+  assert.match(catalogSearch, /regexp_split_to_array/);
+  assert.match(catalogSearch, /matched_terms/);
+  assert.match(catalogSearch, /join public\.product_route_prices rp/);
+  assert.match(catalogSearch, /application_terms\*25/);
+  assert.doesNotMatch(catalogSearch, /limit least\(greatest\(limit_count,1\)\*5,250\)/);
   assert.match(portal, /get_b2b_session/);
   assert.match(portal, /b2b_search_catalog/);
   assert.match(portal, /b2b_create_document/);

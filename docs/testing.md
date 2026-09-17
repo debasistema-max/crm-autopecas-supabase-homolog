@@ -259,3 +259,11 @@ existentes.
 Os contratos verificam usuário/CNPJ normalizado, identidade técnica somente no
 backend, ausência de senha na auditoria, bloqueio antes da troca da senha
 inicial e manutenção do convite por e-mail como contingência opcional.
+
+## Busca combinada do catálogo B2B
+
+Em 17/09/2026, a migration 074 foi aplicada somente na homologação. A regressão
+`074_b2b_catalog_search_regression.sql` passou dentro de transação encerrada com
+`ROLLBACK`: produto contendo os dois termos ficou em primeiro lugar, produtos
+relacionados por aplicação ou descrição também foram retornados e o produto sem
+preço aprovado para a rota permaneceu oculto.

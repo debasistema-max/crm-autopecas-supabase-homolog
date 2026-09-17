@@ -37,6 +37,11 @@ inicial nunca é gravada nos logs do CRM.
 ## Regras comerciais preservadas
 
 - cliente PR usa rota PR→PR; cliente SC usa PR→SC; cliente SP usa SP→SP;
+- a busca separa as palavras digitadas e pesquisa código, OEM, descrição, marca,
+  veículo e aplicação; itens que contêm todos os termos aparecem primeiro e os
+  relacionados por parte da busca vêm depois;
+- somente produtos com preço final aprovado para a rota do cliente entram no
+  resultado;
 - os preços vêm de resultados aprovados do Excel em `product_route_prices`;
 - estoque é o último snapshot válido persistido no Supabase;
 - ausência de snapshot não é interpretada como zero;

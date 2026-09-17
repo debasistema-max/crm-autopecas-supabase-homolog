@@ -259,3 +259,12 @@ anteriores.
   ao backend/autenticação;
 - convite por e-mail continua disponível como opção administrativa;
 - migration 073 e Edge Function `b2b-admin` publicadas somente na homologação.
+
+## 2026-09-17 — Busca combinada no catálogo B2B
+
+- termos digitados são separados e pesquisados em código, OEM, descrição,
+  marca, veículo e aplicação;
+- correspondências com todas as palavras recebem prioridade;
+- resultados relacionados por parte da busca aparecem em seguida;
+- filtro de preço aprovado por rota é aplicado antes do limite de resultados;
+- migration 074 aplicada e validada somente na homologação.
