@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../css/app.css">
 </head>
 <body class="app-page">
+  <output id="smokeResult" hidden>Executando</output>
   <main class="content" id="smokeTarget"></main>
   <script src="../js/config.js"></script>
   <script src="../js/utils/format.js"></script>
@@ -52,8 +53,19 @@
   <script>
     const target = document.getElementById('smokeTarget');
     const moduleName = new URLSearchParams(location.search).get('module') || 'dashboard';
-    if (moduleName === 'products') renderProducts(target).then(() => runProductSearch({ listaGeral: true }));
-    else if (moduleName === 'partners') renderBusinessPartners(target);
+    if (moduleName === 'products') {
+      (async () => {
+        await renderProducts(target);
+        await runProductSearch({ listaGeral: true });
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const image = target.querySelector('[data-yokomitsu-image]');
+        const passed = document.getElementById('productLineFilter').options.length === 3
+          && target.innerText.includes('FAROL AUXILIAR DIREITO')
+          && image?.src.includes('/uploads/products/6111032201/site/6111032201.webp');
+        document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+        document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+      })();
+    } else if (moduleName === 'partners') renderBusinessPartners(target);
     else renderDashboard(target);
     CrmUi.observeResponsiveTables(target);
   </script>

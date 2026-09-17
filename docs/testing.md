@@ -267,3 +267,11 @@ Em 17/09/2026, a migration 074 foi aplicada somente na homologação. A regress�
 `ROLLBACK`: produto contendo os dois termos ficou em primeiro lugar, produtos
 relacionados por aplicação ou descrição também foram retornados e o produto sem
 preço aprovado para a rota permaneceu oculto.
+
+Na sequência, a migration 075 alinhou o contrato ao catálogo público Yokomitsu:
+todas as palavras-chave passaram a ser obrigatórias, o filtro de linha foi
+adicionado e somente linhas com preço aprovado para a rota são listadas. A mesma
+regressão foi atualizada para exigir combinação completa, linha correta e preço
+de rota; as imagens oficiais por código possuem fallback visual quando ausentes.
+O smoke visual passou em 9/9 cenários: B2B, administração B2B e catálogo interno
+em 390×844, 768×1024 e 1440×1000, sem overflow horizontal.

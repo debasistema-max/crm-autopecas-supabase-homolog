@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="../b2b/css/portal.css">
+  <link rel="stylesheet" href="../b2b/css/catalog.css">
   <title>Smoke B2B</title>
 </head>
 <body>
@@ -22,7 +23,7 @@
     const smokeSession={user:{id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'},access_token:'test'};
     const fakeClient={
       auth:{getSession:async()=>({data:{session:smokeSession}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({}),signInWithPassword:async()=>({data:{session:smokeSession}}),resetPasswordForEmail:async()=>({}),updateUser:async()=>({})},
-      rpc:async(name,args)=>{smokeCalls.push({name,args});if(name==='get_b2b_session')return{data:{account:{user_id:smokeSession.user.id,username:'11111111000111',login_mode:'USERNAME',must_change_password:false,contact_name:'Ana',can_create_orders:true,can_create_quotations:true},client:{id:'client-a',nome:'Cliente A Ltda',nome_fantasia:'Cliente A',codigo_sap_cliente:'1001',cnpj:'11111111000111',estado:'SC',cidade:'Joinville'},route:'PR-SC',route_supported:true},error:null};if(name==='b2b_list_documents')return{data:[],error:null};if(name==='b2b_search_catalog')return{data:[{product_code:'6111032201',description:'Farol auxiliar',brand:'IPS',application:'Hilux',route:'PR-SC',final_price:254.62,availability:'DISPONIVEL',available_qty:12,source_display_value:'12'}],error:null};if(name==='b2b_create_document')return{data:{id:'doc-a',numero_cotacao:'000101',total:254.62},error:null};if(name==='complete_b2b_password_change')return{data:{completed:true},error:null};return{data:null,error:{message:'RPC inesperada '+name}};}
+      rpc:async(name,args)=>{smokeCalls.push({name,args});if(name==='get_b2b_session')return{data:{account:{user_id:smokeSession.user.id,username:'11111111000111',login_mode:'USERNAME',must_change_password:false,contact_name:'Ana',can_create_orders:true,can_create_quotations:true},client:{id:'client-a',nome:'Cliente A Ltda',nome_fantasia:'Cliente A',codigo_sap_cliente:'1001',cnpj:'11111111000111',estado:'SC',cidade:'Joinville'},route:'PR-SC',route_supported:true},error:null};if(name==='b2b_list_documents')return{data:[],error:null};if(name==='b2b_list_catalog_lines')return{data:[{value:'ILUMINACAO',label:'ILUMINAÇÃO'},{value:'DIRECAO',label:'DIREÇÃO'}],error:null};if(name==='b2b_search_catalog')return{data:[{product_code:'6111032201',description:'Farol auxiliar',brand:'IPS',application:'Hilux',route:'PR-SC',final_price:254.62,availability:'DISPONIVEL',available_qty:12,source_display_value:'12'}],error:null};if(name==='b2b_create_document')return{data:{id:'doc-a',numero_cotacao:'000101',total:254.62},error:null};if(name==='complete_b2b_password_change')return{data:{completed:true},error:null};return{data:null,error:{message:'RPC inesperada '+name}};}
     };
     window.supabase={createClient:()=>fakeClient};
   </script>
@@ -31,7 +32,8 @@
     (async()=>{
       await new Promise(resolve=>setTimeout(resolve,80));
       await navigate('catalog');
-      document.getElementById('catalogTerm').value='farol';
+      document.getElementById('catalogTerm').value='farol hilux';
+      document.getElementById('catalogLine').value='ILUMINACAO';
       document.getElementById('catalogSearch').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       await new Promise(resolve=>setTimeout(resolve,50));
       document.querySelector('[data-add]').click();
@@ -43,7 +45,9 @@
         && document.getElementById('routeBadge').textContent==='PR-SC'
         && text.includes('Farol auxiliar')
         && text.includes('R$')
+        && document.querySelector('[data-product-image]').src.includes('/uploads/products/6111032201/site/6111032201.webp')
         && !text.includes('Cliente B')
+        && smokeCalls.some(call=>call.name==='b2b_search_catalog'&&call.args.search_term==='farol hilux'&&call.args.line_filter==='ILUMINACAO')
         && smokeCalls.some(call=>call.name==='b2b_create_document'&&call.args.payload.items[0].codigo==='6111032201');
       document.documentElement.dataset.smoke=passed?'pass':'fail';
       document.getElementById('smokeResult').value=passed?'PASS':'FAIL';

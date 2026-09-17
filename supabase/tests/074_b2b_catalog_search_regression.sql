@@ -34,14 +34,14 @@ begin
     username=null,login_mode='EMAIL',must_change_password=false,activation_pending=false;
   perform set_config('request.jwt.claim.sub',v_user::text,true);
 
-  insert into public.products(codigo,descricao,marca,aplicacao)
+  insert into public.products(codigo,descricao,marca,aplicacao,categoria)
   values
-    ('B2B074-A','CAIXA074 COMPLETA','IPS','HILUX074 2016 A 2024'),
-    ('B2B074-B','FAROL DIANTEIRO','IPS','HILUX074 2016 A 2024'),
-    ('B2B074-C','CAIXA074 FILTRO DE AR','IPS','COROLLA'),
-    ('B2B074-D','CAIXA074 SEM PRECO','IPS','HILUX074')
+    ('B2B074-A','CAIXA074 COMPLETA','IPS','HILUX074 2016 A 2024','DIRECAO'),
+    ('B2B074-B','FAROL DIANTEIRO','IPS','HILUX074 2016 A 2024','DIRECAO'),
+    ('B2B074-C','CAIXA074 FILTRO DE AR','IPS','COROLLA','FILTROS'),
+    ('B2B074-D','CAIXA074 SEM PRECO','IPS','HILUX074','DIRECAO')
   on conflict(codigo) do update set
-    descricao=excluded.descricao,marca=excluded.marca,aplicacao=excluded.aplicacao;
+    descricao=excluded.descricao,marca=excluded.marca,aplicacao=excluded.aplicacao,categoria=excluded.categoria;
 
   insert into public.product_route_prices(
     product_code,origin_branch_id,destination_state,route,final_price,calculation_status,
@@ -58,20 +58,20 @@ begin
   select array_agg(result.product_code order by result.position) into v_codes
   from (
     select row_number() over() as position,found.product_code
-    from public.b2b_search_catalog('caixa074 hilux074',false,20) found
+    from public.b2b_search_catalog('caixa074 hilux074','DIRECAO',false,20) found
   ) result;
 
-  if array_position(v_codes,'B2B074-A') is null
-     or array_position(v_codes,'B2B074-B') is null
-     or array_position(v_codes,'B2B074-C') is null then
-    raise exception 'BUSCA_B2B_NAO_INCLUIU_TERMOS_RELACIONADOS: %',v_codes;
+  if array_position(v_codes,'B2B074-A') is null then
+    raise exception 'BUSCA_B2B_NAO_INCLUIU_COMBINACAO_COMPLETA: %',v_codes;
   end if;
-  if array_position(v_codes,'B2B074-D') is not null then
-    raise exception 'BUSCA_B2B_EXPOS_PRODUTO_SEM_PRECO_DE_ROTA: %',v_codes;
+  if array_position(v_codes,'B2B074-B') is not null
+     or array_position(v_codes,'B2B074-C') is not null
+     or array_position(v_codes,'B2B074-D') is not null then
+    raise exception 'BUSCA_B2B_NAO_EXIGIU_TODAS_PALAVRAS_LINHA_E_PRECO: %',v_codes;
   end if;
-  if not (array_position(v_codes,'B2B074-A')<array_position(v_codes,'B2B074-B')
-      and array_position(v_codes,'B2B074-B')<array_position(v_codes,'B2B074-C')) then
-    raise exception 'RANKING_B2B_INCORRETO: %',v_codes;
+
+  if not exists(select 1 from public.b2b_list_catalog_lines() l where l.value='DIRECAO') then
+    raise exception 'LINHA_B2B_NAO_LISTADA';
   end if;
 end;
 $$;

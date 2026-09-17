@@ -268,3 +268,13 @@ anteriores.
 - resultados relacionados por parte da busca aparecem em seguida;
 - filtro de preço aprovado por rota é aplicado antes do limite de resultados;
 - migration 074 aplicada e validada somente na homologação.
+
+## 2026-09-17 — Busca B2B alinhada ao catálogo Yokomitsu
+
+- interface simplificada para Palavra-chave, Linha e disponibilidade;
+- todas as palavras digitadas precisam existir no produto, como em “caixa hilux”;
+- linhas disponíveis são carregadas conforme a rota e seus preços aprovados;
+- fotos oficiais do catálogo Yokomitsu são usadas pelo código IPS quando o CRM
+  ainda não possui `url_imagem`, com fallback seguro para “Sem foto”;
+- o catálogo interno do CRM recebeu o mesmo fallback de imagem;
+- migration 075 preparada exclusivamente para homologação.

@@ -21,6 +21,40 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => 
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
 const technicalLoginDomain = '@login.b2b.ipsdobrasil.com.br';
+const yokomitsuImageBase = 'https://www.yokomitsu.com.br/uploads/products';
+
+function officialProductImage(code) {
+  const normalized = String(code || '').trim();
+  if (!/^\d{6,20}$/.test(normalized)) return '';
+  return `${yokomitsuImageBase}/${normalized}/site/${normalized}.webp`;
+}
+
+function productImageMarkup(product) {
+  const stored = String(product.image_url || '').trim();
+  const official = officialProductImage(product.product_code);
+  const source = stored || official;
+  if (!source) return '<span>Sem foto</span>';
+  const fallback = stored && official && stored !== official ? official : '';
+  return `<img src="${escapeHtml(source)}" data-product-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.description || product.product_code)}" loading="lazy" referrerpolicy="no-referrer"><span data-image-placeholder hidden>Sem foto</span>`;
+}
+
+function bindProductImages(target) {
+  target.querySelectorAll('[data-product-image]').forEach((img) => {
+    const handleError = () => {
+      const fallback = img.dataset.fallbackSrc || '';
+      if (fallback) {
+        img.dataset.fallbackSrc = '';
+        img.src = fallback;
+        return;
+      }
+      img.hidden = true;
+      const placeholder = img.parentElement?.querySelector('[data-image-placeholder]');
+      if (placeholder) placeholder.hidden = false;
+    };
+    img.addEventListener('error', handleError);
+    if (img.complete && img.naturalWidth === 0) handleError();
+  });
+}
 
 function normalizeLoginName(value) {
   return String(value || '').trim().toLowerCase().normalize('NFD')
@@ -156,7 +190,7 @@ async function navigate(view) {
   document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   document.querySelectorAll('.view').forEach((section) => { section.hidden = section.id !== view + 'View'; });
   if (view === 'home') await renderHome();
-  if (view === 'catalog') renderCatalogShell();
+  if (view === 'catalog') await renderCatalogShell();
   if (view === 'quotes') await renderDocuments('cotacao');
   if (view === 'orders') await renderDocuments('pedido');
   if (view === 'profile') renderProfile();
@@ -184,13 +218,25 @@ async function renderHome() {
   }
 }
 
-function renderCatalogShell() {
+async function renderCatalogShell() {
   const target = document.getElementById('catalogView');
   target.innerHTML = `
-    <div class="page-heading"><div><p class="eyebrow">Catálogo ${escapeHtml(state.context.route || '')}</p><h1>Produtos</h1><p>Busque por código, OEM, descrição, marca, veículo ou aplicação. Você pode combinar palavras.</p></div></div>
-    <form id="catalogSearch" class="searchbar"><input id="catalogTerm" type="search" placeholder="Ex.: caixa Hilux, farol Corolla ou código IPS" autocomplete="off"><label><input id="catalogAvailable" type="checkbox"> Somente disponíveis</label><button class="button primary" type="submit">Buscar</button></form>
+    <div class="page-heading"><div><p class="eyebrow">Catálogo ${escapeHtml(state.context.route || '')}</p><h1>Produtos</h1><p>Digite peça + veículo + ano no mesmo campo, como no catálogo Yokomitsu.</p></div></div>
+    <form id="catalogSearch" class="searchbar">
+      <label class="catalog-keyword">Palavra-chave<input id="catalogTerm" type="search" placeholder="Ex.: caixa Hilux, amortecedor Corolla, bomba S10" autocomplete="off"></label>
+      <label>Linha<select id="catalogLine"><option value="">Todas as linhas</option></select></label>
+      <label class="catalog-available"><input id="catalogAvailable" type="checkbox"> Somente disponíveis</label>
+      <button class="button primary" type="submit">Pesquisar</button>
+    </form>
     <div id="catalogResults" class="product-grid"><div class="empty">Digite uma busca para consultar o catálogo.</div></div>`;
   document.getElementById('catalogSearch').addEventListener('submit', searchCatalog);
+  try {
+    const lines = await rpc('b2b_list_catalog_lines');
+    const select = document.getElementById('catalogLine');
+    (lines || []).forEach((line) => select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(line.value)}">${escapeHtml(line.label)}</option>`));
+  } catch (error) {
+    document.getElementById('catalogLine').disabled = true;
+  }
 }
 
 async function searchCatalog(event) {
@@ -200,11 +246,13 @@ async function searchCatalog(event) {
   try {
     state.catalog = await rpc('b2b_search_catalog', {
       search_term: document.getElementById('catalogTerm').value,
+      line_filter: document.getElementById('catalogLine').value,
       only_available: document.getElementById('catalogAvailable').checked,
       limit_count: 50
     });
     if (!state.catalog.length) return target.innerHTML = '<div class="empty">Nenhum produto encontrado nessa rota.</div>';
     target.innerHTML = state.catalog.map((product, index) => productCard(product, index)).join('');
+    bindProductImages(target);
     target.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addToCart(state.catalog[Number(button.dataset.add)])));
   } catch (error) {
     target.innerHTML = `<div class="alert error">${escapeHtml(translateError(error))}</div>`;
@@ -214,7 +262,7 @@ async function searchCatalog(event) {
 function productCard(product, index) {
   const availability = availabilityLabel(product);
   return `<article class="product-card">
-    <div class="product-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="">` : '<span>IPS</span>'}</div>
+    <div class="product-image">${productImageMarkup(product)}</div>
     <div class="product-info"><small>${escapeHtml(product.product_code)} · ${escapeHtml(product.brand || '')}</small><h2>${escapeHtml(product.description || '')}</h2><p>${escapeHtml(product.application || '')}</p><div class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</div></div>
     <div class="product-buy"><strong>${money(product.final_price)}</strong><small>Preço final · ${escapeHtml(product.route)}</small><button class="button primary" type="button" data-add="${index}" ${availability.disabled ? 'disabled' : ''}>Adicionar</button></div>
   </article>`;

@@ -210,12 +210,46 @@ function renderProductCatalog(products, params) {
   `;
 }
 
+function getYokomitsuProductImage(code) {
+  const normalized = String(code || '').trim();
+  if (!/^\d{6,20}$/.test(normalized)) return '';
+  return `https://www.yokomitsu.com.br/uploads/products/${normalized}/site/${normalized}.webp`;
+}
+
+function renderProductPhoto(product, emptyLabel, lazy = false) {
+  const stored = String(product.url_imagem || '').trim();
+  const official = getYokomitsuProductImage(product.codigo);
+  const source = stored || official;
+  if (!source) return `<span>${escapeHtml(emptyLabel)}</span>`;
+  const fallback = stored && official && stored !== official ? official : '';
+  return `<img src="${escapeHtml(source)}" data-yokomitsu-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.descricao || product.codigo)}"${lazy ? ' loading="lazy"' : ''} referrerpolicy="no-referrer"><span data-image-placeholder hidden>${escapeHtml(emptyLabel)}</span>`;
+}
+
+function bindYokomitsuProductImages(target) {
+  if (!target) return;
+  target.querySelectorAll('[data-yokomitsu-image]').forEach((image) => {
+    const handleError = () => {
+      const fallback = image.dataset.fallbackSrc || '';
+      if (fallback) {
+        image.dataset.fallbackSrc = '';
+        image.src = fallback;
+        return;
+      }
+      image.hidden = true;
+      const placeholder = image.parentElement?.querySelector('[data-image-placeholder]');
+      if (placeholder) placeholder.hidden = false;
+    };
+    image.addEventListener('error', handleError);
+    if (image.complete && image.naturalWidth === 0) handleError();
+  });
+}
+
 function renderProductCard(product, index) {
   const favorite = productState.favorites.has(product.codigo);
   return `
     <article class="product-card" data-open-product="${index}">
       <button class="product-favorite ${favorite ? 'is-active' : ''}" type="button" data-favorite-product="${index}" aria-label="Favorito">${favorite ? '*' : '+'}</button>
-      <div class="product-image">${product.url_imagem ? `<img src="${escapeHtml(product.url_imagem)}" alt="${escapeHtml(product.descricao || product.codigo)}" loading="lazy">` : '<span>Sem foto</span>'}</div>
+      <div class="product-image">${renderProductPhoto(product, 'Sem foto', true)}</div>
       <div class="product-card-body">
         <div class="product-code">${escapeHtml(product.codigo)}</div>
         <h3>${escapeHtml(product.descricao || 'Produto sem descricao')}</h3>
@@ -235,6 +269,7 @@ function renderProductCard(product, index) {
 }
 
 function bindProductCatalog(products, params) {
+  bindYokomitsuProductImages(document.getElementById('productResults'));
   document.querySelectorAll('[data-open-product]').forEach((card) => {
     card.addEventListener('click', () => openProductDetail(products[Number(card.dataset.openProduct)], params));
   });
@@ -263,13 +298,14 @@ async function openProductDetail(product, params = {}) {
     supabaseGetProductRoutePrices(product.codigo).catch((error) => [{ route: '-', status: error.message || 'FALHA_CALCULO' }])
   ]);
   document.getElementById('productDetail').innerHTML = renderProductDetail(product, params, history, routes);
+  bindYokomitsuProductImages(document.getElementById('productDetail'));
   await refreshProductSideData();
 }
 
 function renderProductDetail(product, params, history, routes = []) {
   return `
     <div class="product-detail">
-      <div class="product-detail-image">${product.url_imagem ? `<img src="${escapeHtml(product.url_imagem)}" alt="${escapeHtml(product.descricao || product.codigo)}">` : '<span>Sem foto cadastrada</span>'}</div>
+      <div class="product-detail-image">${renderProductPhoto(product, 'Sem foto cadastrada')}</div>
       <div class="product-detail-title">
         <span>${escapeHtml(product.codigo)}</span>
         <h2>${escapeHtml(product.descricao || 'Produto sem descricao')}</h2>

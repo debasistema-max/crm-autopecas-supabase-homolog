@@ -38,10 +38,12 @@ inicial nunca é gravada nos logs do CRM.
 
 - cliente PR usa rota PR→PR; cliente SC usa PR→SC; cliente SP usa SP→SP;
 - a busca separa as palavras digitadas e pesquisa código, OEM, descrição, marca,
-  veículo e aplicação; itens que contêm todos os termos aparecem primeiro e os
-  relacionados por parte da busca vêm depois;
+  veículo e aplicação; como no catálogo Yokomitsu, o produto precisa conter
+  todas as palavras informadas e pode ser restringido por linha;
 - somente produtos com preço final aprovado para a rota do cliente entram no
   resultado;
+- quando `url_imagem` não estiver preenchida, o portal tenta a imagem oficial do
+  catálogo Yokomitsu pelo código IPS e mantém “Sem foto” se ela não existir;
 - os preços vêm de resultados aprovados do Excel em `product_route_prices`;
 - estoque é o último snapshot válido persistido no Supabase;
 - ausência de snapshot não é interpretada como zero;

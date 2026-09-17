@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 
 const baseUrl = process.argv[2] || 'http://127.0.0.1:8765';
-const pages = ['ui-b2b-smoke.html', 'ui-b2b-admin-smoke.html'];
+const pages = ['ui-b2b-smoke.html', 'ui-b2b-admin-smoke.html', 'ui-operational-smoke.html?module=products'];
 const viewports = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },

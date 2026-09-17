@@ -231,7 +231,9 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   const catalogFix = read('supabase/migrations/072_fix_b2b_catalog_variable_ambiguity.sql');
   const usernameAccess = read('supabase/migrations/073_b2b_username_password_access.sql');
   const catalogSearch = read('supabase/migrations/074_improve_b2b_catalog_search.sql');
+  const catalogAlignment = read('supabase/migrations/075_align_b2b_search_with_catalog.sql');
   const portal = read('b2b/js/app.js');
+  const internalProducts = read('js/products.js');
   const admin = read('supabase/functions/b2b-admin/index.ts');
   assert.match(identity, /customer_portal_accounts/);
   assert.match(identity, /where a\.user_id = auth\.uid\(\)/);
@@ -257,8 +259,16 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(catalogSearch, /join public\.product_route_prices rp/);
   assert.match(catalogSearch, /application_terms\*25/);
   assert.doesNotMatch(catalogSearch, /limit least\(greatest\(limit_count,1\)\*5,250\)/);
+  assert.match(catalogAlignment, /score\.matched_terms=cardinality\(v_tokens\)/);
+  assert.match(catalogAlignment, /b2b_list_catalog_lines/);
+  assert.match(catalogAlignment, /line_filter text/);
   assert.match(portal, /get_b2b_session/);
   assert.match(portal, /b2b_search_catalog/);
+  assert.match(portal, /b2b_list_catalog_lines/);
+  assert.match(portal, /line_filter:/);
+  assert.match(portal, /www\.yokomitsu\.com\.br\/uploads\/products/);
+  assert.match(internalProducts, /getYokomitsuProductImage/);
+  assert.match(internalProducts, /data-yokomitsu-image/);
   assert.match(portal, /b2b_create_document/);
   assert.match(portal, /pendingSubmission/);
   assert.match(portal, /requestFingerprint/);
