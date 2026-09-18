@@ -117,6 +117,19 @@
   iniciado porque o Docker Desktop não está instalado. A compilação das quatro
   migrations e os testes externos de negação anônima foram concluídos.
 
+## Catálogo B2B — linhas e fotos — 2026-09-17
+
+- migration 076 aplicada exclusivamente na homologação;
+- regressão SQL 074 executada dentro de transação com `ROLLBACK`, validando
+  busca por todas as palavras, filtro de linha, preço aprovado e foto oficial;
+- carga pública processou 1.743 registros: 1.735 códigos correspondentes e 8
+  ignorados; nenhum preço, estoque ou cadastro operacional foi alterado;
+- snapshot final: 1.735 produtos com foto, 10 linhas e 1.701 produtos com ao
+  menos uma rota de preço aprovada;
+- a busca `caixa hilux` encontrou 5 produtos com preço aprovado;
+- contratos Node e testes Python incluem o snapshot, idempotência, fallback de
+  imagem, filtro de linha e abertura da foto ampliada.
+
 ## Lacunas
 
 Há um runner estático mínimo, mas ainda não há runner visual/integração,

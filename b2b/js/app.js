@@ -35,7 +35,8 @@ function productImageMarkup(product) {
   const source = stored || official;
   if (!source) return '<span>Sem foto</span>';
   const fallback = stored && official && stored !== official ? official : '';
-  return `<img src="${escapeHtml(source)}" data-product-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.description || product.product_code)}" loading="lazy" referrerpolicy="no-referrer"><span data-image-placeholder hidden>Sem foto</span>`;
+  const label = `Ampliar foto de ${product.description || product.product_code}`;
+  return `<button class="product-image-button" type="button" data-open-product-image aria-label="${escapeHtml(label)}"><img src="${escapeHtml(source)}" data-product-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.description || product.product_code)}" loading="lazy" referrerpolicy="no-referrer"><span data-image-placeholder hidden>Sem foto</span></button>`;
 }
 
 function bindProductImages(target) {
@@ -50,10 +51,23 @@ function bindProductImages(target) {
       img.hidden = true;
       const placeholder = img.parentElement?.querySelector('[data-image-placeholder]');
       if (placeholder) placeholder.hidden = false;
+      if (img.parentElement) img.parentElement.disabled = true;
     };
     img.addEventListener('error', handleError);
     if (img.complete && img.naturalWidth === 0) handleError();
+    img.closest('[data-open-product-image]')?.addEventListener('click', () => openProductImage(img));
   });
+}
+
+function openProductImage(img) {
+  if (!img || img.hidden || !img.src) return;
+  const dialog = document.getElementById('imageDialog');
+  const enlarged = document.getElementById('imageDialogImage');
+  const caption = document.getElementById('imageDialogCaption');
+  enlarged.src = img.currentSrc || img.src;
+  enlarged.alt = img.alt;
+  caption.textContent = img.alt;
+  dialog.showModal();
 }
 
 function normalizeLoginName(value) {
@@ -138,6 +152,8 @@ function bindPortal() {
   document.getElementById('cartButton').addEventListener('click', openCart);
   document.getElementById('cartDialog').addEventListener('click', closeDialogOnBackdrop);
   document.getElementById('documentDialog').addEventListener('click', closeDialogOnBackdrop);
+  document.getElementById('imageDialog').addEventListener('click', closeDialogOnBackdrop);
+  document.getElementById('imageDialogClose').addEventListener('click', () => document.getElementById('imageDialog').close());
 }
 
 async function rpc(name, args = {}) {
@@ -233,8 +249,14 @@ async function renderCatalogShell() {
   try {
     const lines = await rpc('b2b_list_catalog_lines');
     const select = document.getElementById('catalogLine');
-    (lines || []).forEach((line) => select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(line.value)}">${escapeHtml(line.label)}</option>`));
+    if (!(lines || []).length) {
+      select.innerHTML = '<option value="">Nenhuma linha sincronizada</option>';
+      select.disabled = true;
+    } else {
+      lines.forEach((line) => select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(line.value)}">${escapeHtml(line.label)}</option>`));
+    }
   } catch (error) {
+    document.getElementById('catalogLine').innerHTML = '<option value="">Linhas indisponíveis</option>';
     document.getElementById('catalogLine').disabled = true;
   }
 }

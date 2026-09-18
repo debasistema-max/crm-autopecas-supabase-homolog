@@ -17,6 +17,7 @@
     <button id="cartButton" class="cart-fab" hidden><span id="cartCount">0</span></button>
   </div>
   <dialog id="cartDialog"><div id="cartContent"></div></dialog><dialog id="documentDialog"><div id="documentContent"></div></dialog>
+  <dialog id="imageDialog"><div><button id="imageDialogClose"></button><img id="imageDialogImage"><p id="imageDialogCaption"></p></div></dialog>
   <script>
     const B2B_CONFIG={supabaseUrl:'https://example.invalid',anonKey:'public-test-key',locale:'pt-BR',currency:'BRL'};
     const smokeCalls=[];
@@ -36,6 +37,10 @@
       document.getElementById('catalogLine').value='ILUMINACAO';
       document.getElementById('catalogSearch').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       await new Promise(resolve=>setTimeout(resolve,50));
+      document.querySelector('[data-open-product-image]').click();
+      const photoOpened=document.getElementById('imageDialog').open
+        && document.getElementById('imageDialogImage').src.includes('/uploads/products/6111032201/site/6111032201.webp');
+      document.getElementById('imageDialog').close();
       document.querySelector('[data-add]').click();
       openCart();
       await submitDocument();
@@ -46,6 +51,7 @@
         && text.includes('Farol auxiliar')
         && text.includes('R$')
         && document.querySelector('[data-product-image]').src.includes('/uploads/products/6111032201/site/6111032201.webp')
+        && photoOpened
         && !text.includes('Cliente B')
         && smokeCalls.some(call=>call.name==='b2b_search_catalog'&&call.args.search_term==='farol hilux'&&call.args.line_filter==='ILUMINACAO')
         && smokeCalls.some(call=>call.name==='b2b_create_document'&&call.args.payload.items[0].codigo==='6111032201');

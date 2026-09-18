@@ -1,5 +1,21 @@
 # Changelog técnico
 
+## 2026-09-17 — linhas e fotos oficiais no catálogo B2B
+
+- criada camada auxiliar persistida para linha, aplicação e foto pública do
+  catálogo Yokomitsu, vinculada ao produto pelo código IPS;
+- o snapshot é idempotente, auditado por lote e restrito ao backend; preço e
+  estoque continuam vindo das estruturas comerciais existentes do Supabase;
+- o seletor B2B agora oferece 10 linhas reais e considera somente produtos com
+  preço aprovado para a rota do cliente;
+- a busca mantém a exigência de todas as palavras e passa a considerar também
+  nome, aplicação e linha oficiais; `caixa hilux` retorna cinco produtos
+  elegíveis na homologação;
+- as 1.735 fotos correspondentes podem ser abertas em uma janela ampliada no
+  celular ou computador;
+- migration, carga e testes executados somente na homologação; produção não foi
+  alterada.
+
 ## 2026-09-12 — Portal B2B isolado por cliente
 
 - criada uma área separada para o cliente consultar exclusivamente seu cadastro,

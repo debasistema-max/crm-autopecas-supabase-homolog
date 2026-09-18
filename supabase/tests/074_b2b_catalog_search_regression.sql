@@ -36,10 +36,10 @@ begin
 
   insert into public.products(codigo,descricao,marca,aplicacao,categoria)
   values
-    ('B2B074-A','CAIXA074 COMPLETA','IPS','HILUX074 2016 A 2024','DIRECAO'),
-    ('B2B074-B','FAROL DIANTEIRO','IPS','HILUX074 2016 A 2024','DIRECAO'),
-    ('B2B074-C','CAIXA074 FILTRO DE AR','IPS','COROLLA','FILTROS'),
-    ('B2B074-D','CAIXA074 SEM PRECO','IPS','HILUX074','DIRECAO')
+    ('B2B074-A','CAIXA074 COMPLETA','IPS','HILUX074 2016 A 2024',null),
+    ('B2B074-B','FAROL DIANTEIRO','IPS','HILUX074 2016 A 2024',null),
+    ('B2B074-C','CAIXA074 FILTRO DE AR','IPS','COROLLA',null),
+    ('B2B074-D','CAIXA074 SEM PRECO','IPS','HILUX074',null)
   on conflict(codigo) do update set
     descricao=excluded.descricao,marca=excluded.marca,aplicacao=excluded.aplicacao,categoria=excluded.categoria;
 
@@ -54,6 +54,18 @@ begin
     final_price=excluded.final_price,calculation_status='OK',origin_branch_id=excluded.origin_branch_id,
     destination_state=excluded.destination_state,source='EXCEL_API',source_version='search-074',
     source_updated_at=excluded.source_updated_at,source_batch_id=excluded.source_batch_id,updated_by=excluded.updated_by;
+
+  perform public.sync_yokomitsu_catalog_metadata(jsonb_build_array(
+    jsonb_build_object('product_code','B2B074-A','product_name','CAIXA074 COMPLETA',
+      'line_name','DIRECAO','line_slug','direcao','applications','HILUX074 2016 A 2024',
+      'official_image_url','https://www.yokomitsu.com.br/uploads/products/B2B074-A/site/B2B074-A.webp'),
+    jsonb_build_object('product_code','B2B074-B','product_name','FAROL DIANTEIRO',
+      'line_name','DIRECAO','line_slug','direcao','applications','HILUX074 2016 A 2024'),
+    jsonb_build_object('product_code','B2B074-C','product_name','CAIXA074 FILTRO DE AR',
+      'line_name','FILTROS','line_slug','filtros','applications','COROLLA'),
+    jsonb_build_object('product_code','B2B074-D','product_name','CAIXA074 SEM PRECO',
+      'line_name','DIRECAO','line_slug','direcao','applications','HILUX074')
+  ),'regression-074-metadata');
 
   select array_agg(result.product_code order by result.position) into v_codes
   from (
@@ -73,6 +85,11 @@ begin
   if not exists(select 1 from public.b2b_list_catalog_lines() l where l.value='DIRECAO') then
     raise exception 'LINHA_B2B_NAO_LISTADA';
   end if;
+  if not exists(
+    select 1 from public.b2b_search_catalog('caixa074 hilux074','DIRECAO',false,20) found
+    where found.product_code='B2B074-A'
+      and found.image_url='https://www.yokomitsu.com.br/uploads/products/B2B074-A/site/B2B074-A.webp'
+  ) then raise exception 'FOTO_OFICIAL_B2B_NAO_RETORNADA'; end if;
 end;
 $$;
 

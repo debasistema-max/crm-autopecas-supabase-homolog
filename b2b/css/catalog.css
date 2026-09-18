@@ -29,6 +29,59 @@ select:focus {
   padding-bottom: 12px;
 }
 
+.product-image-button {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.product-image-button:focus-visible {
+  outline: 3px solid rgba(11, 112, 99, .28);
+  outline-offset: -3px;
+}
+
+.product-image-button:disabled {
+  cursor: default;
+}
+
+.image-dialog {
+  width: min(880px, calc(100% - 24px));
+}
+
+.image-dialog > .image-dialog-content {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 22px;
+}
+
+.image-dialog-close {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  right: 14px;
+}
+
+.image-dialog img {
+  width: 100%;
+  height: min(70vh, 680px);
+  object-fit: contain;
+}
+
+.image-dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+
 @media (max-width: 900px) {
   .searchbar {
     grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
