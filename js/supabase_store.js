@@ -1941,13 +1941,46 @@ function formatProductImportLookupError(error, chunk = []) {
   ].filter(Boolean).join(' '));
 }
 
+function translateB2BAdminError(value) {
+  const code = String(value || '').trim();
+  const messages = {
+    USUARIO_INVALIDO: 'O usuário deve ter de 4 a 50 caracteres e usar somente letras minúsculas, números, ponto, hífen ou sublinhado.',
+    SENHA_INICIAL_FRACA: 'A senha precisa ter de 10 a 72 caracteres, com pelo menos uma letra e um número.',
+    USUARIO_JA_VINCULADO_A_OUTRO_CLIENTE: 'Esse usuário já está vinculado a outro cliente. Escolha outro nome de usuário.',
+    USUARIO_JA_EXISTE: 'Esse nome de usuário já está em uso. Escolha outro.',
+    USUARIO_PERTENCE_A_EQUIPE_INTERNA: 'Esse usuário pertence à equipe interna e não pode ser usado no B2B.',
+    CLIENTE_INATIVO: 'Ative o cliente antes de criar o acesso B2B.',
+    CLIENTE_NAO_ENCONTRADO: 'O cliente não foi encontrado. Atualize a página e tente novamente.',
+    RESPONSAVEL_INTERNO_INVALIDO: 'O responsável interno pelo acesso não está ativo.',
+    APENAS_ADMIN: 'Apenas administradores podem gerenciar o Portal B2B.',
+    SESSAO_INVALIDA: 'Sua sessão expirou. Entre novamente no CRM.'
+  };
+  if (messages[code]) return messages[code];
+  if (/already (?:been )?registered|already exists/i.test(code)) return messages.USUARIO_JA_EXISTE;
+  return code || 'Não foi possível gerenciar o acesso B2B.';
+}
+
+async function readB2BFunctionError(error, data) {
+  if (data?.error) return data.error;
+  const response = error?.context;
+  if (response && typeof response.json === 'function') {
+    try {
+      const payload = await (typeof response.clone === 'function' ? response.clone() : response).json();
+      if (payload?.error) return payload.error;
+    } catch (_) {
+      // A resposta pode já ter sido consumida pela biblioteca; nesse caso usa a mensagem padrão abaixo.
+    }
+  }
+  return error?.message || '';
+}
+
 async function supabaseManageB2BAccess(action, payload = {}) {
   if (getStoredSession()?.perfil !== 'ADMIN') throw new Error('Apenas administradores podem gerenciar o Portal B2B.');
   const { data, error } = await supabaseClient.functions.invoke('b2b-admin', {
     body: Object.assign({}, payload, { action })
   });
-  if (error) throw new Error(data?.error || error.message || 'Não foi possível gerenciar o acesso B2B.');
-  if (data?.error) throw new Error(data.error);
+  if (error) throw new Error(translateB2BAdminError(await readB2BFunctionError(error, data)));
+  if (data?.error) throw new Error(translateB2BAdminError(data.error));
   return data || {};
 }
 

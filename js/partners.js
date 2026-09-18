@@ -189,6 +189,15 @@ function normalizeB2BUsername(value) {
     .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '').slice(0, 50);
 }
 
+function isValidB2BUsername(value) {
+  return /^[a-z0-9][a-z0-9._-]{2,48}[a-z0-9]$/.test(String(value || ''));
+}
+
+function isValidB2BInitialPassword(value) {
+  const password = String(value || '');
+  return password.length >= 10 && password.length <= 72 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+}
+
 function defaultB2BUsername(client) {
   return normalizeB2BUsername(client.cnpj || client.codigo_sap_cliente || client.nome_fantasia || client.nome || '');
 }
@@ -210,8 +219,8 @@ function renderClientB2BAccess(client, accounts, changeRequests = []) {
       <div><p class="eyebrow">Recomendado</p><h3>Acesso sem e-mail</h3><p>Crie usuário e senha inicial. O cliente será obrigado a trocar a senha ao entrar.</p></div>
       <form id="clientB2BCredentialsForm" class="b2b-access-form">
         <label>Nome do contato<input id="clientB2BCredentialContact" autocomplete="name"></label>
-        <label>Usuário de acesso<input id="clientB2BUsername" autocomplete="off" autocapitalize="none" spellcheck="false" value="${escapeHtml(defaultB2BUsername(client))}" required></label>
-        <label>Senha inicial<input id="clientB2BInitialPassword" type="text" autocomplete="off" minlength="10" required></label>
+        <label>Usuário de acesso<input id="clientB2BUsername" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="4" maxlength="50" pattern="[a-z0-9][a-z0-9._-]{2,48}[a-z0-9]" value="${escapeHtml(defaultB2BUsername(client))}" required><small>Pode ser CNPJ ou um nome exclusivo, como compras.cliente.</small></label>
+        <label>Senha inicial<input id="clientB2BInitialPassword" type="text" autocomplete="off" minlength="10" maxlength="72" required><small>Mínimo de 10 caracteres, com pelo menos uma letra e um número.</small></label>
         <button class="btn btn-secondary" id="clientB2BGeneratePassword" type="button">Gerar senha</button>
         <button class="btn btn-primary" type="submit">Criar ou redefinir acesso</button>
         <p id="clientB2BCredentialMessage" class="form-message"></p>
@@ -256,9 +265,25 @@ function bindClientB2BAccess(client) {
   document.getElementById('clientB2BCredentialsForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const message = document.getElementById('clientB2BCredentialMessage');
-    const username = normalizeB2BUsername(document.getElementById('clientB2BUsername').value);
+    const usernameInput = document.getElementById('clientB2BUsername');
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    const username = normalizeB2BUsername(usernameInput.value);
+    usernameInput.value = username;
+    if (!isValidB2BUsername(username)) {
+      message.style.color = 'var(--accent)';
+      message.textContent = 'Use de 4 a 50 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.';
+      usernameInput.focus();
+      return;
+    }
+    if (!isValidB2BInitialPassword(initialPassword.value)) {
+      message.style.color = 'var(--accent)';
+      message.textContent = 'A senha precisa ter de 10 a 72 caracteres, com pelo menos uma letra e um número.';
+      initialPassword.focus();
+      return;
+    }
     message.style.color = 'var(--muted)';
     message.textContent = 'Criando credencial segura...';
+    submitButton.disabled = true;
     try {
       await supabaseManageB2BAccess('create_credentials', {
         client_id: client.id,
@@ -271,6 +296,8 @@ function bindClientB2BAccess(client) {
     } catch (error) {
       message.style.color = 'var(--accent)';
       message.textContent = error.message;
+    } finally {
+      submitButton.disabled = false;
     }
   });
   document.getElementById('clientB2BInviteForm')?.addEventListener('submit', async (event) => {

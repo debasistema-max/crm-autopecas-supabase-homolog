@@ -1,5 +1,15 @@
 # Changelog técnico
 
+## 2026-09-18 — preço B2B discreto e criação de usuário mais clara
+
+- o portal B2B mostra somente o preço final do cliente, sem revelar o percentual
+  de desconto comercial;
+- o percentual também deixou de ser enviado no contexto de sessão do portal;
+- o acesso B2B aceita CNPJ ou nome de usuário exclusivo e valida o formato antes
+  do envio;
+- erros da Edge Function agora são traduzidos para mensagens úteis, incluindo a
+  exigência de letra e número na senha inicial.
+
 ## 2026-09-17 — desconto comercial padrão por cliente
 
 - adicionado percentual de desconto ao cadastro de cliente em Parceiros, com

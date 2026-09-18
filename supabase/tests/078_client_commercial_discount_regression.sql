@@ -44,8 +44,8 @@ begin
   where r.product_code='B2B078-A';
   if v_price is distinct from 92.5 then raise exception 'PRECO_B2B_NAO_APLICOU_DESCONTO: %',v_price; end if;
   v_session:=public.get_b2b_session();
-  if (v_session#>>'{client,commercial_discount_percent}')::numeric is distinct from 7.5 then
-    raise exception 'SESSAO_B2B_NAO_EXPOS_DESCONTO: %',v_session;
+  if (v_session#>'{client}') ? 'commercial_discount_percent' then
+    raise exception 'SESSAO_B2B_EXPOS_CONDICAO_COMERCIAL_INTERNA: %',v_session;
   end if;
 
   begin

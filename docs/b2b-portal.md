@@ -44,7 +44,8 @@ inicial nunca é gravada nos logs do CRM.
   resultado;
 - o desconto comercial padrão é cadastrado em **Parceiros → Clientes** por um
   ADMIN e aplicado depois do preço final aprovado da rota; o navegador recebe
-  o preço líquido, e o banco recalcula o percentual ao gravar o documento;
+  somente o preço líquido, sem o percentual, e o banco recalcula a condição
+  comercial ao gravar o documento;
 - linha, aplicação complementar e foto pública são mantidas em um snapshot
   persistido de `product_catalog_metadata`, relacionado pelo código IPS. A
   sincronização não altera cadastro, preço ou estoque do produto;
