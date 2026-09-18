@@ -917,7 +917,7 @@ function sanitizeDocumentItemsUpdate(payload = {}) {
 async function supabaseListBusinessClients(filters = {}) {
   let query = supabaseClient
     .from('clients')
-    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, observacoes, created_at, updated_at')
+    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, commercial_discount_percent, observacoes, created_at, updated_at')
     .order('nome', { ascending: true })
     .limit(300);
   if (filters.ativos === true) query = query.eq('ativo', true);
@@ -942,6 +942,7 @@ async function supabaseSaveBusinessClient(payload = {}) {
     cidade: String(payload.cidade || '').trim() || null,
     estado: String(payload.estado || '').trim().toUpperCase() || null,
     ativo: payload.ativo !== false,
+    commercial_discount_percent: Math.max(0, Number(payload.commercial_discount_percent || 0)),
     observacoes: String(payload.observacoes || '').trim() || null
   };
   if (!client.nome) throw new Error('Informe a razao social/nome do cliente.');
@@ -950,7 +951,7 @@ async function supabaseSaveBusinessClient(payload = {}) {
   const { data, error } = await supabaseClient
     .from('clients')
     .upsert(record, { onConflict: 'id' })
-    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, observacoes')
+    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, commercial_discount_percent, observacoes')
     .single();
   if (error) throw error;
   await supabaseLog('SALVAR_CLIENTE', 'clients', data.id, client);
@@ -975,6 +976,7 @@ async function supabaseSaveBusinessClientFromCadastro(cadastro = {}) {
     cidade: cadastro.cidade || '',
     estado: cadastro.estado || '',
     ativo: true,
+    commercial_discount_percent: Number((existing && existing.commercial_discount_percent) || 0),
     observacoes: [
       cadastro.protocolo ? `Origem portal: ${cadastro.protocolo}` : '',
       cadastro.observacoes || ''
@@ -985,7 +987,7 @@ async function supabaseSaveBusinessClientFromCadastro(cadastro = {}) {
 async function supabaseFindBusinessClient(field, value) {
   const { data, error } = await supabaseClient
     .from('clients')
-    .select('id')
+    .select('id, commercial_discount_percent')
     .eq(field, value)
     .limit(1)
     .maybeSingle();
@@ -1060,6 +1062,7 @@ async function supabaseSearchOrderClients(term = '') {
     endereco: client.endereco,
     cidade: client.cidade,
     estado: client.estado,
+    commercial_discount_percent: Number(client.commercial_discount_percent || 0),
     status: client.ativo ? 'Ativo' : 'Inativo'
   }));
   const portalRows = cadastros.map((row) => Object.assign({ origem: 'portal' }, row));
@@ -1963,6 +1966,13 @@ async function supabaseGetProductRoutePrices(productCode) {
   const { data, error } = await supabaseClient.rpc('get_product_route_prices', { product_code: productCode });
   if (error) throw error;
   return data || [];
+}
+
+async function supabaseGetCommercialDiscountLimit() {
+  const { data, error } = await supabaseClient.rpc('max_discount_percent');
+  if (error) return 10;
+  const value = Number(data);
+  return Number.isFinite(value) && value >= 0 ? value : 10;
 }
 
 async function supabaseCreateSapImportBatch(payload) {

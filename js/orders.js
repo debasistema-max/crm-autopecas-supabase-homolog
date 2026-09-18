@@ -3,12 +3,14 @@ let orderClientSearchTimer = null;
 let orderSelectedProduct = null;
 let orderImportPreviewItems = [];
 let orderCreateSaved = false;
+let orderClientDiscountPercent = 0;
 
 async function renderOrders(container) {
   if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   orderItems = [];
   orderSelectedProduct = null;
   orderCreateSaved = false;
+  orderClientDiscountPercent = 0;
   const companySettings = await loadCompanySettings();
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
@@ -340,7 +342,7 @@ function addProductToOrder(product, forcedQuantity = null) {
       preco_sem_imposto: Number(product.preco_sem_imposto || 0),
       preco: Number(product.preco || 0),
       quantidade: quantity,
-      desconto_percentual: 0,
+      desconto_percentual: orderClientDiscountPercent,
       branch_stock: product.branch_stock || null,
       fiscal_status: 'CALCULANDO'
     };
@@ -827,10 +829,13 @@ function applyCadastroToOrder(row) {
   document.getElementById('orderCadastroResults').hidden = true;
   document.getElementById('orderTerm').value = row.prazo_desejado || '';
   document.getElementById('orderCarrier').value = row.transportadora || '';
+  orderClientDiscountPercent = Math.max(0, Number(row.commercial_discount_percent || 0));
+  orderItems.forEach((item) => { item.desconto_percentual = orderClientDiscountPercent; });
   const billingChanged = applyBillingRegionToOrder(row.estado);
+  renderCart();
   const message = document.getElementById('orderMessage');
   message.style.color = 'var(--success)';
-  message.textContent = 'Cadastro ' + (row.protocolo || '') + ' carregado no pedido. Faturamento: ' + getBillingBranchLabel(document.getElementById('orderRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+  message.textContent = 'Cadastro ' + (row.protocolo || '') + ' carregado no pedido. Desconto padrao: ' + orderClientDiscountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%. Faturamento: ' + getBillingBranchLabel(document.getElementById('orderRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
 }
 
 function applyBillingRegionToOrder(uf) {

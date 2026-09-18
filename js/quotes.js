@@ -3,12 +3,14 @@ let quoteClientSearchTimer = null;
 let quoteSelectedProduct = null;
 let quoteImportPreviewItems = [];
 let quoteCreateSaved = false;
+let quoteClientDiscountPercent = 0;
 
 async function renderCreateQuotation(container) {
   if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   quoteItems = [];
   quoteSelectedProduct = null;
   quoteCreateSaved = false;
+  quoteClientDiscountPercent = 0;
   const companySettings = await loadCompanySettings();
   const branchLabel = formatCompanyBranchLabel(companySettings);
   container.innerHTML = `
@@ -317,7 +319,7 @@ function addProductToQuote(product, forcedQuantity = null) {
       preco_sem_imposto: Number(product.preco_sem_imposto || 0),
       preco: Number(product.preco || 0),
       quantidade: quantity,
-      desconto_percentual: 0,
+      desconto_percentual: quoteClientDiscountPercent,
       fiscal_status: 'CALCULANDO'
     };
     quoteItems.push(item);
@@ -658,10 +660,13 @@ function applyClientToQuote(row) {
   document.getElementById('quoteAddress').value = formatCadastroAddress(row);
   document.getElementById('quoteClientResults').hidden = true;
   document.getElementById('quoteTerm').value = row.prazo_desejado || '';
+  quoteClientDiscountPercent = Math.max(0, Number(row.commercial_discount_percent || 0));
+  quoteItems.forEach((item) => { item.desconto_percentual = quoteClientDiscountPercent; });
   const billingChanged = applyBillingRegionToQuote(row.estado);
+  renderQuoteCart();
   const message = document.getElementById('quoteMessage');
   message.style.color = 'var(--success)';
-  message.textContent = 'Cliente carregado na cotacao. Faturamento: ' + getBillingBranchLabel(document.getElementById('quoteRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+  message.textContent = 'Cliente carregado na cotacao. Desconto padrao: ' + quoteClientDiscountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%. Faturamento: ' + getBillingBranchLabel(document.getElementById('quoteRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
 }
 
 function applyBillingRegionToQuote(uf) {

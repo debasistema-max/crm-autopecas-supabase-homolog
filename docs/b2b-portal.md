@@ -42,6 +42,9 @@ inicial nunca é gravada nos logs do CRM.
   todas as palavras informadas e pode ser restringido por linha;
 - somente produtos com preço final aprovado para a rota do cliente entram no
   resultado;
+- o desconto comercial padrão é cadastrado em **Parceiros → Clientes** por um
+  ADMIN e aplicado depois do preço final aprovado da rota; o navegador recebe
+  o preço líquido, e o banco recalcula o percentual ao gravar o documento;
 - linha, aplicação complementar e foto pública são mantidas em um snapshot
   persistido de `product_catalog_metadata`, relacionado pelo código IPS. A
   sincronização não altera cadastro, preço ou estoque do produto;
@@ -91,6 +94,9 @@ código.
 - **Acesso não autorizado:** conferir se o vínculo está ativo e se o cliente
   permanece ativo.
 - **Preço indisponível:** conferir sincronização e aprovação da rota no Excel.
+- **Desconto não aparece:** editar o cliente canônico em Parceiros, conferir se
+  o percentual está dentro do limite comercial geral e entrar novamente no
+  B2B. Contas já abertas recebem o valor atualizado na próxima consulta.
 - **Lista de linhas vazia:** consultar o último lote em
   `catalog_metadata_sync_batches` e executar
   `scripts/build_yokomitsu_catalog_sync.py`; a lista mostra somente linhas de

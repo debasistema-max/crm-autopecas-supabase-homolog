@@ -234,6 +234,7 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   const catalogAlignment = read('supabase/migrations/075_align_b2b_search_with_catalog.sql');
   const catalogMetadata = read('supabase/migrations/076_yokomitsu_catalog_metadata.sql');
   const catalogMetadataServerAccess = read('supabase/migrations/077_allow_server_catalog_metadata_sync.sql');
+  const clientDiscount = read('supabase/migrations/078_client_commercial_discount.sql');
   const portal = read('b2b/js/app.js');
   const internalProducts = read('js/products.js');
   const admin = read('supabase/functions/b2b-admin/index.ts');
@@ -271,6 +272,12 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(catalogMetadata, /revoke all on function public\.sync_yokomitsu_catalog_metadata/);
   assert.match(catalogMetadataServerAccess, /grant execute[\s\S]+to service_role/);
   assert.doesNotMatch(catalogMetadataServerAccess, /to authenticated/);
+  assert.match(clientDiscount, /commercial_discount_percent numeric\(5,2\)/);
+  assert.match(clientDiscount, /public\.max_discount_percent\(\)/);
+  assert.match(clientDiscount, /APENAS_ADMIN_ALTERA_DESCONTO_CLIENTE/);
+  assert.match(clientDiscount, /round\(rp\.final_price\*\(1-v_discount\/100\),4\)/);
+  assert.match(clientDiscount, /price_row\.final_price,discount_percent,discounted_unit/);
+  assert.match(clientDiscount, /desconto_total=round\(subtotal_value-total_value,2\)/);
   assert.match(portal, /get_b2b_session/);
   assert.match(portal, /b2b_search_catalog/);
   assert.match(portal, /b2b_list_catalog_lines/);
@@ -278,6 +285,9 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(portal, /www\.yokomitsu\.com\.br\/uploads\/products/);
   assert.match(portal, /data-open-product-image/);
   assert.match(portal, /dialog\.showModal/);
+  assert.match(portal, /commercial_discount_percent/);
+  assert.match(read('js/partners.js'), /partnerClientDiscount/);
+  assert.match(read('js/supabase_store.js'), /commercial_discount_percent/);
   assert.match(internalProducts, /getYokomitsuProductImage/);
   assert.match(internalProducts, /data-yokomitsu-image/);
   assert.match(portal, /b2b_create_document/);

@@ -58,6 +58,8 @@
       const stockMode = commercialSmokeParams.get('stock') || 'known';
       await renderCreateQuotation(document.getElementById('quoteSmoke'));
       await renderOrders(document.getElementById('orderSmoke'));
+      applyClientToQuote({ razao_social: 'Cliente A', estado: 'PR', commercial_discount_percent: 5 });
+      applyCadastroToOrder({ razao_social: 'Cliente A', estado: 'SP', commercial_discount_percent: 5 });
       document.getElementById('quoteBillingState').value = 'PR';
       document.getElementById('orderRegion').value = 'SP';
       document.getElementById('orderBillingState').value = 'SP';
@@ -94,6 +96,8 @@
         && Math.abs(orderPrice - quotePrice) < 0.000001
         && quoteItems[0].fiscal_status === 'OK'
         && orderItems[0].fiscal_status === 'OK'
+        && quoteItems[0].desconto_percentual === 5
+        && orderItems[0].desconto_percentual === 5
         && Boolean(document.querySelector('.commercial-transfer-warning'))
         && expectedNotice
         && expectedStockDisplay;

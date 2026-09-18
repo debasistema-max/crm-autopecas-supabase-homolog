@@ -1,5 +1,18 @@
 # Changelog técnico
 
+## 2026-09-17 — desconto comercial padrão por cliente
+
+- adicionado percentual de desconto ao cadastro de cliente em Parceiros, com
+  edição exclusiva de ADMIN e limite comercial geral atualmente em 10%;
+- B2B exibe diretamente o preço líquido e identifica o percentual aplicado;
+- cotação e pedido B2B recalculam o desconto no backend, sem aceitar percentual
+  enviado pelo navegador, e preservam preço de tabela, desconto e preço líquido
+  no snapshot do item;
+- cotações e pedidos internos recebem o desconto padrão ao selecionar o cliente,
+  sem remover a edição individual já existente;
+- alteração e regressões aplicadas somente na homologação; produção permanece
+  intocada.
+
 ## 2026-09-17 — linhas e fotos oficiais no catálogo B2B
 
 - criada camada auxiliar persistida para linha, aplicação e foto pública do

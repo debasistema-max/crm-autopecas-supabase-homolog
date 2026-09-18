@@ -130,6 +130,18 @@
 - contratos Node e testes Python incluem o snapshot, idempotência, fallback de
   imagem, filtro de linha e abertura da foto ampliada.
 
+## Desconto comercial por cliente — 2026-09-17
+
+- migration 078 aplicada exclusivamente na homologação;
+- desconto padrão criado no cadastro canônico do cliente, com alteração
+  restrita a ADMIN e limite herdado de `max_discount_percent()` (10% no teste);
+- regressão SQL transacional confirmou preço de R$ 100,00 convertido em R$ 92,50
+  para cliente com 7,5%, além do bloqueio de valor acima do limite;
+- criação B2B recalcula no banco e grava preço de tabela, percentual, preço
+  líquido, desconto total e total do documento;
+- criação interna de cotação/pedido recebe o percentual padrão ao selecionar o
+  cliente, mantendo a edição por item já existente e o mesmo limite global.
+
 ## Lacunas
 
 Há um runner estático mínimo, mas ainda não há runner visual/integração,

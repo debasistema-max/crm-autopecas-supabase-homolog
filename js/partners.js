@@ -3,7 +3,8 @@ let partnersState = {
   clients: [],
   carriers: [],
   currentClientProfile: null,
-  currentB2BClient: null
+  currentB2BClient: null,
+  maxDiscountPercent: 10
 };
 
 async function renderBusinessPartners(container) {
@@ -51,10 +52,14 @@ async function renderPartnerTab() {
 
 async function renderClientsTab(target) {
   try {
-    const rows = await supabaseListBusinessClients({
-      termo: document.getElementById('partnerClientSearch') ? document.getElementById('partnerClientSearch').value : ''
-    });
+    const [rows, maxDiscountPercent] = await Promise.all([
+      supabaseListBusinessClients({
+        termo: document.getElementById('partnerClientSearch') ? document.getElementById('partnerClientSearch').value : ''
+      }),
+      supabaseGetCommercialDiscountLimit()
+    ]);
     partnersState.clients = rows;
+    partnersState.maxDiscountPercent = maxDiscountPercent;
     target.innerHTML = `
       <section class="partner-editor" aria-labelledby="partnerClientEditorTitle">
         <div class="section-heading"><div><h3 id="partnerClientEditorTitle">Cadastro de cliente</h3><p>Consulte o CNPJ gratuitamente ou preencha os dados manualmente.</p></div></div>
@@ -84,6 +89,7 @@ async function renderClientsTab(target) {
 }
 
 function renderClientForm() {
+  const canEditDiscount = getStoredSession()?.perfil === 'ADMIN';
   return `
     <form id="partnerClientForm" class="field-grid">
       <input id="partnerClientId" type="hidden">
@@ -101,6 +107,10 @@ function renderClientForm() {
       <label class="span-2">Ativo
         <select id="partnerClientActive"><option value="true">Sim</option><option value="false">Nao</option></select>
       </label>
+      <label class="span-3">Desconto comercial (%)
+        <input id="partnerClientDiscount" type="number" min="0" max="${escapeHtml(partnersState.maxDiscountPercent)}" step="0.01" value="0" ${canEditDiscount ? '' : 'disabled'}>
+        <small>${canEditDiscount ? `Aplicado no B2B. Limite geral: ${escapeHtml(partnersState.maxDiscountPercent)}%.` : 'Somente ADMIN pode alterar.'}</small>
+      </label>
       <label class="span-12">Observacoes<textarea id="partnerClientNotes"></textarea></label>
       <div class="span-12 actions-row">
         <button class="btn btn-primary" type="submit">Salvar cliente</button>
@@ -116,7 +126,7 @@ function renderClientsTable(rows) {
   return `
     <div class="table-wrap compact-table">
       <table>
-        <thead><tr><th>Cliente</th><th>CNPJ</th><th>Codigo SAP</th><th>Cidade/UF</th><th>Contato</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Cliente</th><th>CNPJ</th><th>Codigo SAP</th><th>Cidade/UF</th><th>Desc. B2B</th><th>Contato</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${rows.map((row, index) => `
             <tr>
@@ -124,6 +134,7 @@ function renderClientsTable(rows) {
               <td>${escapeHtml(formatCnpj(row.cnpj || ''))}</td>
               <td>${escapeHtml(row.codigo_sap_cliente || '')}</td>
               <td>${escapeHtml([row.cidade, row.estado].filter(Boolean).join('/'))}</td>
+              <td>${escapeHtml(Number(row.commercial_discount_percent || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }))}%</td>
               <td>${escapeHtml(row.telefone || '')}<small>${escapeHtml(row.email || '')}</small></td>
               <td><span class="status-pill ${row.ativo ? 'ok' : 'warn'}">${row.ativo ? 'Ativo' : 'Inativo'}</span></td>
               <td>
@@ -329,6 +340,7 @@ function fillPartnerClientForm(row) {
   document.getElementById('partnerClientCity').value = row.cidade || '';
   document.getElementById('partnerClientAddress').value = row.endereco || '';
   document.getElementById('partnerClientActive').value = row.ativo === false ? 'false' : 'true';
+  document.getElementById('partnerClientDiscount').value = Number(row.commercial_discount_percent || 0);
   document.getElementById('partnerClientNotes').value = row.observacoes || '';
   document.getElementById('partnerClientName').focus();
 }
@@ -337,6 +349,7 @@ function clearPartnerClientForm() {
   document.getElementById('partnerClientForm').reset();
   document.getElementById('partnerClientId').value = '';
   document.getElementById('partnerClientActive').value = 'true';
+  document.getElementById('partnerClientDiscount').value = '0';
   document.getElementById('partnerClientMessage').textContent = '';
 }
 
@@ -358,6 +371,7 @@ async function savePartnerClient(event) {
       cidade: document.getElementById('partnerClientCity').value,
       endereco: document.getElementById('partnerClientAddress').value,
       ativo: document.getElementById('partnerClientActive').value === 'true',
+      commercial_discount_percent: Number(document.getElementById('partnerClientDiscount').value || 0),
       observacoes: document.getElementById('partnerClientNotes').value
     });
     message.style.color = 'var(--success)';

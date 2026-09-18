@@ -37,8 +37,10 @@
     async function supabaseGetTopSellingProducts() { return sampleProducts.map((item, index) => Object.assign({ quantidade_vendida: 24 - index * 5 }, item)); }
     async function supabaseSearchProducts() { return sampleProducts; }
     async function supabaseListBusinessClients() {
-      return [{ id: '1', nome: 'INTERNATIONAL PARTS SERVICE DO BRASIL LTDA', nome_fantasia: 'IPS BRASIL', cnpj: '13180109000108', codigo_sap_cliente: '1', cidade: 'CURITIBA', estado: 'PR', telefone: '4130864388', email: 'comercial@ips.test', ativo: true }];
+      return [{ id: '1', nome: 'INTERNATIONAL PARTS SERVICE DO BRASIL LTDA', nome_fantasia: 'IPS BRASIL', cnpj: '13180109000108', codigo_sap_cliente: '1', cidade: 'CURITIBA', estado: 'PR', telefone: '4130864388', email: 'comercial@ips.test', ativo: true, commercial_discount_percent: 5 }];
     }
+    async function supabaseGetCommercialDiscountLimit() { return 10; }
+    function getStoredSession() { return { perfil: 'ADMIN', nome: 'Administrador Homologacao' }; }
     async function supabaseListBusinessCarriers() { return []; }
     async function supabaseSaveBusinessClient() { return {}; }
     async function supabaseSaveBusinessCarrier() { return {}; }
@@ -65,7 +67,17 @@
         document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
         document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
       })();
-    } else if (moduleName === 'partners') renderBusinessPartners(target);
+    } else if (moduleName === 'partners') {
+      (async () => {
+        await renderBusinessPartners(target);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const passed = Number(document.getElementById('partnerClientDiscount')?.max) === 10
+          && target.innerText.includes('Desconto comercial (%)')
+          && target.innerText.includes('5%');
+        document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+        document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+      })();
+    }
     else renderDashboard(target);
     CrmUi.observeResponsiveTables(target);
   </script>

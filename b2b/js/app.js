@@ -283,10 +283,14 @@ async function searchCatalog(event) {
 
 function productCard(product, index) {
   const availability = availabilityLabel(product);
+  const discount = Number(state.context?.client?.commercial_discount_percent || 0);
+  const priceLabel = discount > 0
+    ? `Preço com ${number(discount)}% de desconto · ${product.route}`
+    : `Preço final · ${product.route}`;
   return `<article class="product-card">
     <div class="product-image">${productImageMarkup(product)}</div>
     <div class="product-info"><small>${escapeHtml(product.product_code)} · ${escapeHtml(product.brand || '')}</small><h2>${escapeHtml(product.description || '')}</h2><p>${escapeHtml(product.application || '')}</p><div class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</div></div>
-    <div class="product-buy"><strong>${money(product.final_price)}</strong><small>Preço final · ${escapeHtml(product.route)}</small><button class="button primary" type="button" data-add="${index}" ${availability.disabled ? 'disabled' : ''}>Adicionar</button></div>
+    <div class="product-buy"><strong>${money(product.final_price)}</strong><small>${escapeHtml(priceLabel)}</small><button class="button primary" type="button" data-add="${index}" ${availability.disabled ? 'disabled' : ''}>Adicionar</button></div>
   </article>`;
 }
 
@@ -318,10 +322,12 @@ function openCart() {
 function renderCart() {
   const target = document.getElementById('cartContent');
   const total = state.cart.reduce((sum, item) => sum + item.final_price * item.quantity, 0);
+  const discount = Number(state.context?.client?.commercial_discount_percent || 0);
   target.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">Sua seleção</p><h2>Finalizar documento</h2></div><button class="icon-button" data-close type="button" aria-label="Fechar">×</button></div>
     <div class="type-toggle"><button class="${state.documentType === 'cotacao' ? 'active' : ''}" data-type="cotacao" type="button">Cotação</button><button class="${state.documentType === 'pedido' ? 'active' : ''}" data-type="pedido" type="button">Pedido</button></div>
     <div class="cart-list">${state.cart.map((item, index) => `<article><div><strong>${escapeHtml(item.product_code)}</strong><span>${escapeHtml(item.description)}</span></div><label>Qtd.<input type="number" min="1" step="1" value="${item.quantity}" data-qty="${index}"></label><strong>${money(item.final_price * item.quantity)}</strong><button class="icon-button" data-remove="${index}" type="button" aria-label="Remover">×</button></article>`).join('')}</div>
     <label>Observação<textarea id="cartNote" maxlength="1000" placeholder="Informações para o atendimento"></textarea></label>
+    ${discount > 0 ? `<p class="note">Desconto comercial de <strong>${escapeHtml(number(discount))}%</strong> já aplicado nos valores.</p>` : ''}
     <div class="cart-total"><span>Total</span><strong>${money(total)}</strong></div>
     <button id="submitDocument" class="button primary full" type="button">${state.documentType === 'pedido' ? 'Enviar pedido' : 'Gerar cotação'}</button><p id="cartMessage" class="message" aria-live="polite"></p>`;
   target.querySelector('[data-close]').addEventListener('click', () => document.getElementById('cartDialog').close());
