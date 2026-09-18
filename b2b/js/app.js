@@ -171,21 +171,22 @@ function bindAuth() {
     const password = document.getElementById('newPassword').value;
     const confirmation = document.getElementById('confirmPassword').value;
     const message = document.getElementById('passwordMessage');
-    if (password.length < 8) return setMessage(message, 'Use pelo menos 8 caracteres.', 'error');
+    if (password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return setMessage(message, 'Use 12 ou mais caracteres, com maiúscula, minúscula e número.', 'error');
+    }
     if (password !== confirmation) return setMessage(message, 'As senhas não conferem.', 'error');
-    const { error } = await b2b.auth.updateUser({ password });
-    if (error) return setMessage(message, translateError(error), 'error');
     if (state.context?.account?.must_change_password) {
-      try {
-        await rpc('complete_b2b_password_change');
-        state.context.account.must_change_password = false;
-      } catch (completionError) {
-        return setMessage(message, translateError(completionError), 'error');
-      }
+      const { error } = await b2b.functions.invoke('b2b-change-password', { body: { password } });
+      if (error) return setMessage(message, 'Não foi possível trocar a senha. Tente novamente.', 'error');
+      state.context.account.must_change_password = false;
+    } else {
+      const { error } = await b2b.auth.updateUser({ password });
+      if (error) return setMessage(message, translateError(error), 'error');
     }
     history.replaceState({}, '', location.pathname);
-    const { data } = await b2b.auth.getSession();
-    await openPortal(data.session);
+    await b2b.auth.signOut({ scope: 'local' });
+    showAuth();
+    setMessage(document.getElementById('loginMessage'), 'Senha atualizada. Entre novamente com a nova senha.', 'success');
   });
 }
 

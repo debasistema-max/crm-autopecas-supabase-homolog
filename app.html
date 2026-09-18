@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://brasilapi.com.br https://www.receitaws.com.br; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
   <meta name="theme-color" content="#f3f5f7">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -82,8 +84,8 @@
     <button type="button" data-mobile-module="quoteReports">Cotacoes</button>
   </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/vendor/xlsx.full.min.js?v=20260825-2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script>
+  <script src="js/vendor/xlsx.full.min.js?v=0.20.3"></script>
   <script src="js/config.js?v=20260701-5"></script>
   <script src="js/utils/format.js?v=20260719-1"></script>
   <script src="js/supabase.js?v=20260701-5"></script>
@@ -94,7 +96,7 @@
   <script src="js/components/ui.js?v=20260826-2"></script>
   <script src="js/dashboard.js?v=20260826-1"></script>
   <script src="js/products.js?v=20260917-1"></script>
-  <script src="js/partners.js?v=20260917-1"></script>
+  <script src="js/partners.js?v=20260918-1"></script>
   <script src="js/orders.js?v=20260917-1"></script>
   <script src="js/imports.js?v=20260827-1"></script>
   <script src="js/data_sync.js?v=20260910-1"></script>

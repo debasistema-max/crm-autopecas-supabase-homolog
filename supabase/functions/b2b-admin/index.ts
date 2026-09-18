@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim();
@@ -21,6 +21,8 @@ function corsHeaders(request: Request) {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
     'Vary': 'Origin'
   };
 }
@@ -51,7 +53,7 @@ function technicalLoginEmail(loginName: string) {
 
 function validInitialPassword(value: unknown) {
   const text = String(value || '');
-  return text.length >= 10 && text.length <= 72 && /[A-Za-z]/.test(text) && /[0-9]/.test(text) ? text : '';
+  return text.length >= 12 && text.length <= 72 && /[a-z]/.test(text) && /[A-Z]/.test(text) && /[0-9]/.test(text) ? text : '';
 }
 
 async function findUserByEmail(admin: ReturnType<typeof createClient>, targetEmail: string) {
@@ -315,7 +317,6 @@ Deno.serve(async (request) => {
     return json(request, 400, { error: 'ACAO_INVALIDA' });
   } catch (error) {
     console.error('b2b-admin', error);
-    const message = error instanceof Error ? error.message : 'ERRO_INTERNO';
-    return json(request, 500, { error: message.replace(/[^A-Za-z0-9_:\-. ]/g, '').slice(0, 180) });
+    return json(request, 500, { error: 'ERRO_INTERNO' });
   }
 });

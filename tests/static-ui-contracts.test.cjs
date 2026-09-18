@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const crypto = require('node:crypto');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -317,4 +318,48 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(admin, /admin_review_b2b_profile_change/);
   assert.match(read('js/partners.js'), /data-b2b-client/);
   assert.match(read('js/partners.js'), /data-b2b-review/);
+});
+
+test('security hardening keeps secrets server-side and minimizes anonymous access', () => {
+  const pages = ['index.html', 'app.html', 'b2b/index.html', 'cadastro-publico/index.html'];
+  for (const file of pages) {
+    const html = read(file);
+    assert.match(html, /Content-Security-Policy/);
+    assert.match(html, /supabase-js@2\.116\.0\/dist\/umd\/supabase\.js/);
+    assert.match(html, /integrity="sha384-/);
+    assert.doesNotMatch(html, /supabase-js@2["']/);
+  }
+  const publicFrontend = [
+    ...filesIn('js', '.js'), ...filesIn('b2b/js', '.js'), ...filesIn('cadastro-publico/js', '.js')
+  ].map(read).join('\n');
+  assert.doesNotMatch(publicFrontend, /SUPABASE_SERVICE_ROLE_KEY|DATA_SYNC_SCHEDULER_SECRET|GRAPH_REFRESH_TOKEN/);
+
+  const hardening = read('supabase/migrations/081_security_hardening.sql');
+  assert.match(hardening, /revoke all privileges on all tables in schema public from public, anon/);
+  assert.match(hardening, /grant execute on function public\.resolve_login_email\(text\) to anon/);
+  assert.match(hardening, /complete_b2b_password_change_for_user/);
+  assert.match(hardening, /consume_public_endpoint_rate_limit/);
+  assert.match(hardening, /public\.is_internal_user\(\)/);
+
+  const b2bPassword = read('supabase/functions/b2b-change-password/index.ts');
+  assert.match(b2bPassword, /updateUserById/);
+  assert.match(b2bPassword, /complete_b2b_password_change_for_user/);
+  assert.match(b2bPassword, /length >= 12/);
+  assert.doesNotMatch(read('b2b/js/app.js'), /rpc\('complete_b2b_password_change'/);
+
+  const cadastro = read('supabase/functions/cadastro-cliente/index.ts');
+  assert.match(cadastro, /sanitizeCadastroPayload/);
+  assert.match(cadastro, /strictEmail/);
+  assert.match(cadastro, /consumeRateLimit/);
+  assert.match(cadastro, /content\.length \* 3 \/ 4/);
+  assert.doesNotMatch(read('cadastro-publico/js/portal.js'), /\.from\('cadastros_clientes'\)/);
+});
+
+test('manual Excel parsing uses the patched, vendored SheetJS build', () => {
+  const libraryPath = path.join(root, 'js/vendor/xlsx.full.min.js');
+  const library = fs.readFileSync(libraryPath);
+  const hash = crypto.createHash('sha256').update(library).digest('hex');
+  assert.match(library.toString('utf8'), /version="0\.20\.3"/);
+  assert.equal(hash, 'cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41');
+  assert.match(read('app.html'), /xlsx\.full\.min\.js\?v=0\.20\.3/);
 });

@@ -10,14 +10,14 @@
 <body class="app-page">
   <output id="smokeAssertions" hidden></output>
   <main class="content" id="smokeTarget"></main>
-  <script src="../js/vendor/xlsx.full.min.js?v=20260825-2" onload="document.documentElement.dataset.xlsxScript='loaded'" onerror="document.documentElement.dataset.xlsxScript='error'"></script>
+  <script src="../js/vendor/xlsx.full.min.js?v=0.20.3" onload="document.documentElement.dataset.xlsxScript='loaded'" onerror="document.documentElement.dataset.xlsxScript='error'"></script>
   <script src="../js/utils/format.js"></script>
   <script src="../js/components/ui.js"></script>
   <script src="../js/supabase_store.js"></script>
   <script src="../js/imports.js"></script>
   <script>
     const importMappingAssertions = {
-      xlsxLoaded: typeof XLSX !== 'undefined' && Boolean(XLSX.version),
+      xlsxLoaded: typeof XLSX !== 'undefined' && XLSX.version === '0.20.3',
       commercialPrice: suggestSapField('PREÇO S/IMP') === 'base_price',
       authorizedPending: suggestSapField('Qtd. Auth. Pend.') === 'authorized_pending_qty',
       sapItemCode: suggestSapField('Nº do item') === 'product_code',

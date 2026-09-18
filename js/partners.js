@@ -195,7 +195,7 @@ function isValidB2BUsername(value) {
 
 function isValidB2BInitialPassword(value) {
   const password = String(value || '');
-  return password.length >= 10 && password.length <= 72 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+  return password.length >= 12 && password.length <= 72 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /[0-9]/.test(password);
 }
 
 function defaultB2BUsername(client) {
@@ -220,7 +220,7 @@ function renderClientB2BAccess(client, accounts, changeRequests = []) {
       <form id="clientB2BCredentialsForm" class="b2b-access-form">
         <label>Nome do contato<input id="clientB2BCredentialContact" autocomplete="name"></label>
         <label>Usuário de acesso<input id="clientB2BUsername" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="4" maxlength="50" pattern="[a-z0-9][a-z0-9._-]{2,48}[a-z0-9]" value="${escapeHtml(defaultB2BUsername(client))}" required><small>Pode ser CNPJ ou um nome exclusivo, como compras.cliente.</small></label>
-        <label>Senha inicial<input id="clientB2BInitialPassword" type="text" autocomplete="off" minlength="10" maxlength="72" required><small>Mínimo de 10 caracteres, com pelo menos uma letra e um número.</small></label>
+        <label>Senha inicial<input id="clientB2BInitialPassword" type="text" autocomplete="off" minlength="12" maxlength="72" required><small>Mínimo de 12 caracteres, com maiúscula, minúscula e número.</small></label>
         <button class="btn btn-secondary" id="clientB2BGeneratePassword" type="button">Gerar senha</button>
         <button class="btn btn-primary" type="submit">Criar ou redefinir acesso</button>
         <p id="clientB2BCredentialMessage" class="form-message"></p>
@@ -277,7 +277,7 @@ function bindClientB2BAccess(client) {
     }
     if (!isValidB2BInitialPassword(initialPassword.value)) {
       message.style.color = 'var(--accent)';
-      message.textContent = 'A senha precisa ter de 10 a 72 caracteres, com pelo menos uma letra e um número.';
+      message.textContent = 'A senha precisa ter de 12 a 72 caracteres, com maiúscula, minúscula e número.';
       initialPassword.focus();
       return;
     }

@@ -1,15 +1,24 @@
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.116.0';
 
-const allowedOrigin = Deno.env.get('DATA_SYNC_ALLOWED_ORIGIN') || '*';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-sync-secret',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json; charset=utf-8'
-};
+const allowedOrigins = () => (Deno.env.get('DATA_SYNC_ALLOWED_ORIGIN') ||
+  'https://debasistema-max.github.io,http://localhost:8000,http://127.0.0.1:8000')
+  .split(',').map((value) => value.trim()).filter(Boolean);
 
-function response(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders });
+function corsHeaders(request: Request) {
+  const origin = request.headers.get('origin') || '';
+  return {
+    ...(origin && allowedOrigins().includes(origin) ? { 'Access-Control-Allow-Origin': origin } : {}),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-sync-secret',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Vary': 'Origin'
+  };
+}
+
+function response(request: Request, status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), { status, headers: corsHeaders(request) });
 }
 
 function env(name: string, required = true) {
@@ -37,8 +46,10 @@ async function finalizeBatch(client: SupabaseClient, batchId: string) {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (request.method !== 'POST') return response(405, { error: 'METODO_NAO_PERMITIDO' });
+  const origin = request.headers.get('origin') || '';
+  if (origin && !allowedOrigins().includes(origin)) return response(request,403,{ error:'ORIGEM_NAO_AUTORIZADA' });
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(request) });
+  if (request.method !== 'POST') return response(request,405, { error: 'METODO_NAO_PERMITIDO' });
 
   const supabaseUrl = env('SUPABASE_URL');
   const anonKey = env('SUPABASE_ANON_KEY');
@@ -47,7 +58,7 @@ Deno.serve(async (request) => {
   const scheduled = Boolean(schedulerSecret && requestSecret && requestSecret === schedulerSecret);
   const authorization = request.headers.get('Authorization') || '';
   if (!scheduled && !authorization.startsWith('Bearer ')) {
-    return response(401, { error: 'AUTENTICACAO_OBRIGATORIA' });
+    return response(request,401, { error: 'AUTENTICACAO_OBRIGATORIA' });
   }
 
   const key = scheduled ? env('SUPABASE_SERVICE_ROLE_KEY') : anonKey;
@@ -58,9 +69,9 @@ Deno.serve(async (request) => {
 
   if (!scheduled) {
     const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError || !authData.user) return response(401, { error: 'SESSAO_INVALIDA' });
+    if (authError || !authData.user) return response(request,401, { error: 'SESSAO_INVALIDA' });
     const canManage = await rpc(client, 'can_manage_data_sync', {});
-    if (canManage !== true) return response(403, { error: 'SEM_PERMISSAO_SINCRONIZAR' });
+    if (canManage !== true) return response(request,403, { error: 'SEM_PERMISSAO_SINCRONIZAR' });
   }
 
   let batchId = '';
@@ -69,74 +80,74 @@ Deno.serve(async (request) => {
   try {
     const requestBody = await request.json().catch(() => ({}));
     const source = String(requestBody.source || 'EXCEL_API').trim().toUpperCase();
-    if (source !== 'EXCEL_API') return response(400, { error: 'FONTE_NAO_SUPORTADA_NESTE_ADAPTER' });
+    if (source !== 'EXCEL_API') return response(request,400, { error: 'FONTE_NAO_SUPORTADA_NESTE_ADAPTER' });
     integrationSource = source;
 
     // A cloud runner sends small, authenticated chunks. This keeps the XLSX and
     // service-role key out of the browser and avoids a single oversized request.
     operation = String(requestBody.operation || '').trim().toLowerCase();
     if (operation) {
-      if (!scheduled) return response(403, { error: 'PUSH_EXIGE_SEGREDO_DO_AGENDADOR' });
+      if (!scheduled) return response(request,403, { error: 'PUSH_EXIGE_SEGREDO_DO_AGENDADOR' });
       if (operation === 'create') {
         const metadata = requestBody.metadata;
         if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-          return response(400, { error: 'METADADOS_INVALIDOS' });
+          return response(request,400, { error: 'METADADOS_INVALIDOS' });
         }
         const created = await rpc(client, 'create_data_sync_batch', { payload: { ...metadata, source } });
-        return response(200, created);
+        return response(request,200, created);
       }
 
       batchId = String(requestBody.batch_id || '').trim();
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchId)) {
-        return response(400, { error: 'LOTE_INVALIDO' });
+        return response(request,400, { error: 'LOTE_INVALIDO' });
       }
       if (operation === 'stage') {
         const records = requestBody.records;
         if (!Array.isArray(records) || records.length < 1 || records.length > 500) {
-          return response(400, { error: 'BLOCO_INVALIDO' });
+          return response(request,400, { error: 'BLOCO_INVALIDO' });
         }
-        return response(200, await rpc(client, 'stage_data_sync_rows', {
+        return response(request,200, await rpc(client, 'stage_data_sync_rows', {
           target_batch_id: batchId,
           rows: records
         }));
       }
       if (operation === 'prepare') {
-        return response(200, await rpc(client, 'prepare_data_sync_batch_retry', {
+        return response(request,200, await rpc(client, 'prepare_data_sync_batch_retry', {
           target_batch_id: batchId
         }));
       }
       if (operation === 'status') {
-        return response(200, { batch: await rpc(client, 'get_data_sync_batch', {
+        return response(request,200, { batch: await rpc(client, 'get_data_sync_batch', {
           target_batch_id: batchId
         }) });
       }
       if (operation === 'validate') {
-        return response(200, await rpc(client, 'validate_data_sync_batch_chunk', {
+        return response(request,200, await rpc(client, 'validate_data_sync_batch_chunk', {
           target_batch_id: batchId,
           chunk_size: 500
         }));
       }
       if (operation === 'commit') {
-        return response(200, await rpc(client, 'commit_data_sync_batch_chunk', {
+        return response(request,200, await rpc(client, 'commit_data_sync_batch_chunk', {
           target_batch_id: batchId,
           chunk_size: 500
         }));
       }
       if (operation === 'finalize') {
         const result = await finalizeBatch(client, batchId);
-        return response(result.failed ? 422 : 200, result.failed
+        return response(request,result.failed ? 422 : 200, result.failed
           ? { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: result.batch }
           : { batch: result.batch });
       }
       if (operation === 'fail') {
         const suppliedMessage = String(requestBody.message || 'FALHA_NO_EXECUTOR_EXTERNO').trim();
         const safeFailure = suppliedMessage.replace(/[^A-Z0-9_:-]/gi, '_').slice(0, 160);
-        return response(200, { batch: await rpc(client, 'mark_data_sync_failure', {
+        return response(request,200, { batch: await rpc(client, 'mark_data_sync_failure', {
           target_batch_id: batchId,
           error_message: safeFailure || 'FALHA_NO_EXECUTOR_EXTERNO'
         }) });
       }
-      return response(400, { error: 'OPERACAO_INVALIDA' });
+      return response(request,400, { error: 'OPERACAO_INVALIDA' });
     }
 
     const adapterUrl = env('DATA_SYNC_ADAPTER_URL');
@@ -173,7 +184,7 @@ Deno.serve(async (request) => {
     });
     batchId = String(created.batch_id || '');
     if (created.duplicate) {
-      return response(200, { duplicate: true, batch: await rpc(client, 'get_data_sync_batch', { target_batch_id: batchId }) });
+      return response(request,200, { duplicate: true, batch: await rpc(client, 'get_data_sync_batch', { target_batch_id: batchId }) });
     }
 
     for (let index = 0; index < payload.records.length; index += 500) {
@@ -183,7 +194,7 @@ Deno.serve(async (request) => {
       });
     }
     const result = await finalizeBatch(client, batchId);
-    return response(result.failed ? 422 : 200, result.failed
+    return response(request,result.failed ? 422 : 200, result.failed
       ? { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: result.batch }
       : { batch: result.batch });
   } catch (error) {
@@ -201,7 +212,7 @@ Deno.serve(async (request) => {
     const safeMessage = message.startsWith('CONFIGURACAO_AUSENTE:')
       ? message
       : scheduled ? safeScheduledMessage : 'Não foi possível concluir a sincronização.';
-    return response(message.startsWith('CONFIGURACAO_AUSENTE:') ? 503 : 500, {
+    return response(request,message.startsWith('CONFIGURACAO_AUSENTE:') ? 503 : 500, {
       error: safeMessage,
       batch_id: batchId || null,
       resumable: resumableOperation
