@@ -34,12 +34,6 @@ const MODULE_ALIASES = {
 let currentSession = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  currentSession = getStoredSession();
-  if (!currentSession || !getSessionId()) {
-    window.location.href = 'index.html';
-    return;
-  }
-
   validateCurrentSession()
     .then((session) => {
       if (!session) throw new Error('Sessao expirada.');
@@ -224,7 +218,7 @@ async function openModule(name) {
     await module.render(content, { action: route.action });
     CrmUi.enhanceResponsiveTables(content);
   } catch (error) {
-    console.error(`Falha ao carregar o módulo ${moduleName}.`, error);
+    console.error('Falha ao carregar módulo do CRM.', { module: moduleName, error });
     content.innerHTML = CrmUi.renderState('error', 'Não foi possível carregar esta área', error.message || 'Tente novamente em instantes.');
   }
   content.focus();

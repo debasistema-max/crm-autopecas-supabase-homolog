@@ -35,6 +35,9 @@ Produção não foi alterada.
   com `no-store` e `nosniff`.
 - Supabase JS foi fixado em `2.116.0` e protegido por SRI SHA-384. As páginas
   receberam CSP e política `no-referrer`.
+- O CRM não grava mais seu espelho de perfil/sessão no `sessionStorage`;
+  mantém somente os campos necessários em memória e deixa a credencial sob
+  gestão do cliente oficial do Supabase Auth.
 - O leitor local de Excel foi atualizado do SheetJS `0.18.5` para `0.20.3`,
   corrigindo CVE-2023-30533 e CVE-2024-22363. O arquivo oficial foi
   vendorizado no projeto e seu SHA-256 é verificado pelos testes:

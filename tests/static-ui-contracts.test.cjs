@@ -16,6 +16,26 @@ function filesIn(directory, extension) {
 }
 const htmlFiles = ['index.html', 'app.html', ...filesIn('tests', '.html'), ...filesIn('cadastro-publico', '.html'), ...filesIn('b2b', '.html')];
 
+function inlineScriptBlocks(html) {
+  const lower = html.toLowerCase();
+  const blocks = [];
+  let cursor = 0;
+  while (cursor < html.length) {
+    const open = lower.indexOf('<script', cursor);
+    if (open < 0) break;
+    const tagEnd = html.indexOf('>', open + 7);
+    if (tagEnd < 0) break;
+    const close = lower.indexOf('</script>', tagEnd + 1);
+    if (close < 0) break;
+    blocks.push({
+      attributes: html.slice(open + 7, tagEnd),
+      source: html.slice(tagEnd + 1, close)
+    });
+    cursor = close + 9;
+  }
+  return blocks;
+}
+
 test('application and public registration JavaScript parses without execution', () => {
   for (const file of [...filesIn('js', '.js'), ...filesIn('cadastro-publico/js', '.js'), ...filesIn('b2b/js', '.js')]) {
     assert.doesNotThrow(() => new vm.Script(read(file), { filename: file }), file);
@@ -24,8 +44,7 @@ test('application and public registration JavaScript parses without execution', 
 
 test('all HTML inline scripts parse without execution', () => {
   for (const file of htmlFiles) {
-    const blocks = read(file).matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi);
-    for (const [block, attributes, source] of blocks) {
+    for (const { attributes, source } of inlineScriptBlocks(read(file))) {
       if (/\bsrc\s*=/.test(attributes) || !source.trim()) continue;
       assert.doesNotThrow(() => new vm.Script(source, { filename: file }), file);
     }
@@ -333,6 +352,8 @@ test('security hardening keeps secrets server-side and minimizes anonymous acces
     ...filesIn('js', '.js'), ...filesIn('b2b/js', '.js'), ...filesIn('cadastro-publico/js', '.js')
   ].map(read).join('\n');
   assert.doesNotMatch(publicFrontend, /SUPABASE_SERVICE_ROLE_KEY|DATA_SYNC_SCHEDULER_SECRET|GRAPH_REFRESH_TOKEN/);
+  assert.doesNotMatch(read('js/auth.js'), /sessionStorage\.setItem/);
+  assert.match(read('js/auth.js'), /let inMemorySession = null/);
 
   const hardening = read('supabase/migrations/081_security_hardening.sql');
   assert.match(hardening, /revoke all privileges on all tables in schema public from public, anon/);

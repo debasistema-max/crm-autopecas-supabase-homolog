@@ -82,7 +82,7 @@ Deno.serve(async (request) => {
     });
     return reply(request, 200, { ok: true });
   } catch (error) {
-    console.error('b2b-change-password', error);
+    console.error('b2b-change-password failed');
     return reply(request, 500, { error: 'NAO_FOI_POSSIVEL_TROCAR_SENHA' });
   }
 });

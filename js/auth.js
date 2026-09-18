@@ -1,17 +1,31 @@
+let inMemorySession = null;
+
 function getStoredSession() {
-  try {
-    return JSON.parse(sessionStorage.getItem(APP_CONFIG.sessionKey) || 'null');
-  } catch (error) {
-    return null;
-  }
+  return inMemorySession;
 }
 
 function setStoredSession(session) {
-  sessionStorage.setItem(APP_CONFIG.sessionKey, JSON.stringify(session));
+  if (!session) {
+    inMemorySession = null;
+    return;
+  }
+  inMemorySession = {
+    sessionId: session.sessionId || null,
+    usuario: session.usuario || '',
+    nome: session.nome || '',
+    email: session.email || '',
+    perfil: session.perfil || '',
+    modules: Array.isArray(session.modules) ? [...session.modules] : []
+  };
 }
 
 function clearStoredSession() {
-  sessionStorage.removeItem(APP_CONFIG.sessionKey);
+  inMemorySession = null;
+  try {
+    sessionStorage.removeItem(APP_CONFIG.sessionKey);
+  } catch (error) {
+    // Remove apenas o cache legado; a sessão real é administrada pelo Supabase Auth.
+  }
 }
 
 function getSessionId() {
@@ -20,8 +34,6 @@ function getSessionId() {
 }
 
 async function validateCurrentSession() {
-  const sessionId = getSessionId();
-  if (!sessionId) return null;
   const supabaseSession = await supabaseValidateSession();
   if (supabaseSession) {
     setStoredSession(supabaseSession);
