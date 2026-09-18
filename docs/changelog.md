@@ -1,5 +1,17 @@
 # Changelog técnico
 
+## 2026-09-18 — busca atual do catálogo interno
+
+- catálogo, cotação e pedido passaram a usar uma única busca por palavras-chave;
+- filtros de disponibilidade agora consultam o último estoque normalizado da
+  filial, sem depender do campo legado de estoque em `products`;
+- preço e estoque retornados são os snapshots atuais de PR/SP, e a pesquisa
+  também considera OEM, similares, veículo, ano e metadados do catálogo;
+- buscas anteriores mais lentas não podem mais substituir na tela a resposta
+  da palavra mais recente digitada;
+- consulta por “caixa hilux” validada na homologação com sete resultados; acesso
+  ao novo RPC continua restrito a usuários internos autorizados.
+
 ## 2026-09-18 — ficha detalhada e aplicação nos documentos B2B
 
 - a sincronização do catálogo público passou a persistir ficha técnica,

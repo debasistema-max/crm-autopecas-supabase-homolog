@@ -233,28 +233,28 @@ function formatImportBatchReportError(error) {
 }
 
 async function supabaseSearchProducts(params) {
-  if (
-    params.context === 'produtos'
-    || params.listaGeral
-    || params.grupo
-    || params.linha
-    || params.marca
-    || params.montadora
-    || params.disponibilidade
-    || params.comFoto
-    || params.semFoto
-    || params.favoritos
-  ) {
-    return supabaseListProducts(params);
-  }
-  const { data, error } = await supabaseClient.rpc('search_products', {
-    term: params.termo || params.q || '',
-    region: params.regiao || 'SP',
-    only_available: params.disponiveis === true,
-    limit_count: Number(params.limite || 40)
+  const favoriteCodes = params.favoritos === true
+    ? await supabaseListProductFavorites()
+    : [];
+  if (params.favoritos === true && !favoriteCodes.length) return [];
+
+  const { data, error } = await supabaseClient.rpc('search_products_v2', {
+    filters: {
+      term: params.termo || params.q || '',
+      region: params.regiao || 'SP',
+      line: params.linha || '',
+      group: params.grupo || '',
+      maker: params.montadora || '',
+      brand: params.marca || '',
+      only_available: params.disponiveis === true || params.disponibilidade === 'disponivel',
+      with_oem: params.comOem === true,
+      with_photo: params.comFoto === true,
+      favorite_codes: favoriteCodes,
+      limit: Number(params.limite || 60)
+    }
   });
   if (error) throw error;
-  return enrichProductsWithBranchAvailability(data || [], params.regiao || 'SP');
+  return Array.isArray(data) ? data : [];
 }
 
 async function enrichProductsWithBranchAvailability(products, region = 'SP') {
@@ -347,7 +347,7 @@ function formatQuantity(value) {
 }
 
 async function supabaseListProductFilters() {
-  const cached = getStaticCache('productFiltersV2', 10 * 60 * 1000);
+  const cached = getStaticCache('productFiltersV3', 10 * 60 * 1000);
   if (cached && cached.marcas && cached.montadoras) return cached;
   const { data, error } = await supabaseClient.rpc('get_product_filters');
   if (error) throw error;
@@ -362,7 +362,7 @@ async function supabaseListProductFilters() {
       filters.montadoras = uniqueSorted((products || []).map((product) => product.montadora));
     }
   }
-  setStaticCache('productFiltersV2', filters);
+  setStaticCache('productFiltersV3', filters);
   return filters;
 }
 

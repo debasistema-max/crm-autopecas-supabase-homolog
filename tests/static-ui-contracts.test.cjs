@@ -163,6 +163,24 @@ test('quotes read synchronized branch price and stock instead of legacy product 
   assert.doesNotMatch(migration, /then p\.preco_pr else p\.preco_sp/);
 });
 
+test('CRM product search uses the current unified branch catalog', () => {
+  const store = read('js/supabase_store.js');
+  const products = read('js/products.js');
+  const migration = read('supabase/migrations/082_current_crm_product_search.sql');
+  const regression = read('supabase/tests/082_current_crm_product_search_regression.sql');
+  assert.match(store, /rpc\('search_products_v2'/);
+  assert.match(store, /favorite_codes: favoriteCodes/);
+  assert.doesNotMatch(store.slice(store.indexOf('async function supabaseSearchProducts'), store.indexOf('async function enrichProductsWithBranchAvailability')), /return supabaseListProducts/);
+  assert.match(products, /limite: options\.listaGeral \? 500 : 300/);
+  assert.match(products, /productSearchRequests\.get\(target\) !== requestId/);
+  assert.match(migration, /product_branch_stock/);
+  assert.match(migration, /product_branch_prices/);
+  assert.match(migration, /product_catalog_metadata/);
+  assert.match(migration, /not exists \(\s*select 1 from unnest\(v_tokens\)/);
+  assert.match(migration, /sp_source_display_value/);
+  assert.match(regression, /caixa hilux/);
+});
+
 test('quotation and order creation keep only the essential commercial workflow visible', () => {
   for (const file of ['js/quotes.js', 'js/orders.js']) {
     const source = read(file);

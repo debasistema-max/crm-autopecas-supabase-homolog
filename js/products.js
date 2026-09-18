@@ -6,6 +6,8 @@ const productState = {
   topSelling: [],
   selected: null
 };
+let productSearchRequestSequence = 0;
+const productSearchRequests = new WeakMap();
 
 async function renderProducts(container) {
   container.innerHTML = `
@@ -121,7 +123,7 @@ function getProductSearchParams(options = {}) {
     favoritos: document.getElementById('productFavoritesFilter').checked,
     listaGeral: options.listaGeral === true,
     silentEmpty: options.silentEmpty === true,
-    limite: options.listaGeral ? 5000 : 600
+    limite: options.listaGeral ? 500 : 300
   };
 }
 
@@ -142,6 +144,8 @@ function clearProductFilters() {
 }
 
 async function searchProductsInto(target, params, onAdd) {
+  const requestId = ++productSearchRequestSequence;
+  productSearchRequests.set(target, requestId);
   const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
   if (!hasQuery) {
     if (!params.silentEmpty) target.innerHTML = CrmUi.renderState('empty', 'Informe o que deseja localizar', 'Pesquise por codigo, OEM, marca, veiculo ou aplicacao.');
@@ -150,6 +154,7 @@ async function searchProductsInto(target, params, onAdd) {
   target.innerHTML = CrmUi.renderState('loading', 'Pesquisando produtos', 'Aplicando os filtros comerciais selecionados.');
   try {
     const products = await supabaseSearchProducts(Object.assign({}, params, { context: onAdd ? 'pedido' : 'produtos' }));
+    if (productSearchRequests.get(target) !== requestId) return;
     if (!products.length) {
       target.innerHTML = CrmUi.renderState('empty', 'Nenhum produto encontrado', 'Revise o termo ou remova alguns filtros.');
       return;
@@ -162,6 +167,7 @@ async function searchProductsInto(target, params, onAdd) {
     target.innerHTML = renderProductCatalog(products, params);
     bindProductCatalog(products, params);
   } catch (error) {
+    if (productSearchRequests.get(target) !== requestId) return;
     target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel pesquisar os produtos', error.message);
   }
 }
