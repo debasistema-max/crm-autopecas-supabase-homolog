@@ -17,14 +17,14 @@
     <button id="cartButton" class="cart-fab" hidden><span id="cartCount">0</span></button>
   </div>
   <dialog id="cartDialog"><div id="cartContent"></div></dialog><dialog id="documentDialog"><div id="documentContent"></div></dialog>
-  <dialog id="imageDialog"><div><button id="imageDialogClose"></button><img id="imageDialogImage"><p id="imageDialogCaption"></p></div></dialog>
+  <dialog id="imageDialog"><div><button id="imageDialogClose"></button><div><img id="imageDialogImage"><p id="imageDialogCaption"></p></div><div id="imageDialogDetails"></div></div></dialog>
   <script>
     const B2B_CONFIG={supabaseUrl:'https://example.invalid',anonKey:'public-test-key',locale:'pt-BR',currency:'BRL'};
     const smokeCalls=[];
     const smokeSession={user:{id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'},access_token:'test'};
     const fakeClient={
       auth:{getSession:async()=>({data:{session:smokeSession}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({}),signInWithPassword:async()=>({data:{session:smokeSession}}),resetPasswordForEmail:async()=>({}),updateUser:async()=>({})},
-      rpc:async(name,args)=>{smokeCalls.push({name,args});if(name==='get_b2b_session')return{data:{account:{user_id:smokeSession.user.id,username:'11111111000111',login_mode:'USERNAME',must_change_password:false,contact_name:'Ana',can_create_orders:true,can_create_quotations:true},client:{id:'client-a',nome:'Cliente A Ltda',nome_fantasia:'Cliente A',codigo_sap_cliente:'1001',cnpj:'11111111000111',estado:'SC',cidade:'Joinville'},route:'PR-SC',route_supported:true},error:null};if(name==='b2b_list_documents')return{data:[],error:null};if(name==='b2b_list_catalog_lines')return{data:[{value:'ILUMINACAO',label:'ILUMINAÇÃO'},{value:'DIRECAO',label:'DIREÇÃO'}],error:null};if(name==='b2b_search_catalog')return{data:[{product_code:'6111032201',description:'Farol auxiliar',brand:'IPS',application:'Hilux',route:'PR-SC',final_price:254.62,availability:'DISPONIVEL',available_qty:12,source_display_value:'12'}],error:null};if(name==='b2b_create_document')return{data:{id:'doc-a',numero_cotacao:'000101',total:254.62},error:null};if(name==='complete_b2b_password_change')return{data:{completed:true},error:null};return{data:null,error:{message:'RPC inesperada '+name}};}
+      rpc:async(name,args)=>{smokeCalls.push({name,args});if(name==='get_b2b_session')return{data:{account:{user_id:smokeSession.user.id,username:'11111111000111',login_mode:'USERNAME',must_change_password:false,contact_name:'Ana',can_create_orders:true,can_create_quotations:true},client:{id:'client-a',nome:'Cliente A Ltda',nome_fantasia:'Cliente A',codigo_sap_cliente:'1001',cnpj:'11111111000111',estado:'SC',cidade:'Joinville'},route:'PR-SC',route_supported:true},error:null};if(name==='b2b_list_documents')return{data:[],error:null};if(name==='b2b_list_catalog_lines')return{data:[{value:'ILUMINACAO',label:'ILUMINAÇÃO'},{value:'DIRECAO',label:'DIREÇÃO'}],error:null};if(name==='b2b_search_catalog')return{data:[{product_code:'6111032201',description:'Farol auxiliar',brand:'IPS',application:'TOYOTA HILUX 16/23',route:'PR-SC',final_price:254.62,availability:'DISPONIVEL',available_qty:12,source_display_value:'12'}],error:null};if(name==='b2b_get_catalog_product_detail')return{data:{product_code:'6111032201',description:'Farol auxiliar',brand:'IPS',application:'TOYOTA HILUX 16/23',line:'ILUMINAÇÃO',route:'PR-SC',final_price:254.62,availability:'DISPONIVEL',available_qty:12,source_display_value:'12',details:{details:'LED',applications:[{automaker:'TOYOTA',vehicle:'HILUX',year:'16/23'}],oem_references:[{label:'81110-0K000'}],similar_references:[{label:'TY123',support:'TESTE'}],weight_kg:2}},error:null};if(name==='b2b_create_document')return{data:{id:'doc-a',numero_cotacao:'000101',total:254.62},error:null};if(name==='complete_b2b_password_change')return{data:{completed:true},error:null};return{data:null,error:{message:'RPC inesperada '+name}};}
     };
     window.supabase={createClient:()=>fakeClient};
   </script>
@@ -38,8 +38,11 @@
       document.getElementById('catalogSearch').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
       await new Promise(resolve=>setTimeout(resolve,50));
       document.querySelector('[data-open-product-image]').click();
+      await new Promise(resolve=>setTimeout(resolve,20));
       const photoOpened=document.getElementById('imageDialog').open
-        && document.getElementById('imageDialogImage').src.includes('/uploads/products/6111032201/site/6111032201.webp');
+        && document.getElementById('imageDialogImage').src.includes('/uploads/products/6111032201/site/6111032201.webp')
+        && document.getElementById('imageDialogDetails').innerText.includes('TOYOTA HILUX')
+        && document.getElementById('imageDialogDetails').innerText.includes('81110-0K000');
       document.getElementById('imageDialog').close();
       document.querySelector('[data-add]').click();
       openCart();
@@ -51,11 +54,13 @@
         && text.includes('Farol auxiliar')
         && text.includes('R$')
         && text.includes('Preço final · PR-SC')
+        && text.includes('Veículo / ano: TOYOTA HILUX 16/23')
         && !text.toLowerCase().includes('% de desconto')
         && document.querySelector('[data-product-image]').src.includes('/uploads/products/6111032201/site/6111032201.webp')
         && photoOpened
         && !text.includes('Cliente B')
         && smokeCalls.some(call=>call.name==='b2b_search_catalog'&&call.args.search_term==='farol hilux'&&call.args.line_filter==='ILUMINACAO')
+        && smokeCalls.some(call=>call.name==='b2b_get_catalog_product_detail'&&call.args.p_product_code==='6111032201')
         && smokeCalls.some(call=>call.name==='b2b_create_document'&&call.args.payload.items[0].codigo==='6111032201');
       document.documentElement.dataset.smoke=passed?'pass':'fail';
       document.getElementById('smokeResult').value=passed?'PASS':'FAIL';

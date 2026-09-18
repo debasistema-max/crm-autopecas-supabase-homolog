@@ -29,14 +29,14 @@ function officialProductImage(code) {
   return `${yokomitsuImageBase}/${normalized}/site/${normalized}.webp`;
 }
 
-function productImageMarkup(product) {
+function productImageMarkup(product, index) {
   const stored = String(product.image_url || '').trim();
   const official = officialProductImage(product.product_code);
   const source = stored || official;
   if (!source) return '<span>Sem foto</span>';
   const fallback = stored && official && stored !== official ? official : '';
   const label = `Ampliar foto de ${product.description || product.product_code}`;
-  return `<button class="product-image-button" type="button" data-open-product-image aria-label="${escapeHtml(label)}"><img src="${escapeHtml(source)}" data-product-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.description || product.product_code)}" loading="lazy" referrerpolicy="no-referrer"><span data-image-placeholder hidden>Sem foto</span></button>`;
+  return `<button class="product-image-button" type="button" data-open-product-image data-open-product-details="${index}" aria-label="${escapeHtml(label)}"><img src="${escapeHtml(source)}" data-product-image data-fallback-src="${escapeHtml(fallback)}" alt="${escapeHtml(product.description || product.product_code)}" loading="lazy" referrerpolicy="no-referrer"><span data-image-placeholder hidden>Sem foto</span></button>`;
 }
 
 function bindProductImages(target) {
@@ -55,19 +55,62 @@ function bindProductImages(target) {
     };
     img.addEventListener('error', handleError);
     if (img.complete && img.naturalWidth === 0) handleError();
-    img.closest('[data-open-product-image]')?.addEventListener('click', () => openProductImage(img));
   });
+  target.querySelectorAll('[data-open-product-details]').forEach((button) => button.addEventListener('click', () => {
+    const product = state.catalog[Number(button.dataset.openProductDetails)];
+    const image = button.closest('.product-card')?.querySelector('[data-product-image]');
+    openProductDetails(product, image);
+  }));
 }
 
-function openProductImage(img) {
-  if (!img || img.hidden || !img.src) return;
+function productApplications(product) {
+  return String(product?.application || '').trim();
+}
+
+function detailValue(value, suffix = '') {
+  if (value === null || value === undefined || value === '') return '—';
+  return `${number(value)}${suffix}`;
+}
+
+function referenceTags(rows = []) {
+  return rows.length ? `<div class="detail-tags">${rows.map((row) => `<span>${row.support ? `${escapeHtml(row.support)}: ` : ''}${escapeHtml(row.label || '')}</span>`).join('')}</div>` : '<p class="muted">Não informado.</p>';
+}
+
+function renderProductDetail(product) {
+  const details = product.details || {};
+  const applications = Array.isArray(details.applications) ? details.applications : [];
+  const availability = availabilityLabel(product);
+  const applicationRows = applications.length
+    ? applications.map((row) => `<article><strong>${escapeHtml([row.automaker, row.vehicle].filter(Boolean).join(' '))}</strong><span>${escapeHtml([row.engine, row.year].filter(Boolean).join(' · ') || 'Ano não informado')}</span>${row.notes ? `<small>${escapeHtml(row.notes)}</small>` : ''}</article>`).join('')
+    : `<article><strong>${escapeHtml(productApplications(product) || 'Aplicação não informada')}</strong></article>`;
+  return `
+    <div class="product-detail-heading"><p class="eyebrow">${escapeHtml(product.line || 'Produto Yokomitsu')}</p><small>${escapeHtml(product.product_code)}</small><h2>${escapeHtml(product.description || '')}</h2><p>${escapeHtml(details.details || '')}</p></div>
+    <div class="product-detail-commercial"><span class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</span><strong>${money(product.final_price)}</strong><small>Preço final · ${escapeHtml(product.route || '')}</small></div>
+    <section><h3>Veículos e anos</h3><div class="detail-applications">${applicationRows}</div></section>
+    <section><h3>Detalhes técnicos</h3><div class="detail-specs"><span>Peso<strong>${detailValue(details.weight_kg, ' kg')}</strong></span><span>Altura<strong>${detailValue(details.height_cm, ' cm')}</strong></span><span>Largura<strong>${detailValue(details.width_cm, ' cm')}</strong></span><span>Comprimento<strong>${detailValue(details.length_cm, ' cm')}</strong></span><span>Volume<strong>${detailValue(details.volume_m3, ' m³')}</strong></span><span>EAN / GTIN<strong>${escapeHtml(details.ean_gtin || '—')}</strong></span></div></section>
+    <section><h3>Códigos similares</h3>${referenceTags(details.similar_references || [])}</section>
+    <section><h3>Referências OEM</h3>${referenceTags(details.oem_references || [])}</section>`;
+}
+
+async function openProductDetails(product, img) {
+  if (!product) return;
   const dialog = document.getElementById('imageDialog');
   const enlarged = document.getElementById('imageDialogImage');
   const caption = document.getElementById('imageDialogCaption');
-  enlarged.src = img.currentSrc || img.src;
-  enlarged.alt = img.alt;
-  caption.textContent = img.alt;
+  const target = document.getElementById('imageDialogDetails');
+  const source = img && !img.hidden ? (img.currentSrc || img.src) : (product.image_url || officialProductImage(product.product_code));
+  enlarged.hidden = !source;
+  enlarged.src = source || '';
+  enlarged.alt = product.description || product.product_code;
+  caption.textContent = `${product.product_code} · ${product.description || ''}`;
+  target.innerHTML = '<div class="loading">Carregando ficha completa...</div>';
   dialog.showModal();
+  try {
+    const detail = await rpc('b2b_get_catalog_product_detail', { p_product_code: product.product_code });
+    target.innerHTML = renderProductDetail({ ...product, ...detail });
+  } catch (error) {
+    target.innerHTML = `${renderProductDetail(product)}<div class="alert error">Os detalhes complementares estão temporariamente indisponíveis.</div>`;
+  }
 }
 
 function normalizeLoginName(value) {
@@ -285,8 +328,8 @@ function productCard(product, index) {
   const availability = availabilityLabel(product);
   const priceLabel = `Preço final · ${product.route}`;
   return `<article class="product-card">
-    <div class="product-image">${productImageMarkup(product)}</div>
-    <div class="product-info"><small>${escapeHtml(product.product_code)} · ${escapeHtml(product.brand || '')}</small><h2>${escapeHtml(product.description || '')}</h2><p>${escapeHtml(product.application || '')}</p><div class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</div></div>
+    <div class="product-image">${productImageMarkup(product, index)}</div>
+    <div class="product-info"><small>${escapeHtml(product.product_code)} · ${escapeHtml(product.brand || '')}</small><button class="product-title-button" type="button" data-open-product-details="${index}">${escapeHtml(product.description || '')}</button><p>${escapeHtml(productApplications(product))}</p><div class="product-info-actions"><span class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</span><button class="link-button" type="button" data-open-product-details="${index}">Ver ficha completa</button></div></div>
     <div class="product-buy"><strong>${money(product.final_price)}</strong><small>${escapeHtml(priceLabel)}</small><button class="button primary" type="button" data-add="${index}" ${availability.disabled ? 'disabled' : ''}>Adicionar</button></div>
   </article>`;
 }
@@ -321,7 +364,7 @@ function renderCart() {
   const total = state.cart.reduce((sum, item) => sum + item.final_price * item.quantity, 0);
   target.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">Sua seleção</p><h2>Finalizar documento</h2></div><button class="icon-button" data-close type="button" aria-label="Fechar">×</button></div>
     <div class="type-toggle"><button class="${state.documentType === 'cotacao' ? 'active' : ''}" data-type="cotacao" type="button">Cotação</button><button class="${state.documentType === 'pedido' ? 'active' : ''}" data-type="pedido" type="button">Pedido</button></div>
-    <div class="cart-list">${state.cart.map((item, index) => `<article><div><strong>${escapeHtml(item.product_code)}</strong><span>${escapeHtml(item.description)}</span></div><label>Qtd.<input type="number" min="1" step="1" value="${item.quantity}" data-qty="${index}"></label><strong>${money(item.final_price * item.quantity)}</strong><button class="icon-button" data-remove="${index}" type="button" aria-label="Remover">×</button></article>`).join('')}</div>
+    <div class="cart-list">${state.cart.map((item, index) => `<article><div><strong>${escapeHtml(item.product_code)}</strong><span>${escapeHtml(item.description)}</span>${productApplications(item) ? `<small>Veículo / ano: ${escapeHtml(productApplications(item))}</small>` : ''}</div><label>Qtd.<input type="number" min="1" step="1" value="${item.quantity}" data-qty="${index}"></label><strong>${money(item.final_price * item.quantity)}</strong><button class="icon-button" data-remove="${index}" type="button" aria-label="Remover">×</button></article>`).join('')}</div>
     <label>Observação<textarea id="cartNote" maxlength="1000" placeholder="Informações para o atendimento"></textarea></label>
     <div class="cart-total"><span>Total</span><strong>${money(total)}</strong></div>
     <button id="submitDocument" class="button primary full" type="button">${state.documentType === 'pedido' ? 'Enviar pedido' : 'Gerar cotação'}</button><p id="cartMessage" class="message" aria-live="polite"></p>`;
@@ -394,7 +437,7 @@ async function openDocument(type, id) {
   dialog.showModal();
   try {
     const doc = await rpc('b2b_get_document', { document_type: type, target_id: id });
-    target.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">${type === 'pedido' ? 'Pedido' : 'Cotação'}</p><h2>${escapeHtml(doc.numero)}</h2><p>${dateTime(doc.created_at)} · ${escapeHtml(statusLabel(doc.status))}</p></div><button class="icon-button" data-close type="button">×</button></div><div class="document-items">${doc.items.map((item) => `<article><div><strong>${escapeHtml(item.codigo)}</strong><span>${escapeHtml(item.descricao)}</span></div><span>${number(item.quantidade)} × ${money(item.preco_unitario)}</span><strong>${money(item.total_item)}</strong></article>`).join('')}</div><div class="cart-total"><span>Total</span><strong>${money(doc.total)}</strong></div>${doc.observacao ? `<div class="note"><strong>Observação</strong><p>${escapeHtml(doc.observacao)}</p></div>` : ''}`;
+    target.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">${type === 'pedido' ? 'Pedido' : 'Cotação'}</p><h2>${escapeHtml(doc.numero)}</h2><p>${dateTime(doc.created_at)} · ${escapeHtml(statusLabel(doc.status))}</p></div><button class="icon-button" data-close type="button">×</button></div><div class="document-items">${doc.items.map((item) => `<article><div><strong>${escapeHtml(item.codigo)}</strong><span>${escapeHtml(item.descricao)}</span>${item.aplicacao ? `<small>Veículo / ano: ${escapeHtml(item.aplicacao)}</small>` : ''}</div><span>${number(item.quantidade)} × ${money(item.preco_unitario)}</span><strong>${money(item.total_item)}</strong></article>`).join('')}</div><div class="cart-total"><span>Total</span><strong>${money(doc.total)}</strong></div>${doc.observacao ? `<div class="note"><strong>Observação</strong><p>${escapeHtml(doc.observacao)}</p></div>` : ''}`;
     target.querySelector('[data-close]').addEventListener('click', () => dialog.close());
   } catch (error) {
     target.innerHTML = `<div class="alert error">${escapeHtml(translateError(error))}</div><button class="button" data-close>Fechar</button>`;

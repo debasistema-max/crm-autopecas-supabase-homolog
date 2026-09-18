@@ -95,9 +95,9 @@ código.
 - **Acesso não autorizado:** conferir se o vínculo está ativo e se o cliente
   permanece ativo.
 - **Preço indisponível:** conferir sincronização e aprovação da rota no Excel.
-- **Desconto não aparece:** editar o cliente canônico em Parceiros, conferir se
-  o percentual está dentro do limite comercial geral e entrar novamente no
-  B2B. Contas já abertas recebem o valor atualizado na próxima consulta.
+- **Preço final incorreto:** editar a condição comercial no cliente canônico em
+  Parceiros e conferir se ela está dentro do limite geral. O B2B não exibe o
+  percentual, somente o preço líquido recalculado pelo banco.
 - **Lista de linhas vazia:** consultar o último lote em
   `catalog_metadata_sync_batches` e executar
   `scripts/build_yokomitsu_catalog_sync.py`; a lista mostra somente linhas de
@@ -113,9 +113,11 @@ código.
 
 ## Atualização do catálogo público
 
-O comando abaixo lê somente a API pública da Yokomitsu e gera um SQL com hash
-de idempotência. O arquivo gerado deve ser executado no ambiente desejado por um
-operador autorizado:
+O comando abaixo lê somente a API pública da Yokomitsu, incluindo a ficha por
+código, e gera um SQL com hash de idempotência. O snapshot preserva nome, linha,
+foto, aplicações por veículo/ano, detalhes técnicos, dimensões, EAN, similares
+e OEM. O arquivo gerado deve ser executado no ambiente desejado por um operador
+autorizado:
 
 ```powershell
 python scripts/build_yokomitsu_catalog_sync.py --output yokomitsu_catalog_sync.sql
@@ -126,6 +128,11 @@ administrativa ou operador do banco. Cada execução registra lote, totais e
 auditoria das linhas realmente inseridas ou alteradas. Registros cujo código
 não existe em `products` são contabilizados como ignorados; produtos ausentes
 na origem não são apagados.
+
+Na busca, o cliente vê a aplicação completa. A ficha detalhada é lida do
+Supabase, sem depender da disponibilidade do site no momento da consulta. Ao
+criar pedido ou cotação, a descrição comercial permanece curta e veículo/ano é
+gravado separadamente no campo de aplicação do item.
 
 ## Reversão operacional
 

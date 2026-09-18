@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b7063">
   <title>Portal B2B | IPS do Brasil</title>
   <link rel="stylesheet" href="css/portal.css?v=20260912-1">
-  <link rel="stylesheet" href="css/catalog.css?v=20260917-2">
+  <link rel="stylesheet" href="css/catalog.css?v=20260918-1">
 </head>
 <body>
   <main id="authView" class="auth-shell">
@@ -59,13 +59,16 @@
   <dialog id="documentDialog" class="dialog"><div id="documentContent"></div></dialog>
   <dialog id="imageDialog" class="dialog image-dialog">
     <div class="image-dialog-content">
-      <button id="imageDialogClose" class="icon-button image-dialog-close" type="button" aria-label="Fechar foto">×</button>
-      <img id="imageDialogImage" alt="" referrerpolicy="no-referrer">
-      <p id="imageDialogCaption"></p>
+      <button id="imageDialogClose" class="icon-button image-dialog-close" type="button" aria-label="Fechar detalhes">×</button>
+      <div class="product-detail-media">
+        <img id="imageDialogImage" alt="" referrerpolicy="no-referrer">
+        <p id="imageDialogCaption"></p>
+      </div>
+      <div id="imageDialogDetails" class="product-detail-content"></div>
     </div>
   </dialog>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js?v=20260912-1"></script>
-  <script src="js/app.js?v=20260917-4"></script>
+  <script src="js/app.js?v=20260918-1"></script>
 </body>
 </html>

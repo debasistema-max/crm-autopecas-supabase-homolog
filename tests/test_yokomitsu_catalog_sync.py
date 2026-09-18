@@ -29,13 +29,33 @@ class YokomitsuCatalogSyncTest(unittest.TestCase):
             "https://www.yokomitsu.com.br/uploads/products/6111032201/site/6111032201.webp",
         )
 
+    def test_normalizes_full_product_details(self):
+        record = MODULE.normalize_product(
+            {"code": "7170505900", "name": "Caixa", "applicationPreview": ["KICKS 16/21"]},
+            {
+                "code": "7170505900",
+                "name": "Caixa de direção",
+                "productLineName": "CAIXA DE DIREÇÃO",
+                "detailsRaw": "(axial 12mm)",
+                "eanGtin": "7898778856942",
+                "weightKg": 6,
+                "applications": [{"automaker": "NISSAN", "vehicleLabel": "KICKS", "yearLabel": "16/21"}],
+                "oemReferences": [{"label": "48001SRA0A"}],
+                "similarReferences": [{"label": "27043", "support": "AMPRI"}],
+            },
+        )
+        self.assertEqual(record["applications"], "NISSAN KICKS 16/21")
+        self.assertTrue(record["applications_complete"])
+        self.assertEqual(record["catalog_details"]["details"], "(axial 12mm)")
+        self.assertEqual(record["catalog_details"]["oem_references"][0]["label"], "48001SRA0A")
+
     def test_reads_all_pages_and_deduplicates_by_product_code(self):
         pages = {
             1: {"pages": 2, "products": [{"code": "100", "name": "A"}]},
             2: {"pages": 2, "products": [{"code": "100", "name": "A2"}, {"code": "200", "name": "B"}]},
         }
         with patch.object(MODULE, "fetch_page", side_effect=lambda page, timeout: pages[page]):
-            records = MODULE.build_records(3)
+            records = MODULE.build_records(3, include_details=False)
         self.assertEqual([row["product_code"] for row in records], ["100", "200"])
         self.assertEqual(records[0]["product_name"], "A2")
 

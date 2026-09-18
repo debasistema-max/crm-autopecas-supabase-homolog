@@ -236,6 +236,7 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   const catalogMetadataServerAccess = read('supabase/migrations/077_allow_server_catalog_metadata_sync.sql');
   const clientDiscount = read('supabase/migrations/078_client_commercial_discount.sql');
   const hiddenB2BDiscount = read('supabase/migrations/079_hide_b2b_discount_and_improve_access_feedback.sql');
+  const detailedCatalog = read('supabase/migrations/080_b2b_detailed_catalog_and_vehicle_snapshots.sql');
   const portal = read('b2b/js/app.js');
   const internalProducts = read('js/products.js');
   const admin = read('supabase/functions/b2b-admin/index.ts');
@@ -289,11 +290,17 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.doesNotMatch(portal, /commercial_discount_percent|% de desconto/);
   assert.doesNotMatch(hiddenB2BDiscount, /'commercial_discount_percent'/);
   assert.match(hiddenB2BDiscount, /create or replace function public\.get_b2b_session/);
+  assert.match(detailedCatalog, /catalog_details jsonb/);
+  assert.match(detailedCatalog, /public\.b2b_get_catalog_product_detail/);
+  assert.match(detailedCatalog, /snapshot_b2b_item_application/);
+  assert.match(detailedCatalog, /coalesce\(nullif\(m\.applications,''\),i\.aplicacao\)/);
   assert.match(read('js/partners.js'), /partnerClientDiscount/);
   assert.match(read('js/supabase_store.js'), /commercial_discount_percent/);
   assert.match(internalProducts, /getYokomitsuProductImage/);
   assert.match(internalProducts, /data-yokomitsu-image/);
   assert.match(portal, /b2b_create_document/);
+  assert.match(portal, /b2b_get_catalog_product_detail/);
+  assert.match(portal, /Veículo \/ ano/);
   assert.match(portal, /pendingSubmission/);
   assert.match(portal, /requestFingerprint/);
   assert.match(portal, /technicalLoginDomain/);

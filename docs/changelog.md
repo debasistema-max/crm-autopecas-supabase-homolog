@@ -1,5 +1,16 @@
 # Changelog técnico
 
+## 2026-09-18 — ficha detalhada e aplicação nos documentos B2B
+
+- a sincronização do catálogo público passou a persistir ficha técnica,
+  aplicações completas, dimensões, EAN, similares e referências OEM;
+- a busca B2B mostra veículo e ano sem truncamento e abre a ficha persistida ao
+  tocar na foto, no nome ou em “Ver ficha completa”;
+- pedido e cotação mantêm a descrição comercial curta, mas passam a exibir e
+  gravar veículo/ano no campo de aplicação do item;
+- a consulta detalhada continua mostrando preço final e último estoque válido
+  da rota do cliente, sem depender do site externo durante o uso.
+
 ## 2026-09-18 — preço B2B discreto e criação de usuário mais clara
 
 - o portal B2B mostra somente o preço final do cliente, sem revelar o percentual
