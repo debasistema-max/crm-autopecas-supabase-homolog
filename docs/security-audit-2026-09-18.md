@@ -44,6 +44,9 @@ Produção não foi alterada.
   `cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41`.
 - GitHub Actions passou a ter CodeQL semanal/em push e regressão de segurança.
   Dependabot foi configurado para Actions e Python.
+- A varredura CodeQL final ficou com zero alertas abertos; quatro achados
+  iniciais foram corrigidos. Dependabot e secret scanning também ficaram sem
+  alertas abertos na conclusão desta auditoria.
 
 ## Testes executados
 
