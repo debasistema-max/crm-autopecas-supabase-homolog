@@ -197,6 +197,7 @@ async function openModule(name) {
   const module = MODULES[moduleName] || MODULES.dashboard;
   const allowed = getCurrentSessionModules();
   const content = document.getElementById('content');
+  document.body.classList.remove('product-detail-open');
   setCommercialFocusMode(false);
   toggleMobileMenu(false);
 

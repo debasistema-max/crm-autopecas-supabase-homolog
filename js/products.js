@@ -8,6 +8,7 @@ const productState = {
 };
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
+let productDetailReturnFocus = null;
 
 async function renderProducts(container) {
   container.innerHTML = `
@@ -64,13 +65,26 @@ async function renderProducts(container) {
         <section class="panel" id="productResults">
           ${CrmUi.renderState('empty', 'Comece uma pesquisa', 'Digite um termo, escolha filtros ou gere a lista geral.')}
         </section>
-        <aside class="panel product-detail-panel" id="productDetail">
-          ${CrmUi.renderState('empty', 'Selecione um produto', 'Veja foto, OEM, similares, aplicacoes, estoque e historico.')}
-        </aside>
       </section>
+
+      <div class="product-detail-modal" id="productDetailModal" role="dialog" aria-modal="true" aria-labelledby="productDetailModalTitle" hidden>
+        <section class="product-detail-dialog">
+          <header class="product-detail-dialog-header">
+            <div>
+              <span>Ficha do produto</span>
+              <strong id="productDetailModalTitle">Detalhes</strong>
+            </div>
+            <button class="btn btn-secondary product-detail-close" id="productDetailClose" type="button" aria-label="Fechar ficha do produto">Voltar</button>
+          </header>
+          <div class="product-detail-dialog-body" id="productDetail">
+            ${CrmUi.renderState('empty', 'Carregando ficha', 'Aguarde um instante.')}
+          </div>
+        </section>
+      </div>
     </section>
   `;
 
+  bindProductDetailModal();
   await Promise.all([
     loadProductFilterOptions(),
     loadProductSideData()
@@ -137,7 +151,7 @@ function clearProductFilters() {
   document.getElementById('productPhotoFilter').checked = false;
   document.getElementById('productFavoritesFilter').checked = false;
   document.getElementById('productResults').innerHTML = CrmUi.renderState('empty', 'Comece uma pesquisa', 'Digite um termo, escolha filtros ou gere a lista geral.');
-  document.getElementById('productDetail').innerHTML = CrmUi.renderState('empty', 'Selecione um produto', 'Veja foto, OEM, similares, aplicacoes, estoque e historico.');
+  closeProductDetail();
   document.getElementById('productMessage').textContent = '';
   productState.results = [];
   productState.selected = null;
@@ -253,7 +267,7 @@ function bindYokomitsuProductImages(target) {
 function renderProductCard(product, index) {
   const favorite = productState.favorites.has(product.codigo);
   return `
-    <article class="product-card" data-open-product="${index}">
+    <article class="product-card" data-open-product="${index}" role="button" tabindex="0" aria-label="Abrir ficha do produto ${escapeHtml(product.codigo)}">
       <button class="product-favorite ${favorite ? 'is-active' : ''}" type="button" data-favorite-product="${index}" aria-label="Favorito">${favorite ? '*' : '+'}</button>
       <div class="product-image">${renderProductPhoto(product, 'Sem foto', true)}</div>
       <div class="product-card-body">
@@ -278,6 +292,11 @@ function bindProductCatalog(products, params) {
   bindYokomitsuProductImages(document.getElementById('productResults'));
   document.querySelectorAll('[data-open-product]').forEach((card) => {
     card.addEventListener('click', () => openProductDetail(products[Number(card.dataset.openProduct)], params));
+    card.addEventListener('keydown', (event) => {
+      if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      openProductDetail(products[Number(card.dataset.openProduct)], params);
+    });
   });
   document.querySelectorAll('[data-favorite-product]').forEach((button) => {
     button.addEventListener('click', async (event) => {
@@ -298,14 +317,55 @@ function bindProductCatalog(products, params) {
 async function openProductDetail(product, params = {}) {
   if (!product) return;
   productState.selected = product;
-  await supabaseRegisterProductView(product.codigo);
-  const [history, routes] = await Promise.all([
-    supabaseGetProductHistory(product.codigo),
-    supabaseGetProductRoutePrices(product.codigo).catch((error) => [{ route: '-', status: error.message || 'FALHA_CALCULO' }])
-  ]);
-  document.getElementById('productDetail').innerHTML = renderProductDetail(product, params, history, routes);
-  bindYokomitsuProductImages(document.getElementById('productDetail'));
-  await refreshProductSideData();
+  showProductDetailModal(product);
+  const detail = document.getElementById('productDetail');
+  detail.innerHTML = CrmUi.renderState('loading', 'Carregando ficha do produto', 'Consultando estoque, preços e histórico.');
+  try {
+    await supabaseRegisterProductView(product.codigo).catch(() => null);
+    const [history, routes] = await Promise.all([
+      supabaseGetProductHistory(product.codigo).catch(() => ({ prices: [], stock: [] })),
+      supabaseGetProductRoutePrices(product.codigo).catch((error) => [{ route: '-', status: error.message || 'FALHA_CALCULO' }])
+    ]);
+    if (productState.selected?.codigo !== product.codigo || !document.getElementById('productDetailModal')) return;
+    detail.innerHTML = renderProductDetail(product, params, history, routes);
+    bindYokomitsuProductImages(detail);
+    await refreshProductSideData().catch(() => null);
+  } catch (error) {
+    detail.innerHTML = CrmUi.renderState('error', 'Não foi possível abrir a ficha', error.message || 'Tente novamente em instantes.');
+  }
+}
+
+function bindProductDetailModal() {
+  const modal = document.getElementById('productDetailModal');
+  const closeButton = document.getElementById('productDetailClose');
+  if (!modal || !closeButton) return;
+  closeButton.addEventListener('click', () => closeProductDetail());
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeProductDetail();
+  });
+  modal.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeProductDetail();
+  });
+}
+
+function showProductDetailModal(product) {
+  const modal = document.getElementById('productDetailModal');
+  if (!modal) return;
+  if (modal.hidden) productDetailReturnFocus = document.activeElement;
+  const title = document.getElementById('productDetailModalTitle');
+  if (title) title.textContent = `${product.codigo} - ${product.descricao || 'Produto'}`;
+  modal.hidden = false;
+  document.body.classList.add('product-detail-open');
+  document.getElementById('productDetailClose')?.focus({ preventScroll: true });
+}
+
+function closeProductDetail(options = {}) {
+  const modal = document.getElementById('productDetailModal');
+  if (modal) modal.hidden = true;
+  document.body.classList.remove('product-detail-open');
+  if (options.restoreFocus === false) return;
+  if (productDetailReturnFocus?.isConnected) productDetailReturnFocus.focus({ preventScroll: true });
+  productDetailReturnFocus = null;
 }
 
 function renderProductDetail(product, params, history, routes = []) {

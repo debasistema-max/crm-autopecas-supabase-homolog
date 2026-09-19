@@ -36,6 +36,9 @@
     async function supabaseListRecentProducts() { return sampleProducts.slice(0, 2); }
     async function supabaseGetTopSellingProducts() { return sampleProducts.map((item, index) => Object.assign({ quantidade_vendida: 24 - index * 5 }, item)); }
     async function supabaseSearchProducts() { return sampleProducts; }
+    async function supabaseRegisterProductView() { return true; }
+    async function supabaseGetProductHistory() { return { prices: [], stock: [] }; }
+    async function supabaseGetProductRoutePrices() { return []; }
     async function supabaseListBusinessClients() {
       return [{ id: '1', nome: 'INTERNATIONAL PARTS SERVICE DO BRASIL LTDA', nome_fantasia: 'IPS BRASIL', cnpj: '13180109000108', codigo_sap_cliente: '1', cidade: 'CURITIBA', estado: 'PR', telefone: '4130864388', email: 'comercial@ips.test', ativo: true, commercial_discount_percent: 5 }];
     }
@@ -61,9 +64,18 @@
         await runProductSearch({ listaGeral: true });
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const image = target.querySelector('[data-yokomitsu-image]');
+        image?.click();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const modal = document.getElementById('productDetailModal');
+        const modalOpened = modal && !modal.hidden && document.body.classList.contains('product-detail-open')
+          && modal.innerText.includes('FAROL AUXILIAR DIREITO');
+        document.getElementById('productDetailClose')?.click();
+        const modalClosed = modal?.hidden && !document.body.classList.contains('product-detail-open');
         const passed = document.getElementById('productLineFilter').options.length === 3
           && target.innerText.includes('FAROL AUXILIAR DIREITO')
-          && image?.src.includes('/uploads/products/6111032201/site/6111032201.webp');
+          && image?.src.includes('/uploads/products/6111032201/site/6111032201.webp')
+          && modalOpened
+          && modalClosed;
         document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
         document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
       })();

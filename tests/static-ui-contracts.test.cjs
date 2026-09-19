@@ -194,6 +194,20 @@ test('mobile CRM keeps document scrolling available on iOS', () => {
   assert.match(app, /aria-expanded/);
 });
 
+test('product detail opens in an isolated full-screen sheet without moving the catalog', () => {
+  const products = read('js/products.js');
+  const css = read('css/app.css');
+  assert.match(products, /id="productDetailModal" role="dialog" aria-modal="true"/);
+  assert.match(products, /id="productDetailClose"/);
+  assert.match(products, /function showProductDetailModal/);
+  assert.match(products, /document\.body\.classList\.add\('product-detail-open'\)/);
+  assert.match(products, /document\.body\.classList\.remove\('product-detail-open'\)/);
+  assert.doesNotMatch(products, /<aside class="panel product-detail-panel" id="productDetail">/);
+  assert.match(css, /\.product-detail-modal \{\s*position: fixed;\s*inset: 0;/);
+  assert.match(css, /height: 100dvh;/);
+  assert.match(css, /\.product-detail-dialog-body \{[\s\S]*?overflow-y: auto;/);
+});
+
 test('quotation and order creation keep only the essential commercial workflow visible', () => {
   for (const file of ['js/quotes.js', 'js/orders.js']) {
     const source = read(file);
