@@ -314,7 +314,7 @@ function bindProductCatalog(products, params) {
   if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params));
 }
 
-async function openProductDetail(product, params = {}) {
+async function openProductDetail(product) {
   if (!product) return;
   productState.selected = product;
   showProductDetailModal(product);
@@ -322,12 +322,9 @@ async function openProductDetail(product, params = {}) {
   detail.innerHTML = CrmUi.renderState('loading', 'Carregando ficha do produto', 'Consultando estoque, preços e histórico.');
   try {
     await supabaseRegisterProductView(product.codigo).catch(() => null);
-    const [history, routes] = await Promise.all([
-      supabaseGetProductHistory(product.codigo).catch(() => ({ prices: [], stock: [] })),
-      supabaseGetProductRoutePrices(product.codigo).catch((error) => [{ route: '-', status: error.message || 'FALHA_CALCULO' }])
-    ]);
+    const history = await supabaseGetProductHistory(product.codigo).catch(() => ({ prices: [], stock: [] }));
     if (productState.selected?.codigo !== product.codigo || !document.getElementById('productDetailModal')) return;
-    detail.innerHTML = renderProductDetail(product, params, history, routes);
+    detail.innerHTML = renderProductDetail(product, history);
     bindYokomitsuProductImages(detail);
     await refreshProductSideData().catch(() => null);
   } catch (error) {
@@ -368,7 +365,7 @@ function closeProductDetail(options = {}) {
   productDetailReturnFocus = null;
 }
 
-function renderProductDetail(product, params, history, routes = []) {
+function renderProductDetail(product, history) {
   return `
     <div class="product-detail">
       <div class="product-detail-image">${renderProductPhoto(product, 'Sem foto cadastrada')}</div>
@@ -379,10 +376,6 @@ function renderProductDetail(product, params, history, routes = []) {
       </div>
       <dl class="product-detail-grid">
         ${detailItem('Marca', product.marca)}
-        ${detailItem('NCM', formatProductNcm(product.ncm))}
-        ${detailItem('CEST', product.cest)}
-        ${detailItem('IPI', product.ipi_defined === false ? 'Não definido' : `${Number(product.ipi_rate || 0) * 100}%`)}
-        ${detailItem('Origem', [product.origin_code, product.origin_description].filter(Boolean).join(' - '))}
         ${detailItem('Linha', product.linha || product.categoria)}
         ${detailItem('Grupo', product.grupo)}
         ${detailItem('Montadora', product.montadora)}
@@ -395,7 +388,6 @@ function renderProductDetail(product, params, history, routes = []) {
         ${detailItem('Preco SP', money(product.preco_sp))}
         ${detailItem('Preco PR', money(product.preco_pr))}
       </dl>
-      ${renderProductRoutePrices(routes)}
       <div class="product-history-grid">
         ${renderHistoryBlock('Historico de precos', history.prices)}
         ${renderHistoryBlock('Historico de estoque', history.stock)}
@@ -404,32 +396,8 @@ function renderProductDetail(product, params, history, routes = []) {
   `;
 }
 
-function renderProductRoutePrices(routes = []) {
-  return `
-    <section class="product-route-prices">
-      <div class="panel-header"><div><h3>Preço por rota</h3><p>Cálculo sob demanda no motor fiscal PostgreSQL.</p></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Rota</th><th>Base</th><th>Tributos</th><th>Final</th><th>Estoque</th><th>Quantidade</th><th>Status</th></tr></thead>
-      <tbody>${routes.map((row) => `<tr><td>${escapeHtml((row.route || '').replace('-', '→'))}</td><td>${row.base_price == null ? '—' : money(row.base_price)}</td>
-        <td>${row.total_taxes == null ? '—' : money(row.total_taxes)}</td><td>${row.final_price == null ? '—' : money(row.final_price)}</td>
-        <td>${escapeHtml(row.availability || '—')}</td><td>${escapeHtml(row.source_display_value || row.available_qty || '0')}</td>
-        <td><span class="status-pill">${escapeHtml(formatProductFiscalStatus(row.status))}</span>${(row.warnings || []).length ? `<small>${escapeHtml(row.warnings.join(', '))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>
-    </section>`;
-}
-
-function formatProductFiscalStatus(status) {
-  return ({ OK: 'OK', OK_SEM_ST: 'OK - SEM ST', NCM_AUSENTE: 'NCM ausente', PRECO_AUSENTE: 'Preço ausente',
-    REGRA_FISCAL_AUSENTE: 'Regra fiscal ausente', REGRA_FISCAL_INCOMPLETA: 'Regra fiscal incompleta',
-    PRODUTO_NAO_LOCALIZADO: 'Produto não localizado', IPI_AUSENTE: 'IPI ausente', CEST_AUSENTE: 'CEST ausente',
-    ESTOQUE_NAO_IMPORTADO: 'Estoque não importado' })[status] || status || '—';
-}
-
 function detailItem(label, value) {
   return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '-')}</dd></div>`;
-}
-
-function formatProductNcm(value) {
-  const digits = String(value || '').replace(/\D/g, '');
-  return digits.length === 8 ? `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}` : digits;
 }
 
 function renderHistoryBlock(title, rows) {

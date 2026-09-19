@@ -719,11 +719,6 @@ body.commercial-focus-mode .content {
   line-height: 1.35;
 }
 
-.product-route-prices {
-  grid-column: 1 / -1;
-  margin-top: 18px;
-}
-
 .fiscal-inline-status {
   color: var(--primary, #1d4ed8);
   font-weight: 700;
@@ -2979,7 +2974,6 @@ textarea {
   margin: 0;
 }
 
-.product-route-prices,
 .product-history-grid {
   grid-column: 1 / -1;
 }
@@ -3948,7 +3942,6 @@ button:disabled {
   }
   .product-detail-title,
   .product-detail-grid,
-  .product-route-prices,
   .product-history-grid {
     grid-column: 1;
   }
