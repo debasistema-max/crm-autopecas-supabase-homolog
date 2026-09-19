@@ -60,6 +60,16 @@ function bootstrapAppShell() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') toggleMobileMenu(false);
   });
+  window.addEventListener('pageshow', () => toggleMobileMenu(false));
+  const desktopLayout = window.matchMedia('(min-width: 981px)');
+  const releaseMobileScroll = (event) => {
+    if (event.matches) toggleMobileMenu(false);
+  };
+  if (typeof desktopLayout.addEventListener === 'function') {
+    desktopLayout.addEventListener('change', releaseMobileScroll);
+  } else if (typeof desktopLayout.addListener === 'function') {
+    desktopLayout.addListener(releaseMobileScroll);
+  }
   window.addEventListener('hashchange', () => {
     const requested = location.hash.replace('#', '') || 'dashboard';
     const route = getModuleRoute(requested);
@@ -153,9 +163,11 @@ function applyMobileNavigationVisibility() {
 
 function toggleMobileMenu(force) {
   const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
   const next = typeof force === 'boolean' ? force : !sidebar.classList.contains('is-open');
   sidebar.classList.toggle('is-open', next);
   document.body.classList.toggle('menu-open', next);
+  document.getElementById('menuButton')?.setAttribute('aria-expanded', String(next));
 }
 
 function setCommercialFocusMode(enabled) {

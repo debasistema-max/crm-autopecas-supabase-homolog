@@ -1,5 +1,14 @@
 # Changelog técnico
 
+## 2026-09-18 — rolagem contínua no CRM mobile
+
+- painel de busca e cabeçalho deixaram de permanecer fixos em telas pequenas;
+- renderização adiada de painéis/cartões foi desativada no iOS para evitar áreas
+  em branco ou congeladas durante a rolagem;
+- resultados visuais passaram a ser carregados em lotes menores no celular;
+- o estado que bloqueia o scroll ao abrir o menu agora é sempre liberado ao
+  retornar à página ou mudar para a visualização desktop.
+
 ## 2026-09-18 — busca atual do catálogo interno
 
 - catálogo, cotação e pedido passaram a usar uma única busca por palavras-chave;

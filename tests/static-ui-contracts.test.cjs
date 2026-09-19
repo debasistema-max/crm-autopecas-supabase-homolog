@@ -171,7 +171,7 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(store, /rpc\('search_products_v2'/);
   assert.match(store, /favorite_codes: favoriteCodes/);
   assert.doesNotMatch(store.slice(store.indexOf('async function supabaseSearchProducts'), store.indexOf('async function enrichProductsWithBranchAvailability')), /return supabaseListProducts/);
-  assert.match(products, /limite: options\.listaGeral \? 500 : 300/);
+  assert.match(products, /limite: options\.listaGeral \? 200 : 120/);
   assert.match(products, /productSearchRequests\.get\(target\) !== requestId/);
   assert.match(migration, /product_branch_stock/);
   assert.match(migration, /product_branch_prices/);
@@ -179,6 +179,19 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(migration, /not exists \(\s*select 1 from unnest\(v_tokens\)/);
   assert.match(migration, /sp_source_display_value/);
   assert.match(regression, /caixa hilux/);
+});
+
+test('mobile CRM keeps document scrolling available on iOS', () => {
+  const css = read('css/app.css');
+  const app = read('js/app.js');
+  const mobile = css.slice(css.indexOf('@media (max-width: 680px)'));
+  assert.match(mobile, /\.topbar \{\s*position: static;/);
+  assert.match(mobile, /\.product-search-panel \{\s*position: static;/);
+  assert.match(mobile, /\.panel,\s*\.product-card \{\s*content-visibility: visible;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.commercial-focus-header \{\s*position: static;/);
+  assert.match(app, /window\.addEventListener\('pageshow', \(\) => toggleMobileMenu\(false\)\)/);
+  assert.match(app, /matchMedia\('\(min-width: 981px\)'\)/);
+  assert.match(app, /aria-expanded/);
 });
 
 test('quotation and order creation keep only the essential commercial workflow visible', () => {

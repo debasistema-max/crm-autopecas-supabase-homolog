@@ -494,6 +494,8 @@ body.commercial-focus-mode .content {
   }
 
   .commercial-focus-header {
+    position: static;
+    top: auto;
     min-height: 44px;
     border-radius: 8px;
   }
@@ -3887,10 +3889,17 @@ button:disabled {
   .app-page {
     padding-bottom: 72px;
   }
+  .panel,
+  .product-card {
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+  }
   .workspace {
     min-width: 0;
   }
   .topbar {
+    position: static;
+    top: auto;
     grid-template-columns: auto 1fr;
     gap: 10px;
     min-height: 64px;
@@ -4176,10 +4185,10 @@ button:disabled {
     color: #fff;
   }
   .product-search-panel {
-    position: sticky;
-    top: 104px;
-    z-index: 4;
-    box-shadow: 0 10px 20px rgba(16, 28, 40, 0.08);
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: var(--shadow-sm);
   }
   .product-search-grid {
     gap: 8px;

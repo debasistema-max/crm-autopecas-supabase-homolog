@@ -123,7 +123,7 @@ function getProductSearchParams(options = {}) {
     favoritos: document.getElementById('productFavoritesFilter').checked,
     listaGeral: options.listaGeral === true,
     silentEmpty: options.silentEmpty === true,
-    limite: options.listaGeral ? 500 : 300
+    limite: options.listaGeral ? 200 : 120
   };
 }
 
