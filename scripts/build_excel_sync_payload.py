@@ -43,19 +43,20 @@ def product_code(value: Any) -> str | None:
     if value is None or isinstance(value, bool):
         return None
     if isinstance(value, int):
-        return str(value)
+        return str(value) if value > 0 else None
     if isinstance(value, float):
-        return str(int(value)) if math.isfinite(value) and value.is_integer() else None
+        return str(int(value)) if math.isfinite(value) and value.is_integer() and value > 0 else None
     text = re.sub(r"\s+", "", str(value).replace("\u200b", "").replace("\ufeff", ""))
     if re.fullmatch(r"\d+[.,]0+", text):
-        return re.sub(r"[.,]0+$", "", text)
+        normalized = re.sub(r"[.,]0+$", "", text)
+        return normalized if normalized != "0" else None
     if re.fullmatch(r"\d+(?:[.,]\d+)?[eE]\+?\d+", text):
         try:
             number = Decimal(text.replace(",", "."))
-            return str(int(number)) if number == number.to_integral_value() else None
+            return str(int(number)) if number == number.to_integral_value() and number > 0 else None
         except InvalidOperation:
             return None
-    return text or None
+    return text if text and text != "0" else None
 
 
 def number(value: Any) -> float | int | None:
@@ -83,6 +84,12 @@ def money(value: Any) -> float | None:
     if parsed is None:
         return None
     return float(Decimal(str(parsed)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def available_quantity(value: Any) -> float | int | None:
+    """Commercial availability cannot be negative even when SAP shows debt."""
+    parsed = number(value)
+    return max(0, parsed) if parsed is not None else None
 
 
 def rate(value: Any) -> float | None:
@@ -230,7 +237,9 @@ def read_stock(workbook, records: list[dict[str, Any]]):
                 ("disp geral", "general_available_qty")
             ):
                 raw = row.get(source)
-                parsed = number(raw)
+                parsed = available_quantity(raw) if target in {
+                    "sales_available_qty", "general_available_qty"
+                } else number(raw)
                 put(fields, target, parsed)
                 if target == "general_available_qty" and raw is not None:
                     display = str(raw).strip()

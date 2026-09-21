@@ -71,10 +71,11 @@ function renderDataSyncStatus(status) {
   const degraded = source.connection_status === 'DEGRADED';
   const connectionClass = connected ? 'is-online' : (degraded ? 'is-warning' : 'is-offline');
   const connectionLabel = connected ? 'Conectado' : (degraded ? 'Com alertas' : 'Indisponível');
+  const lastSuccessfulSync = source.last_success_at || batch.finished_at;
   return `
     <div class="data-sync-health">
       <article><span>Excel/API</span><strong><i class="data-sync-dot ${connectionClass}"></i>${connectionLabel}</strong><small>${escapeHtml(source.connection_status || 'UNKNOWN')}</small></article>
-      <article><span>Última sincronização</span><strong>${batch.finished_at ? escapeHtml(formatDataSyncDateTime(batch.finished_at)) : 'Ainda não executada'}</strong><small>${batch.source_updated_at ? `Origem: ${escapeHtml(formatDataSyncDateTime(batch.source_updated_at))}` : 'Sem versão recebida'}</small></article>
+      <article><span>Última sincronização</span><strong>${lastSuccessfulSync ? escapeHtml(formatDataSyncDateTime(lastSuccessfulSync)) : 'Ainda não executada'}</strong><small>${batch.source_updated_at ? `Origem: ${escapeHtml(formatDataSyncDateTime(batch.source_updated_at))}` : 'Sem versão recebida'}</small></article>
       <article><span>Duração</span><strong>${formatDataSyncDuration(batch.duration_seconds)}</strong><small>${batch.started_at ? `Início: ${escapeHtml(formatDataSyncDateTime(batch.started_at))}` : '—'}</small></article>
       <article><span>Último lote</span><strong>${batch.id ? escapeHtml(shortDataSyncId(batch.id)) : '—'}</strong><small>${escapeHtml(DATA_SYNC_STATUS_LABELS[batch.status] || batch.status || 'Sem status')}</small></article>
       <article><span>Próxima sincronização</span><strong>${source.next_sync_at ? escapeHtml(formatDataSyncDateTime(source.next_sync_at)) : 'Não agendada'}</strong><small>${escapeHtml(source.adapter_type || 'HTTP_ADAPTER')}</small></article>

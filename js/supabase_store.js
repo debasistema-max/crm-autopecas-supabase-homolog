@@ -2084,7 +2084,8 @@ let dataSyncSessionRefreshPromise = null;
 
 function isDataSyncSessionError(error) {
   const message = String(error?.message || '').toLowerCase();
-  return error?.status === 401
+  const status = Number(error?.status || error?.context?.status || 0);
+  return status === 401
     || message.includes('permission denied for function')
     || message.includes('jwt')
     || message.includes('session');
@@ -2116,9 +2117,26 @@ async function supabaseDataSyncRpc(name, params) {
 }
 
 async function supabaseTriggerDataSync() {
-  const { data, error } = await supabaseClient.functions.invoke('excel-sync', {
-    body: { source: 'EXCEL_API' }
-  });
+  async function currentSession(forceRefresh = false) {
+    if (forceRefresh) return refreshDataSyncSession();
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    return data?.session || refreshDataSyncSession();
+  }
+
+  async function invoke(session) {
+    return supabaseClient.functions.invoke('excel-sync', {
+      body: { source: 'EXCEL_API' },
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
+  }
+
+  let session = await currentSession();
+  let { data, error } = await invoke(session);
+  if (error && isDataSyncSessionError(error)) {
+    session = await currentSession(true);
+    ({ data, error } = await invoke(session));
+  }
   if (error) {
     const contextMessage = error.context && typeof error.context.json === 'function'
       ? await error.context.json().catch(() => null)

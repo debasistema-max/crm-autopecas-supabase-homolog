@@ -1,5 +1,16 @@
 # Changelog técnico
 
+## 2026-09-21 — sincronização manual confiável no CRM
+
+- o botão “Sincronizar agora” passa a enviar explicitamente o JWT da sessão e
+  renova a sessão uma vez antes de informar falha de autenticação;
+- a confirmação das bases fiscais atualiza a conectividade da fonte mesmo
+  quando o arquivo já foi processado e o lote operacional é idempotente;
+- a Central de Dados usa a confirmação mais recente da fonte como horário da
+  última sincronização, sem ficar presa à data do lote anterior;
+- linhas técnicas com código zero são descartadas e disponibilidades comerciais
+  negativas do SAP são normalizadas para zero, preservando o estoque físico.
+
 ## 2026-09-21 — bases de cálculo da planilha no CRM
 
 - a sincronização passa a transportar 82 regras gerais por NCM/rota e 168

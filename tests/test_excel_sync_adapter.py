@@ -19,6 +19,8 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertEqual(MODULE.product_code(" 6111032201.0 "), "6111032201")
         self.assertEqual(MODULE.product_code("6.111032201E+9"), "6111032201")
         self.assertEqual(MODULE.product_code("\u200bABC-01\ufeff"), "ABC-01")
+        self.assertIsNone(MODULE.product_code(0))
+        self.assertIsNone(MODULE.product_code("0"))
 
     def test_explicit_zero_is_not_missing(self):
         fields = {}
@@ -35,6 +37,10 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertEqual(MODULE.money(49.540000000000006), 49.54)
         self.assertEqual(MODULE.money("10,125"), 10.13)
         self.assertIsNone(MODULE.money(""))
+
+    def test_negative_commercial_availability_is_zero(self):
+        self.assertEqual(MODULE.available_quantity(-2), 0)
+        self.assertEqual(MODULE.available_quantity("50+"), 50)
 
     def test_percentages_become_fractional(self):
         self.assertEqual(MODULE.rate("9.75%"), 0.0975)
