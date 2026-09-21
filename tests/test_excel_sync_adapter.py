@@ -41,6 +41,10 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertEqual(MODULE.rate(15), 0.15)
         self.assertEqual(MODULE.rate(0), 0.0)
 
+    def test_excel_fraction_preserves_rates_above_one_hundred_percent(self):
+        self.assertEqual(MODULE.workbook_fraction_rate(1.5608946), 1.5608946)
+        self.assertAlmostEqual(MODULE.workbook_fraction_rate("156.08946%"), 1.5608946)
+
     def test_fiscal_bases_include_ncm_and_group_rules(self):
         workbook = Workbook()
         ncm_sheet = workbook.active
@@ -71,6 +75,13 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertEqual(len(fiscal["group_rules"]), 1)
         self.assertEqual(fiscal["group_rules"][0]["sample_product_code"], "7182915201")
         self.assertEqual(fiscal["group_rules"][0]["sample_final_price"], 317.77)
+
+        group_sheet.append([
+            "85115010", "420 ALTERNADOR", "PR-PR", 1.5608946, 0,
+            0.12, 0.195, "Sim", 677.80, 934.94, 204.24, 4275521050,
+        ])
+        fiscal = MODULE.read_fiscal_bases(workbook)
+        self.assertEqual(fiscal["group_rules"][1]["mva_rate"], 1.5608946)
 
     def test_workbook_changed_during_read_is_rejected(self):
         class ChangingSource:

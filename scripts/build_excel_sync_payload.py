@@ -92,6 +92,18 @@ def rate(value: Any) -> float | None:
     return float(parsed) / 100 if "%" in str(value) or abs(float(parsed)) > 1 else float(parsed)
 
 
+def workbook_fraction_rate(value: Any) -> float | None:
+    """Read rates from fiscal sheets whose numeric cells store Excel fractions.
+
+    A formatted 156% cell is stored as 1.56, not 156. Text containing a percent
+    sign still needs conversion because it is not an Excel numeric fraction.
+    """
+    parsed = number(value)
+    if parsed is None:
+        return None
+    return float(parsed) / 100 if "%" in str(value) else float(parsed)
+
+
 def text(value: Any) -> str | None:
     if value is None:
         return None
@@ -321,7 +333,7 @@ def read_fiscal_bases(workbook) -> dict[str, list[dict[str, Any]]]:
                 ("fcp", "fcp_rate"), ("frete", "freight_rate"),
                 ("seguro", "insurance_rate"), ("outras desp", "other_expenses_rate"),
             ):
-                put(rule, target, rate(row.get(source)))
+                put(rule, target, workbook_fraction_rate(row.get(source)))
             # The workbook's NCM fallback executes the ICMS-ST formula whenever
             # MVA is present (including an explicit zero). Group rules carry an
             # explicit SIM/NAO decision and take priority during calculation.
@@ -352,10 +364,10 @@ def read_fiscal_bases(workbook) -> dict[str, list[dict[str, Any]]]:
                 "ncm": ncm,
                 "item_group": item_group,
                 "route": route,
-                "mva_rate": rate(row.get("mva derivada")),
-                "ipi_rate": rate(row.get("ipi correto")),
-                "interstate_icms_rate": rate(row.get("icms inter")),
-                "internal_icms_rate": rate(row.get("icms interna")),
+                "mva_rate": workbook_fraction_rate(row.get("mva derivada")),
+                "ipi_rate": workbook_fraction_rate(row.get("ipi correto")),
+                "interstate_icms_rate": workbook_fraction_rate(row.get("icms inter")),
+                "internal_icms_rate": workbook_fraction_rate(row.get("icms interna")),
                 "has_st": yes_no(row.get("st aplicavel")),
             }
             put(rule, "sample_base_price", money(row.get("base amostra")))

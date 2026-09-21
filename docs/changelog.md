@@ -10,6 +10,8 @@
   opção e informa a origem e a versão utilizadas em cada cálculo;
 - a fórmula reproduz o Excel: IPI e ICMS-ST entram no preço, enquanto o ICMS
   próprio permanece apenas informativo;
+- percentuais formatados acima de 100% (como MVA de 156%) preservam a fração
+  numérica armazenada pelo Excel, sem uma segunda divisão por cem;
 - a contenção comercial permanece: pedidos e cotações ainda exigem o preço de
   rota aprovado e não usam automaticamente um fallback não homologado.
 
