@@ -99,6 +99,16 @@ def text(value: Any) -> str | None:
     return result or None
 
 
+def digits(value: Any) -> str | None:
+    result = re.sub(r"\D", "", str(value or ""))
+    return result or None
+
+
+def yes_no(value: Any) -> bool:
+    normalized = key(value)
+    return normalized in {"sim", "s", "yes", "y", "true", "1"}
+
+
 def find_header(ws, required: set[str], limit: int = 12):
     for row in ws.iter_rows(min_row=1, max_row=min(limit, ws.max_row), values_only=True):
         mapping: dict[str, int] = {}
@@ -281,6 +291,86 @@ def read_prices(workbook, records: list[dict[str, Any]]):
                         "fields": fields, "field_mask": list(fields)})
 
 
+def read_fiscal_bases(workbook) -> dict[str, list[dict[str, Any]]]:
+    ncm_rules: list[dict[str, Any]] = []
+    group_rules: list[dict[str, Any]] = []
+
+    if "Dados Fiscais" in workbook.sheetnames:
+        ws = workbook["Dados Fiscais"]
+        _, mapping = find_header(ws, {"ncm", "uf origem", "uf destino", "mva sap", "icms inter", "icms interna", "ipi"})
+        header_row = next(i for i, values in enumerate(ws.iter_rows(values_only=True), 1)
+                          if {"ncm", "uf origem", "uf destino", "mva sap", "icms inter", "icms interna", "ipi"}
+                          .issubset({key(value) for value in values}))
+        for values in ws.iter_rows(min_row=header_row + 1, values_only=True):
+            row = row_dict(values, mapping)
+            ncm = digits(row.get("ncm"))
+            origin = (text(row.get("uf origem")) or "").upper()
+            destination = (text(row.get("uf destino")) or "").upper()
+            if not ncm or len(ncm) != 8 or not re.fullmatch(r"[A-Z]{2}", origin) or not re.fullmatch(r"[A-Z]{2}", destination):
+                continue
+            rule: dict[str, Any] = {
+                "rule_key": f"{ncm}|{origin}|{destination}",
+                "ncm": ncm,
+                "origin_state": origin,
+                "destination_state": destination,
+            }
+            for source, target in (
+                ("mva sap", "mva_rate"), ("icms inter", "interstate_icms_rate"),
+                ("icms interna", "internal_icms_rate"), ("reducao bc", "base_reduction_rate"),
+                ("ipi", "ipi_rate"), ("pis", "pis_rate"), ("cofins", "cofins_rate"),
+                ("fcp", "fcp_rate"), ("frete", "freight_rate"),
+                ("seguro", "insurance_rate"), ("outras desp", "other_expenses_rate"),
+            ):
+                put(rule, target, rate(row.get(source)))
+            # The workbook's NCM fallback executes the ICMS-ST formula whenever
+            # MVA is present (including an explicit zero). Group rules carry an
+            # explicit SIM/NAO decision and take priority during calculation.
+            rule["has_st"] = "mva_rate" in rule
+            for source, target in (("cest", "cest"), ("cfop", "cfop"), ("csosn", "cst_code"),
+                                   ("observacoes", "notes")):
+                value = digits(row.get(source)) if source == "cest" else text(row.get(source))
+                put(rule, target, value)
+            ncm_rules.append(rule)
+
+    if "Regras por Grupo" in workbook.sheetnames:
+        ws = workbook["Regras por Grupo"]
+        _, mapping = find_header(ws, {"ncm", "grupo de item", "rota", "mva derivada", "ipi correto",
+                                      "icms inter", "icms interna", "st aplicavel"})
+        header_row = next(i for i, values in enumerate(ws.iter_rows(values_only=True), 1)
+                          if {"ncm", "grupo de item", "rota", "mva derivada", "ipi correto",
+                              "icms inter", "icms interna", "st aplicavel"}
+                          .issubset({key(value) for value in values}))
+        for values in ws.iter_rows(min_row=header_row + 1, values_only=True):
+            row = row_dict(values, mapping)
+            ncm = digits(row.get("ncm"))
+            item_group = text(row.get("grupo de item"))
+            route = (text(row.get("rota")) or "").upper()
+            if not ncm or len(ncm) != 8 or not item_group or not re.fullmatch(r"[A-Z]{2}-[A-Z]{2}", route):
+                continue
+            rule = {
+                "rule_key": f"{ncm}|{item_group}|{route}",
+                "ncm": ncm,
+                "item_group": item_group,
+                "route": route,
+                "mva_rate": rate(row.get("mva derivada")),
+                "ipi_rate": rate(row.get("ipi correto")),
+                "interstate_icms_rate": rate(row.get("icms inter")),
+                "internal_icms_rate": rate(row.get("icms interna")),
+                "has_st": yes_no(row.get("st aplicavel")),
+            }
+            put(rule, "sample_base_price", money(row.get("base amostra")))
+            put(rule, "sample_final_price", money(row.get("preco sap")))
+            put(rule, "sample_st_amount", money(row.get("st alvo")))
+            put(rule, "sample_product_code", product_code(row.get("codigo amostra")))
+            group_rules.append(rule)
+
+    if len({rule["rule_key"] for rule in ncm_rules}) != len(ncm_rules):
+        raise ValueError("REGRAS_FISCAIS_NCM_DUPLICADAS")
+    if len({rule["rule_key"] for rule in group_rules}) != len(group_rules):
+        raise ValueError("REGRAS_FISCAIS_GRUPO_DUPLICADAS")
+    return {"ncm_rules": ncm_rules, "group_rules": group_rules}
+
+
 def build(source: Path, source_updated_at_override: str | None = None) -> dict[str, Any]:
     initial_stat = source.stat()
     digest = sha256_file(source)
@@ -292,6 +382,7 @@ def build(source: Path, source_updated_at_override: str | None = None) -> dict[s
     workbook = load_workbook(source, read_only=True, data_only=True)
     products: dict[str, dict[str, Any]] = {}
     records: list[dict[str, Any]] = []
+    fiscal_bases: dict[str, list[dict[str, Any]]] = {"ncm_rules": [], "group_rules": []}
     try:
         read_products(workbook, products)
         for record in products.values():
@@ -299,6 +390,7 @@ def build(source: Path, source_updated_at_override: str | None = None) -> dict[s
             records.append(record)
         read_stock(workbook, records)
         read_prices(workbook, records)
+        fiscal_bases = read_fiscal_bases(workbook)
     finally:
         workbook.close()
     # OneDrive may replace the workbook while it is being read. Never publish a
@@ -320,12 +412,15 @@ def build(source: Path, source_updated_at_override: str | None = None) -> dict[s
         "original_filename": source.name,
         "file_size": initial_stat.st_size,
         "records": records,
+        "fiscal_bases": fiscal_bases,
         "summary": {
             "records": len(records),
             "products": sum(r["area"] == "PRODUCT" for r in records),
             "stocks": sum(r["area"] == "STOCK" for r in records),
             "base_prices": sum(r["area"] == "BASE_PRICE" for r in records),
-            "route_prices": sum(r["area"] == "ROUTE_PRICE" for r in records)
+            "route_prices": sum(r["area"] == "ROUTE_PRICE" for r in records),
+            "fiscal_ncm_rules": len(fiscal_bases["ncm_rules"]),
+            "fiscal_group_rules": len(fiscal_bases["group_rules"])
         }
     }
 

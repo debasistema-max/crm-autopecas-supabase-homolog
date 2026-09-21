@@ -84,14 +84,21 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                     "source_name": "Excel Mestre", "source_version": "hash", "source_updated_at": "2026-09-10T22:33:33Z",
                     "file_hash": "0" * 64, "original_filename": "master.xlsx", "file_size": 4,
                     "records": [], "summary": {"records": 0},
+                    "fiscal_bases": {
+                        "ncm_rules": [{"rule_key": "84136019|PR|PR"}],
+                        "group_rules": [{"rule_key": "84136019|GRUPO|PR-PR"}],
+                    },
                 }) as build, patch.object(MODULE, "edge_call", side_effect=[
                     {"duplicate": True, "batch_id": "batch"},
                     {"batch": {"state": "COMMITTED"}},
-                ]):
+                    {"source_version": "hash", "ncm_rules": 1, "group_rules": 1},
+                ]) as edge:
             result = MODULE.synchronize()
         download.assert_called_once()
         self.assertEqual(build.call_args.args[1], "2026-09-10T22:33:33Z")
         self.assertTrue(result["duplicate"])
+        self.assertEqual(edge.call_args_list[-1].args[2]["operation"], "fiscal-bases")
+        self.assertEqual(result["fiscal_bases"]["group_rules"], 1)
 
 
 if __name__ == "__main__":

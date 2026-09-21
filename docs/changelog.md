@@ -1,5 +1,18 @@
 # Changelog técnico
 
+## 2026-09-21 — bases de cálculo da planilha no CRM
+
+- a sincronização passa a transportar 82 regras gerais por NCM/rota e 168
+  regras específicas por NCM/grupo SAP/rota da planilha otimizada;
+- as bases são gravadas em snapshots imutáveis identificados pelo hash do XLSX
+  e a troca da versão corrente é atômica e idempotente;
+- o motor comparativo prioriza a regra por grupo, usa a regra geral como segunda
+  opção e informa a origem e a versão utilizadas em cada cálculo;
+- a fórmula reproduz o Excel: IPI e ICMS-ST entram no preço, enquanto o ICMS
+  próprio permanece apenas informativo;
+- a contenção comercial permanece: pedidos e cotações ainda exigem o preço de
+  rota aprovado e não usam automaticamente um fallback não homologado.
+
 ## 2026-09-21 — ICMS próprio informativo e fallback fiscal bloqueado
 
 - ICMS próprio continua na memória fiscal, mas deixou de compor tributos e

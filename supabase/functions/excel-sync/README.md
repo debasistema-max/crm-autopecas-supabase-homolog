@@ -22,7 +22,9 @@ DTO em um protocolo pequeno e idempotente:
 1. `operation=create`: metadados e hash; cria o lote ou reconhece duplicidade;
 2. `operation=stage`: até 500 registros por chamada;
 3. `operation=finalize`: valida e confirma o lote;
-4. `operation=fail`: registra uma falha sanitizada do executor.
+4. `operation=fiscal-bases`: publica atomicamente as regras versionadas de
+   `Dados Fiscais` e `Regras por Grupo`, usando o mesmo hash do XLSX;
+5. `operation=fail`: registra uma falha sanitizada do executor.
 
 Essas operações não aceitam JWT de navegador e exigem o segredo do agendador. O
 GitHub nunca recebe `service_role`; ela continua exclusivamente no Supabase.

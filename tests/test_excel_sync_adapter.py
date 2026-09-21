@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from openpyxl import Workbook
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "build_excel_sync_payload.py"
 SPEC = importlib.util.spec_from_file_location("excel_sync_payload", SCRIPT)
@@ -39,6 +41,37 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertEqual(MODULE.rate(15), 0.15)
         self.assertEqual(MODULE.rate(0), 0.0)
 
+    def test_fiscal_bases_include_ncm_and_group_rules(self):
+        workbook = Workbook()
+        ncm_sheet = workbook.active
+        ncm_sheet.title = "Dados Fiscais"
+        ncm_sheet.append([
+            "NCM", "UF Origem", "UF Destino", "CEST", "MVA SAP", "ICMS Inter",
+            "ICMS Interna", "IPI", "Observações",
+        ])
+        ncm_sheet.append(["84.13.60.19", "pr", "PR", "01.002.00", "87,78%", 0.12, 0.195, 0, "SAP"])
+        group_sheet = workbook.create_sheet("Regras por Grupo")
+        group_sheet.append(["memória auxiliar"])
+        group_sheet.append([
+            "NCM", "Grupo de Item", "Rota", "MVA Derivada", "IPI Correto",
+            "ICMS Inter", "ICMS Interna", "ST Aplicável", "Base Amostra",
+            "Preço SAP", "ST Alvo", "Código Amostra",
+        ])
+        group_sheet.append([
+            "84136019", "752 ROT. BOMBA DIR. (KIT)", "PR-PR", 0.8777275, 0,
+            0.12, 0.195, "Sim", 255, 317.77, 62.77, 7182915201,
+        ])
+
+        fiscal = MODULE.read_fiscal_bases(workbook)
+
+        self.assertEqual(len(fiscal["ncm_rules"]), 1)
+        self.assertEqual(fiscal["ncm_rules"][0]["rule_key"], "84136019|PR|PR")
+        self.assertEqual(fiscal["ncm_rules"][0]["cest"], "0100200")
+        self.assertTrue(fiscal["ncm_rules"][0]["has_st"])
+        self.assertEqual(len(fiscal["group_rules"]), 1)
+        self.assertEqual(fiscal["group_rules"][0]["sample_product_code"], "7182915201")
+        self.assertEqual(fiscal["group_rules"][0]["sample_final_price"], 317.77)
+
     def test_workbook_changed_during_read_is_rejected(self):
         class ChangingSource:
             name = "master.xlsx"
@@ -56,7 +89,7 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         workbook = SimpleNamespace(close=MagicMock())
         with patch.object(MODULE, "load_workbook", return_value=workbook), \
                 patch.object(MODULE, "read_products"), patch.object(MODULE, "read_stock"), \
-                patch.object(MODULE, "read_prices"):
+                patch.object(MODULE, "read_prices"), patch.object(MODULE, "read_fiscal_bases"):
             with self.assertRaisesRegex(RuntimeError, "EXCEL_ALTERADO_DURANTE_LEITURA"):
                 MODULE.build(ChangingSource())
         workbook.close.assert_called_once_with()

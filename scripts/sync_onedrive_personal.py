@@ -262,9 +262,18 @@ def synchronize() -> dict[str, Any]:
         if not batch_id:
             raise SyncError("LOTE_NAO_CRIADO")
         completed = process_batch(edge_url, sync_secret, batch_id, payload["records"])
+        fiscal_bases = payload.get("fiscal_bases") or {"ncm_rules": [], "group_rules": []}
+        fiscal_result = edge_call(edge_url, sync_secret, {
+            "source": "EXCEL_API",
+            "operation": "fiscal-bases",
+            "source_version": payload["source_version"],
+            "source_updated_at": payload["source_updated_at"],
+            "ncm_rules": fiscal_bases.get("ncm_rules") or [],
+            "group_rules": fiscal_bases.get("group_rules") or [],
+        })
         return {
             "duplicate": bool(created.get("duplicate")), "batch_id": batch_id,
-            "summary": payload["summary"], "result": completed,
+            "summary": payload["summary"], "result": completed, "fiscal_bases": fiscal_result,
         }
 
 

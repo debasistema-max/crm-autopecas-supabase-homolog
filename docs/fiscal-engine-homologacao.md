@@ -52,9 +52,26 @@ IPI = base * aliquota_ipi
 ICMS proprio = base * aliquota_interestadual
 base_ST = (base + IPI) * (1 + MVA) * (1 - reducao_base)
 ICMS_ST = max(0, base_ST * aliquota_interna_destino - ICMS proprio)
-tributos = IPI + ICMS proprio + ICMS_ST + PIS + COFINS + FCP
+tributos = IPI + ICMS_ST + PIS + COFINS + FCP
 preco_final = base + tributos + frete + seguro + outras despesas
 ```
+
+O ICMS próprio é calculado e exibido apenas na memória fiscal; ele não é
+somado ao total nem ao preço final.
+
+### Bases versionadas da planilha
+
+A sincronização automática também publica as bases já mantidas no Excel:
+
+- `Regras por Grupo`: NCM + grupo SAP + rota, com prioridade no cálculo;
+- `Dados Fiscais`: NCM + UF de origem + UF de destino, usada como regra geral.
+
+Cada carga é vinculada ao SHA-256 do XLSX. A versão corrente muda somente após
+todas as linhas serem aceitas, e versões anteriores ficam preservadas para
+auditoria. O motor comparativo identifica no resultado se usou
+`EXCEL_GROUP_BASE`, `EXCEL_NCM_BASE` ou a regra histórica do CRM. O preço
+comercial continua exigindo o resultado de rota aprovado da planilha; uma base
+comparativa não libera fallback em pedido ou cotação.
 
 Quando `has_st=false`, ICMS-ST é zero e o status é `OK_SEM_ST`. PIS, COFINS e FCP não recebem valores presumidos: ausência de definição gera pendência/aviso. Valores são calculados com `numeric`, mantidos com seis casas no snapshot e exibidos com duas no frontend.
 

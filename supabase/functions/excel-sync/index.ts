@@ -128,6 +128,21 @@ Deno.serve(async (request) => {
         return response(request,200, created);
       }
 
+      if (operation === 'fiscal-bases') {
+        const ncmRules = requestBody.ncm_rules;
+        const groupRules = requestBody.group_rules;
+        if (!Array.isArray(ncmRules) || !Array.isArray(groupRules) ||
+            ncmRules.length < 1 || ncmRules.length > 1000 || groupRules.length > 2000) {
+          return response(request,400, { error: 'BASES_FISCAIS_INVALIDAS' });
+        }
+        return response(request,200, await rpc(client, 'sync_excel_fiscal_bases', {
+          target_source_version: String(requestBody.source_version || ''),
+          target_source_updated_at: String(requestBody.source_updated_at || ''),
+          ncm_rules: ncmRules,
+          group_rules: groupRules
+        }));
+      }
+
       batchId = String(requestBody.batch_id || '').trim();
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchId)) {
         return response(request,400, { error: 'LOTE_INVALIDO' });

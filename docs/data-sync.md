@@ -10,6 +10,7 @@ Excel mestre / OneDrive
   -> normalização Data Sync v1
   -> Edge Function excel-sync
   -> staging, validação, idempotência e auditoria
+  -> snapshot versionado das bases fiscais por NCM e grupo
   -> Supabase
   -> CRM
 ```
@@ -30,6 +31,8 @@ O domínio do CRM não importa Microsoft Graph. Um adapter futuro pode obter o a
 - `supabase/functions/excel-sync`: valida o ADMIN, enfileira o workflow privado e recebe staging em blocos de 500 para validar e confirmar.
 - migration `060_excel_data_sync_center.sql`: estende batches/staging/auditoria, adiciona proteção de versão e armazena preço fiscal consolidado por rota.
 - `js/data_sync.js`: status, contadores, execução, erros, histórico e auditoria administrativa.
+- migration `085_excel_fiscal_calculation_bases.sql`: mantém snapshots imutáveis
+  das bases fiscais da planilha e ativa uma versão inteira de forma atômica.
 
 O normalizador verifica o SHA-256 e o horário de modificação novamente após fechar o
 workbook. Se o OneDrive substituir o arquivo durante a leitura, a requisição falha
@@ -103,7 +106,9 @@ Campo ausente não entra na `field_mask`. Campo vazio é ignorado. Limpeza exige
 | `LISTA PR-PR`, `LISTA SP-SP`, `LISTA PR-SC` | preço-base e preço final calculado por rota |
 | `NCM Produtos` | resultado cadastral fiscal consolidado |
 | `Cálculo Fiscal` | memória e status consolidados usados pelas listas |
-| `Dados Fiscais`, `dados fiscais sap pr/sp` | suporte ao cálculo no Excel; não são copiadas integralmente |
+| `Dados Fiscais` | base fiscal por NCM e rota, copiada como snapshot versionado |
+| `Regras por Grupo` | regra específica por NCM, grupo SAP e rota; tem prioridade sobre a regra geral |
+| `dados fiscais sap pr/sp` | suporte bruto ao cálculo no Excel; não é copiado integralmente |
 
 Não sincronizar abas de amostra, validação SAP, pesquisa, conferência, diagnóstico ou memória auxiliar. Elas permanecem excluídas mesmo quando ocupam grande parte do arquivo.
 
@@ -187,12 +192,17 @@ simultâneas, limita a execução a 20 minutos e não mantém cache/artifact do 
 O refresh token é revogável; falha de autorização deve gerar reconsentimento
 assistido, sem apagar os últimos dados válidos do CRM.
 
-Validação e aplicação são executadas em blocos retomáveis de até 500 linhas.
+Validação e aplicação dos dados operacionais são executadas em blocos retomáveis de até 500 linhas.
 Cada bloco é transacional: uma interrupção antes do commit reverte apenas aquele
 bloco, e uma resposta perdida depois do commit pode ser repetida sem duplicar
 auditoria ou movimentos. Lotes `DRAFT`, `PREVIEWED` ou `COMMITTING` continuam do
 ponto confirmado; somente `COMMITTED` é considerado concluído. Falha HTTP
 transitória não transforma automaticamente um lote retomável em `FAILED`.
+
+Depois do lote operacional, o executor envia as bases `Dados Fiscais` e
+`Regras por Grupo` com o mesmo SHA-256 do arquivo. A nova versão é inserida sem
+alterar versões anteriores e só se torna corrente após todas as regras serem
+validadas e gravadas. Uma repetição do mesmo hash é idempotente.
 
 ## Diagnóstico e reprocessamento
 
