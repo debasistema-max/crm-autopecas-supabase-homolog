@@ -28,6 +28,12 @@ class ExcelSyncAdapterTest(unittest.TestCase):
         self.assertIsNone(MODULE.number(""))
         self.assertIsNone(MODULE.number("ABC"))
 
+    def test_money_is_rounded_to_cents_before_sync(self):
+        self.assertEqual(MODULE.money(197.51999999999998), 197.52)
+        self.assertEqual(MODULE.money(49.540000000000006), 49.54)
+        self.assertEqual(MODULE.money("10,125"), 10.13)
+        self.assertIsNone(MODULE.money(""))
+
     def test_percentages_become_fractional(self):
         self.assertEqual(MODULE.rate("9.75%"), 0.0975)
         self.assertEqual(MODULE.rate(15), 0.15)

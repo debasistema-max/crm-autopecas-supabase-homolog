@@ -15,7 +15,7 @@ import math
 import re
 import unicodedata
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +75,14 @@ def number(value: Any) -> float | int | None:
         return int(parsed) if parsed.is_integer() else parsed
     except ValueError:
         return None
+
+
+def money(value: Any) -> float | None:
+    """Normalize workbook currency values to cents before JSON serialization."""
+    parsed = number(value)
+    if parsed is None:
+        return None
+    return float(Decimal(str(parsed)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def rate(value: Any) -> float | None:
@@ -226,9 +234,9 @@ def read_prices(workbook, records: list[dict[str, Any]]):
             if not route or not code:
                 continue
             calculations[(route, code)] = {
-                "base_price": number(row.get("preco s imp")),
-                "final_price": number(row.get(final_price_field)),
-                "total_taxes": number(row.get("total tributos") if "total tributos" in mapping else row.get("ipi icms st")),
+                "base_price": money(row.get("preco s imp")),
+                "final_price": money(row.get(final_price_field)),
+                "total_taxes": money(row.get("total tributos") if "total tributos" in mapping else row.get("ipi icms st")),
                 "calculation_status": text(row.get("status")) or "UNKNOWN",
                 "tax_breakdown": {
                     name: value for name, value in {
@@ -251,8 +259,8 @@ def read_prices(workbook, records: list[dict[str, Any]]):
         for values in ws.iter_rows(min_row=3, values_only=True):
             row = row_dict(values, mapping)
             code = product_code(row.get("codigo ips"))
-            base = number(row.get("preco s imp"))
-            final = number(row.get("preco c impostos"))
+            base = money(row.get("preco s imp"))
+            final = money(row.get("preco c impostos"))
             if not code:
                 continue
             if base is not None:
