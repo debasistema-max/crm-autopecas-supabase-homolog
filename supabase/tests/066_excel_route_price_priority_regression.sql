@@ -74,9 +74,12 @@ begin
   end if;
 
   v_result:=public.get_product_commercial_price('9900000066','PR','RS',current_date,'REVENDA');
-  if v_result->>'price_source'<>'SUPABASE_FISCAL_FALLBACK'
-     or not (v_result->'warnings' ? 'PRECO_ROTA_EXCEL_AUSENTE') then
-    raise exception 'CONTINGENCIA_NAO_IDENTIFICADA: %',v_result;
+  if v_result->>'price_source'<>'FISCAL_FALLBACK_BLOCKED'
+     or v_result->>'status'<>'PRECO_FISCAL_INDISPONIVEL'
+     or v_result->'final_price' is distinct from 'null'::jsonb
+     or not (v_result->'warnings' ? 'PRECO_ROTA_EXCEL_AUSENTE')
+     or not (v_result->'warnings' ? 'FALLBACK_FISCAL_NAO_HOMOLOGADO') then
+    raise exception 'CONTINGENCIA_NAO_FOI_BLOQUEADA: %',v_result;
   end if;
 end;
 $$;

@@ -81,12 +81,14 @@ do cliente definem a rota: PR→PR, PR→SC ou SP→SP. Nessas rotas, o CRM usa
 primeiro o `final_price` aprovado e persistido em `product_route_prices`, sem
 reexecutar no navegador as fórmulas da planilha.
 
-Se o Excel não tiver enviado a rota ou o status não estiver aprovado, o motor
-fiscal interno pode calcular uma contingência. O snapshot do item identifica a
-origem como `SUPABASE_FISCAL_FALLBACK` e inclui o alerta
-`PRECO_ROTA_EXCEL_AUSENTE` ou `PRECO_ROTA_EXCEL_NAO_APROVADO`; portanto a
-contingência não é silenciosa. O resultado aprovado do Excel é identificado por
-`price_source = EXCEL_ROUTE_PRICE` e preservado no documento.
+Se o Excel não tiver enviado a rota ou o status não estiver aprovado, o preço
+fiscal fica indisponível e a criação do documento é bloqueada. O motor interno
+continua acessível apenas para comparação e homologação; ele não substitui o
+resultado comercial da planilha. A resposta usa
+`price_source = FISCAL_FALLBACK_BLOCKED` e os alertas
+`PRECO_ROTA_EXCEL_AUSENTE` ou `PRECO_ROTA_EXCEL_NAO_APROVADO`. O resultado
+aprovado do Excel é identificado por `price_source = EXCEL_ROUTE_PRICE` e
+preservado no documento.
 
 Campo ausente não entra na `field_mask`. Campo vazio é ignorado. Limpeza exige que o campo esteja em `clear_fields` e somente campos textuais autorizados podem ser limpos. Zero numérico é valor explícito e válido.
 

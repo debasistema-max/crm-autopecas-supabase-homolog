@@ -248,17 +248,31 @@ test('quotation and order creation keep only the essential commercial workflow v
 test('commercial pricing prioritizes approved Excel route results and fixes resale context', () => {
   const store = read('js/supabase_store.js');
   const migration = read('supabase/migrations/066_prioritize_excel_route_prices.sql');
+  const fallbackGuard = read('supabase/migrations/084_block_unapproved_fiscal_fallback.sql');
   const regression = read('supabase/tests/066_excel_route_price_priority_regression.sql');
   assert.match(store, /customerType = 'REVENDA'/);
   assert.match(store, /customerType \|\| 'REVENDA'/);
   assert.match(migration, /from public\.product_route_prices/);
   assert.match(migration, /'price_source','EXCEL_ROUTE_PRICE'/);
-  assert.match(migration, /'price_source','SUPABASE_FISCAL_FALLBACK'/);
   assert.match(migration, /'customer_type','REVENDA'/);
+  assert.match(fallbackGuard, /'price_source','FISCAL_FALLBACK_BLOCKED'/);
+  assert.match(fallbackGuard, /PRECO_FISCAL_INDISPONIVEL/);
+  assert.match(fallbackGuard, /guard_unapproved_commercial_fiscal_price/);
   assert.match(regression, /'PR','PR',current_date,'CONSUMO'/);
   assert.match(regression, /PRECO_ROTA_EXCEL_NAO_PRIORIZADO/);
   assert.match(regression, /DOCUMENTO_NAO_PRESERVOU_PRECO_EXCEL_REVENDA/);
   assert.match(regression, /PRECO_ROTA_EXCEL_AUSENTE/);
+  assert.match(regression, /FALLBACK_FISCAL_NAO_HOMOLOGADO/);
+});
+
+test('own ICMS stays informational and never composes the commercial price', () => {
+  const migration = read('supabase/migrations/083_exclude_own_icms_from_commercial_price.sql');
+  const taxRules = read('js/tax_rules.js');
+  assert.match(migration, /coalesce\(v_ipi,0\)\+coalesce\(v_icms_st,0\)/);
+  assert.match(migration, /'own_icms_included_in_total',false/);
+  assert.match(migration, /fiscal_tax_rules_own_icms_not_in_price/);
+  assert.match(taxRules, /ICMS próprio no preço/);
+  assert.match(taxRules, /resale_include_own_icms: false/);
 });
 
 test('SP orders warn and create safe PR transfer requests without inventing stock zero', () => {

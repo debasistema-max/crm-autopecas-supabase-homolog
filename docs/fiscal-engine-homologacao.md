@@ -71,7 +71,11 @@ tributos cobrados = IPI + ICMS-ST + impostos/despesas efetivamente definidos
 preco_final = base + tributos cobrados
 ```
 
-O ICMS próprio permanece na memória de cálculo como referência, mas só integra o total quando `resale_include_own_icms=true`. Se a alíquota efetiva não estiver configurada, o fallback é `ICMS interno - ICMS interestadual`. A tela administrativa de impostos permite alterar o método, a alíquota efetiva e a inclusão do ICMS próprio sem mudança de código.
+O ICMS próprio permanece na memória de cálculo como referência e nunca integra
+o total de tributos nem o preço final. Essa é uma regra fixa do sistema e não
+pode ser alterada pela tela administrativa. Se a alíquota efetiva do ICMS-ST
+não estiver configurada, o cálculo comparativo usa `ICMS interno - ICMS
+interestadual`.
 
 Regressão observada no portal atual para o produto `7175526020`, NCM `8708.94.83`, SP→SP, Revenda: base R$ 580,00; IPI R$ 18,85; ICMS-ST R$ 81,17; final R$ 680,02. A lista SP→SP do mesmo produto permanece em R$ 816,10.
 

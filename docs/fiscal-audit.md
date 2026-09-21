@@ -126,7 +126,7 @@ Para o perfil `LEGACY_REVENDA` com `RATE_DIFFERENCE`:
 base_ST = base
 ICMS_ST = base * taxa_efetiva_revenda
 taxa_efetiva_revenda = regra explícita ou max(0, interno - próprio)
-ICMS_proprio só entra no total se resale_include_own_icms = true
+ICMS_proprio permanece informativo e não entra no total nem no preço final
 ```
 
 ### Duplicação

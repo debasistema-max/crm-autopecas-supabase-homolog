@@ -337,7 +337,7 @@ async function hydrateQuoteItemCommercialPrice(item) {
     item.fiscal_status = result.status;
     item.preco_sem_imposto = Number(result.base_price || 0);
     item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
-    if (result.final_price != null) item.preco = Number(result.final_price);
+    item.preco = result.final_price == null ? 0 : Number(result.final_price);
     item.fiscal_details = result;
     item.commercial_availability = result.availability;
     item.commercial_available_qty = result.source_display_value || result.available_qty;
@@ -1246,6 +1246,7 @@ function formatFiscalStatus(status) {
     PRECO_AUSENTE: 'Preço ausente',
     REGRA_FISCAL_AUSENTE: 'Regra fiscal ausente',
     REGRA_FISCAL_INCOMPLETA: 'Regra fiscal incompleta',
+    PRECO_FISCAL_INDISPONIVEL: 'Preço fiscal indisponível',
     PRODUTO_NAO_LOCALIZADO: 'Produto não localizado',
     ESTOQUE_NAO_IMPORTADO: 'Estoque não importado',
     CALCULANDO: 'Calculando...'
@@ -1264,8 +1265,9 @@ function formatFiscalWarnings(warnings) {
     ICMS_INTERNO_AUSENTE: 'ICMS interno ausente',
     MVA_AUSENTE: 'MVA ausente',
     ESTOQUE_NAO_IMPORTADO: 'Estoque da filial não importado',
-    PRECO_ROTA_EXCEL_AUSENTE: 'Preço final da rota ausente no Excel; contingência fiscal utilizada',
-    PRECO_ROTA_EXCEL_NAO_APROVADO: 'Preço da rota não aprovado no Excel; contingência fiscal utilizada'
+    PRECO_ROTA_EXCEL_AUSENTE: 'Preço final da rota ausente no Excel',
+    PRECO_ROTA_EXCEL_NAO_APROVADO: 'Preço da rota não aprovado no Excel',
+    FALLBACK_FISCAL_NAO_HOMOLOGADO: 'Motor fiscal interno bloqueado até a homologação'
   };
   return (Array.isArray(warnings) ? warnings : [])
     .map((warning) => labels[warning] || warning)

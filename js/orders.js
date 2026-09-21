@@ -361,7 +361,7 @@ async function hydrateOrderItemCommercialPrice(item) {
     item.fiscal_status = result.status;
     item.preco_sem_imposto = Number(result.base_price || 0);
     item.tributos = Number(result.total_taxes || 0) + Number(result.total_expenses || 0);
-    if (result.final_price != null) item.preco = Number(result.final_price);
+    item.preco = result.final_price == null ? 0 : Number(result.final_price);
     item.fiscal_details = result;
     item.commercial_availability = result.availability;
     item.commercial_available_qty = result.source_display_value || result.available_qty;

@@ -1,5 +1,16 @@
 # Changelog técnico
 
+## 2026-09-21 — ICMS próprio informativo e fallback fiscal bloqueado
+
+- ICMS próprio continua na memória fiscal, mas deixou de compor tributos e
+  preço final em qualquer perfil do motor interno;
+- a configuração que permitia somá-lo foi fixada como desativada no banco e na
+  administração de regras fiscais;
+- preço de rota ausente ou não aprovado no Excel não é mais substituído pelo
+  motor interno ou por preço legado em pedidos e cotações;
+- o motor interno permanece disponível para comparação até a homologação das
+  regras de ICMS-ST e a cobertura dos NCMs pendentes.
+
 ## 2026-09-18 — rolagem contínua no CRM mobile
 
 - painel de busca e cabeçalho deixaram de permanecer fixos em telas pequenas;
