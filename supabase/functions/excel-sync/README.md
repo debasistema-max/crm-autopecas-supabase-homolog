@@ -1,16 +1,18 @@
 # Edge Function `excel-sync`
 
-Esta função é a fronteira segura entre o CRM e o adapter de origem. Ela não conhece Microsoft Graph nem interpreta XLSX.
+Esta função é a fronteira segura entre o CRM e o executor de origem. Ela não conhece Microsoft Graph nem interpreta XLSX.
 
-Variáveis obrigatórias no ambiente da função:
+Variáveis obrigatórias no ambiente da função para iniciar a sincronização pelo CRM:
 
-- `DATA_SYNC_ADAPTER_URL`: endpoint HTTPS do adapter;
-- `DATA_SYNC_ADAPTER_TOKEN`: token enviado somente pelo backend;
+- `DATA_SYNC_GITHUB_TOKEN`: token fine-grained limitado ao repositório do executor e com Actions em leitura/escrita;
+- `DATA_SYNC_GITHUB_REPOSITORY`: repositório privado no formato `owner/repo`;
+- `DATA_SYNC_GITHUB_WORKFLOW`: arquivo do workflow (padrão: `excel-sync.yml`);
+- `DATA_SYNC_GITHUB_REF`: branch do workflow (padrão: `main`);
 - `DATA_SYNC_SCHEDULER_SECRET`: segredo opcional para execução agendada;
 - `DATA_SYNC_ALLOWED_ORIGIN`: origem do frontend administrativo;
 - variáveis padrão `SUPABASE_URL`, `SUPABASE_ANON_KEY` e, para agenda, `SUPABASE_SERVICE_ROLE_KEY`.
 
-O adapter deve retornar o contrato documentado em `docs/data-sync.md`. O navegador envia apenas o JWT do usuário autenticado. As RPCs confirmam que o usuário é ADMIN; execuções agendadas usam `service_role` somente dentro da Edge Function.
+O navegador envia apenas o JWT do usuário autenticado. As RPCs confirmam que o usuário é ADMIN antes de a função enfileirar o workflow privado. O token do GitHub nunca é enviado ao navegador. Execuções do runner usam `service_role` somente dentro da Edge Function.
 
 ## Executor OneDrive Pessoal
 

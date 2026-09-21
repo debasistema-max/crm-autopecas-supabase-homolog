@@ -104,6 +104,11 @@ async function triggerDataSyncFromUi() {
   message.textContent = 'Sincronização iniciada. O arquivo será lido e validado no backend.';
   try {
     const result = await supabaseTriggerDataSync();
+    if (result.queued) {
+      message.textContent = 'Atualização colocada na fila. O processamento ocorre em segundo plano e costuma levar cerca de 3 minutos.';
+      scheduleDataSyncRefreshes();
+      return;
+    }
     const batch = result.batch || {};
     message.textContent = result.duplicate
       ? `A versão já foi processada no lote ${shortDataSyncId(batch.id)}.`
@@ -114,6 +119,14 @@ async function triggerDataSyncFromUi() {
   } finally {
     button.disabled = false;
   }
+}
+
+function scheduleDataSyncRefreshes() {
+  [15000, 45000, 90000, 150000].forEach((delay) => {
+    setTimeout(() => {
+      if (document.getElementById('dataSyncStatusContent')) loadDataSyncOverview();
+    }, delay);
+  });
 }
 
 async function renderDataSyncPanel(panel) {

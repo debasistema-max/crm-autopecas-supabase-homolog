@@ -149,6 +149,9 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
   assert.match(edge, /operation === 'validate'/);
   assert.match(edge, /operation === 'commit'/);
   assert.match(edge, /PUSH_EXIGE_SEGREDO_DO_AGENDADOR/);
+  assert.match(edge, /DATA_SYNC_GITHUB_TOKEN/);
+  assert.match(edge, /actions\/workflows/);
+  assert.doesNotMatch(edge, /env\('DATA_SYNC_ADAPTER_URL'\)/);
 });
 
 test('quotes read synchronized branch price and stock instead of legacy product fields', () => {

@@ -6,7 +6,7 @@ A integração copia somente dados operacionais consolidados para o Supabase. O 
 
 ```text
 Excel mestre / OneDrive
-  -> adapter de origem
+  -> executor privado do GitHub Actions
   -> normalização Data Sync v1
   -> Edge Function excel-sync
   -> staging, validação, idempotência e auditoria
@@ -27,7 +27,7 @@ O domínio do CRM não importa Microsoft Graph. Um adapter futuro pode obter o a
 - `scripts/run_excel_sync_adapter.py`: adapter HTTP autenticado para arquivo local sincronizado pelo OneDrive.
 - `scripts/sync_onedrive_personal.py`: executor efêmero para a pasta dedicada do aplicativo no OneDrive Pessoal.
 - `.github/workflows/excel-sync.yml`: agenda em dias úteis e execução manual de contingência.
-- `supabase/functions/excel-sync`: busca o DTO no adapter, cria o lote, envia staging em blocos de 500, valida e confirma.
+- `supabase/functions/excel-sync`: valida o ADMIN, enfileira o workflow privado e recebe staging em blocos de 500 para validar e confirmar.
 - migration `060_excel_data_sync_center.sql`: estende batches/staging/auditoria, adiciona proteção de versão e armazena preço fiscal consolidado por rota.
 - `js/data_sync.js`: status, contadores, execução, erros, histórico e auditoria administrativa.
 
@@ -148,7 +148,7 @@ DATA_SYNC_ADAPTER_HOST=0.0.0.0
 DATA_SYNC_ADAPTER_PORT=8788
 ```
 
-Na Edge Function, configure `DATA_SYNC_ADAPTER_URL`, `DATA_SYNC_ADAPTER_TOKEN`, `DATA_SYNC_ALLOWED_ORIGIN` e, para agenda, `DATA_SYNC_SCHEDULER_SECRET`. A service role fica somente no ambiente do Supabase.
+Na Edge Function, configure `DATA_SYNC_GITHUB_TOKEN`, `DATA_SYNC_GITHUB_REPOSITORY`, `DATA_SYNC_GITHUB_WORKFLOW`, `DATA_SYNC_GITHUB_REF`, `DATA_SYNC_ALLOWED_ORIGIN` e, para o runner, `DATA_SYNC_SCHEDULER_SECRET`. A service role fica somente no ambiente do Supabase.
 
 Um ADMIN pode executar “Sincronizar agora”. A agenda chama a mesma Edge Function com `x-sync-secret`. SUPERVISOR só consulta se receber as permissões já previstas; VENDEDOR não executa nem consulta a Central de Dados.
 

@@ -45,6 +45,37 @@ async function finalizeBatch(client: SupabaseClient, batchId: string) {
   return { failed: false, batch: await rpc(client, 'commit_data_sync_batch', { target_batch_id: batchId }) };
 }
 
+async function dispatchGithubSync() {
+  const token = env('DATA_SYNC_GITHUB_TOKEN');
+  const repository = env('DATA_SYNC_GITHUB_REPOSITORY');
+  const workflow = Deno.env.get('DATA_SYNC_GITHUB_WORKFLOW')?.trim() || 'excel-sync.yml';
+  const ref = Deno.env.get('DATA_SYNC_GITHUB_REF')?.trim() || 'main';
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    throw new Error('CONFIGURACAO_INVALIDA:DATA_SYNC_GITHUB_REPOSITORY');
+  }
+
+  const endpoint = `https://api.github.com/repos/${repository}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
+  const githubResponse = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'ips-crm-data-sync'
+    },
+    body: JSON.stringify({ ref })
+  });
+  if (!githubResponse.ok) {
+    throw new Error(`GITHUB_DISPATCH_HTTP_${githubResponse.status}`);
+  }
+  return {
+    queued: true,
+    queued_at: new Date().toISOString(),
+    message: 'Sincronização colocada na fila.'
+  };
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin') || '';
   if (origin && !allowedOrigins().includes(origin)) return response(request,403,{ error:'ORIGEM_NAO_AUTORIZADA' });
@@ -150,53 +181,7 @@ Deno.serve(async (request) => {
       return response(request,400, { error: 'OPERACAO_INVALIDA' });
     }
 
-    const adapterUrl = env('DATA_SYNC_ADAPTER_URL');
-    const adapterToken = env('DATA_SYNC_ADAPTER_TOKEN');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90_000);
-    let adapterResponse: Response;
-    try {
-      adapterResponse = await fetch(adapterUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adapterToken}` },
-        body: JSON.stringify({ source, requested_at: new Date().toISOString() }),
-        signal: controller.signal
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-    if (!adapterResponse.ok) throw new Error(`ADAPTER_HTTP_${adapterResponse.status}`);
-    const payload = await adapterResponse.json();
-    if (!Array.isArray(payload.records)) throw new Error('ADAPTER_CONTRATO_INVALIDO:records');
-    if (payload.records.length > 50_000) throw new Error('ADAPTER_LIMITE_EXCEDIDO');
-
-    const created = await rpc(client, 'create_data_sync_batch', {
-      payload: {
-        source,
-        source_name: payload.source_name || 'Excel Mestre',
-        source_version: payload.source_version,
-        source_updated_at: payload.source_updated_at,
-        file_hash: payload.file_hash,
-        original_filename: payload.original_filename,
-        file_size: payload.file_size,
-        next_sync_at: payload.next_sync_at || null
-      }
-    });
-    batchId = String(created.batch_id || '');
-    if (created.duplicate) {
-      return response(request,200, { duplicate: true, batch: await rpc(client, 'get_data_sync_batch', { target_batch_id: batchId }) });
-    }
-
-    for (let index = 0; index < payload.records.length; index += 500) {
-      await rpc(client, 'stage_data_sync_rows', {
-        target_batch_id: batchId,
-        rows: payload.records.slice(index, index + 500)
-      });
-    }
-    const result = await finalizeBatch(client, batchId);
-    return response(request,result.failed ? 422 : 200, result.failed
-      ? { error: 'LOTE_SEM_LINHAS_VALIDAS', batch: result.batch }
-      : { batch: result.batch });
+    return response(request,202, await dispatchGithubSync());
   } catch (error) {
     const message = error instanceof Error ? error.message : 'FALHA_NAO_DETALHADA';
     const resumableOperation = ['stage', 'prepare', 'status', 'validate', 'commit'].includes(operation);
