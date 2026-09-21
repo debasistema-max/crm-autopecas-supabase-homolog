@@ -2064,27 +2064,55 @@ async function supabaseListSapImportBatches(filters = {}) {
 }
 
 async function supabaseGetDataSyncStatus(filters = {}) {
-  const { data, error } = await supabaseClient.rpc('get_data_sync_status', { filters });
-  if (error) throw error;
-  return data || { source: null, last_batch: null, connected: false };
+  return (await supabaseDataSyncRpc('get_data_sync_status', { filters }))
+    || { source: null, last_batch: null, connected: false };
 }
 
 async function supabaseListDataSyncBatches(filters = {}) {
-  const { data, error } = await supabaseClient.rpc('list_data_sync_batches', { filters });
-  if (error) throw error;
-  return data || { rows: [], count: 0 };
+  return (await supabaseDataSyncRpc('list_data_sync_batches', { filters })) || { rows: [], count: 0 };
 }
 
 async function supabaseListDataSyncErrors(filters = {}) {
-  const { data, error } = await supabaseClient.rpc('list_data_sync_errors', { filters });
-  if (error) throw error;
-  return data || { rows: [], count: 0 };
+  return (await supabaseDataSyncRpc('list_data_sync_errors', { filters })) || { rows: [], count: 0 };
 }
 
 async function supabaseListDataSyncAudit(filters = {}) {
-  const { data, error } = await supabaseClient.rpc('list_data_sync_audit', { filters });
-  if (error) throw error;
-  return data || { rows: [], count: 0 };
+  return (await supabaseDataSyncRpc('list_data_sync_audit', { filters })) || { rows: [], count: 0 };
+}
+
+let dataSyncSessionRefreshPromise = null;
+
+function isDataSyncSessionError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return error?.status === 401
+    || message.includes('permission denied for function')
+    || message.includes('jwt')
+    || message.includes('session');
+}
+
+async function refreshDataSyncSession() {
+  if (!dataSyncSessionRefreshPromise) {
+    dataSyncSessionRefreshPromise = supabaseClient.auth.refreshSession()
+      .then(({ data, error }) => {
+        if (error || !data?.session) throw new Error('Sua sessão expirou. Entre novamente no CRM.');
+        return data.session;
+      })
+      .finally(() => { dataSyncSessionRefreshPromise = null; });
+  }
+  return dataSyncSessionRefreshPromise;
+}
+
+async function supabaseDataSyncRpc(name, params) {
+  let result = await supabaseClient.rpc(name, params);
+  if (result.error && isDataSyncSessionError(result.error)) {
+    await refreshDataSyncSession();
+    result = await supabaseClient.rpc(name, params);
+  }
+  if (result.error) {
+    if (isDataSyncSessionError(result.error)) throw new Error('Sua sessão expirou. Saia e entre novamente no CRM.');
+    throw result.error;
+  }
+  return result.data;
 }
 
 async function supabaseTriggerDataSync() {

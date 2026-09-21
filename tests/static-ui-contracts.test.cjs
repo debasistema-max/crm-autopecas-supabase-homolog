@@ -121,6 +121,8 @@ test('Data Center is wired without frontend secrets and keeps manual imports', (
     assert.ok(sync.includes(`id="${id}"`), id);
   }
   assert.match(store, /functions\.invoke\('excel-sync'/);
+  assert.match(store, /refreshDataSyncSession/);
+  assert.match(store, /supabaseDataSyncRpc\('list_data_sync_batches'/);
   assert.doesNotMatch(sync + store, /service[_ -]?role|DATA_SYNC_ADAPTER_TOKEN/i);
   assert.match(read('js/imports.js'), /function renderImportCenter/);
   const smoke = read('tests/ui-data-sync-smoke.html');
