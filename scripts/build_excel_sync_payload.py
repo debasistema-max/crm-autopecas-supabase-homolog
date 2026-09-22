@@ -294,14 +294,15 @@ def read_prices(workbook, records: list[dict[str, Any]]):
             final = money(row.get("preco c impostos"))
             if not code:
                 continue
-            if base is not None:
+            if base is not None and base > 0:
                 base_prices[(route[:2], code)] = {"base_price": base, "currency": "BRL"}
             calc = calculations.get((route, code), {})
             final = calc.get("final_price") if calc.get("final_price") is not None else final
-            if final is None:
+            route_base = calc.get("base_price") if calc.get("base_price") is not None else base
+            if route_base is None or route_base <= 0 or final is None or final <= 0:
                 continue
-            fields = {"final_price": final, "currency": "BRL"}
-            for name in ("base_price", "total_taxes", "tax_breakdown", "calculation_status"):
+            fields = {"base_price": route_base, "final_price": final, "currency": "BRL"}
+            for name in ("total_taxes", "tax_breakdown", "calculation_status"):
                 put(fields, name, calc.get(name))
             route_prices[(route, code)] = fields
     for (branch, code), fields in base_prices.items():

@@ -478,3 +478,14 @@ test('seller CRM is portfolio-scoped and keeps anonymous quotations separate fro
   assert.match(store, /list_business_clients_scoped/);
   assert.match(store, /sellerSession \? Promise\.resolve\(\[\]\)/);
 });
+
+test('Excel synchronization rejects zero prices but preserves valid zero-tax routes', () => {
+  const adapter = read('scripts/build_excel_sync_payload.py');
+  const migration = read('supabase/migrations/089_reject_zero_commercial_prices.sql');
+  const regression = read('supabase/tests/089_reject_zero_commercial_prices_regression.sql');
+  assert.match(adapter, /route_base is None or route_base <= 0 or final is None or final <= 0/);
+  assert.match(migration, /PRECO_NAO_POSITIVO:/);
+  assert.match(migration, /base_price > 0 and final_price > 0/);
+  assert.match(migration, /coalesce\(new\.preco_pr,0\) <= 0/);
+  assert.match(regression, /TRIBUTO_ZERO_VALIDO_FOI_REJEITADO/);
+});
