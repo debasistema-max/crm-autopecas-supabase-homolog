@@ -2,24 +2,31 @@ let partnersState = {
   tab: 'clientes',
   clients: [],
   carriers: [],
+  sellers: [],
   currentClientProfile: null,
   currentB2BClient: null,
   maxDiscountPercent: 10
 };
 
+function isPartnerSeller() {
+  return String((getStoredSession() || {}).perfil || '').toUpperCase() === 'VENDEDOR';
+}
+
 async function renderBusinessPartners(container) {
+  const seller = isPartnerSeller();
+  if (seller && partnersState.tab === 'transportadoras') partnersState.tab = 'clientes';
   container.innerHTML = `
     <div class="module-page partner-workspace">
       ${CrmUi.renderPageHeader(
-        'Clientes e transportadoras',
-        'Consulte, cadastre e mantenha os parceiros usados em cotacoes e pedidos.',
+        seller ? 'Minha carteira de clientes' : 'Clientes e transportadoras',
+        seller ? 'Consulte seus clientes e envie novas solicitacoes para o portal de cadastros.' : 'Consulte, cadastre e mantenha os parceiros usados em cotacoes e pedidos.',
         '',
         'Comercial'
       )}
       <section class="panel partner-panel">
         <nav class="partner-tabs" role="tablist" aria-label="Tipo de parceiro">
           <button class="partner-tab is-active" type="button" role="tab" aria-selected="true" data-partner-tab="clientes">Clientes</button>
-          <button class="partner-tab" type="button" role="tab" aria-selected="false" data-partner-tab="transportadoras">Transportadoras</button>
+          ${seller ? '<button class="partner-tab" type="button" role="tab" aria-selected="false" data-partner-tab="solicitar">Solicitar cadastro</button>' : '<button class="partner-tab" type="button" role="tab" aria-selected="false" data-partner-tab="transportadoras">Transportadoras</button>'}
         </nav>
         <div id="partnersContent" role="tabpanel" aria-live="polite">${CrmUi.renderState('loading', 'Carregando parceiros', 'Consultando cadastros autorizados para seu perfil.')}</div>
       </section>
@@ -43,7 +50,9 @@ async function renderPartnerTab() {
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', String(active));
   });
-  if (partnersState.tab === 'transportadoras') {
+  if (partnersState.tab === 'solicitar' && isPartnerSeller()) {
+    renderClientRegistrationRequestTab(target);
+  } else if (partnersState.tab === 'transportadoras' && !isPartnerSeller()) {
     await renderCarriersTab(target);
   } else {
     await renderClientsTab(target);
@@ -52,32 +61,38 @@ async function renderPartnerTab() {
 
 async function renderClientsTab(target) {
   try {
-    const [rows, maxDiscountPercent] = await Promise.all([
+    const seller = isPartnerSeller();
+    const [rows, maxDiscountPercent, sellers] = await Promise.all([
       supabaseListBusinessClients({
         termo: document.getElementById('partnerClientSearch') ? document.getElementById('partnerClientSearch').value : ''
       }),
-      supabaseGetCommercialDiscountLimit()
+      seller ? Promise.resolve(0) : supabaseGetCommercialDiscountLimit(),
+      seller ? Promise.resolve([]) : supabaseListActiveCrmSellers()
     ]);
     partnersState.clients = rows;
+    partnersState.sellers = sellers;
     partnersState.maxDiscountPercent = maxDiscountPercent;
     target.innerHTML = `
+      ${seller ? '' : `
       <section class="partner-editor" aria-labelledby="partnerClientEditorTitle">
         <div class="section-heading"><div><h3 id="partnerClientEditorTitle">Cadastro de cliente</h3><p>Consulte o CNPJ gratuitamente ou preencha os dados manualmente.</p></div></div>
         ${renderClientForm()}
-      </section>
+      </section>`}
       <div class="partner-toolbar">
         <label class="partner-search-field">Pesquisar cliente<input id="partnerClientSearch" type="search" placeholder="Codigo SAP, CNPJ, razao social ou cidade"></label>
         <button class="btn btn-secondary" id="partnerClientSearchButton" type="button">Pesquisar</button>
       </div>
       <section id="clientCommercialProfile" class="commercial-profile" hidden></section>
-      <section id="clientB2BAccess" class="commercial-profile" hidden></section>
-      <div class="section-heading partner-list-heading"><div><h3>Clientes cadastrados</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} encontrado${rows.length === 1 ? '' : 's'}.</p></div></div>
-      ${renderClientsTable(rows)}
+      ${seller ? '' : '<section id="clientB2BAccess" class="commercial-profile" hidden></section>'}
+      <div class="section-heading partner-list-heading"><div><h3>${seller ? 'Clientes da minha carteira' : 'Clientes cadastrados'}</h3><p>${rows.length} registro${rows.length === 1 ? '' : 's'} encontrado${rows.length === 1 ? '' : 's'}.</p></div></div>
+      ${renderClientsTable(rows, seller)}
     `;
-    document.getElementById('partnerClientForm').addEventListener('submit', savePartnerClient);
-    document.getElementById('partnerClientClearButton').addEventListener('click', clearPartnerClientForm);
-    document.getElementById('partnerClientCnpjLookup').addEventListener('click', () => lookupPartnerCnpj('client'));
-    document.getElementById('partnerClientCnpj').addEventListener('blur', formatPartnerCnpjInput);
+    if (!seller) {
+      document.getElementById('partnerClientForm').addEventListener('submit', savePartnerClient);
+      document.getElementById('partnerClientClearButton').addEventListener('click', clearPartnerClientForm);
+      document.getElementById('partnerClientCnpjLookup').addEventListener('click', () => lookupPartnerCnpj('client'));
+      document.getElementById('partnerClientCnpj').addEventListener('blur', formatPartnerCnpjInput);
+    }
     document.getElementById('partnerClientSearchButton').addEventListener('click', () => renderClientsTab(target));
     document.getElementById('partnerClientSearch').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') renderClientsTab(target);
@@ -107,6 +122,10 @@ function renderClientForm() {
       <label class="span-2">Ativo
         <select id="partnerClientActive"><option value="true">Sim</option><option value="false">Nao</option></select>
       </label>
+      <label class="span-4">Vendedor responsavel
+        <select id="partnerClientSeller"><option value="">Sem vendedor</option>${partnersState.sellers.map((seller) => `<option value="${escapeHtml(seller.id)}">${escapeHtml(seller.nome || seller.usuario || '')}</option>`).join('')}</select>
+        <small>Define em qual carteira o cliente sera exibido.</small>
+      </label>
       <label class="span-3">Desconto comercial (%)
         <input id="partnerClientDiscount" type="number" min="0" max="${escapeHtml(partnersState.maxDiscountPercent)}" step="0.01" value="0" ${canEditDiscount ? '' : 'disabled'}>
         <small>${canEditDiscount ? `Aplicado no B2B. Limite geral: ${escapeHtml(partnersState.maxDiscountPercent)}%.` : 'Somente ADMIN pode alterar.'}</small>
@@ -121,12 +140,12 @@ function renderClientForm() {
   `;
 }
 
-function renderClientsTable(rows) {
+function renderClientsTable(rows, readOnly = false) {
   if (!rows.length) return CrmUi.renderState('empty', 'Nenhum cliente encontrado', 'Ajuste a pesquisa ou cadastre o primeiro cliente.');
   return `
     <div class="table-wrap compact-table">
       <table>
-        <thead><tr><th>Cliente</th><th>CNPJ</th><th>Codigo SAP</th><th>Cidade/UF</th><th>Desc. B2B</th><th>Contato</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Cliente</th><th>CNPJ</th><th>Codigo SAP</th><th>Cidade/UF</th>${readOnly ? '' : '<th>Desc. B2B</th><th>Vendedor</th>'}<th>Contato</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${rows.map((row, index) => `
             <tr>
@@ -134,14 +153,14 @@ function renderClientsTable(rows) {
               <td>${escapeHtml(formatCnpj(row.cnpj || ''))}</td>
               <td>${escapeHtml(row.codigo_sap_cliente || '')}</td>
               <td>${escapeHtml([row.cidade, row.estado].filter(Boolean).join('/'))}</td>
-              <td>${escapeHtml(Number(row.commercial_discount_percent || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }))}%</td>
+              ${readOnly ? '' : `<td>${escapeHtml(Number(row.commercial_discount_percent || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }))}%</td><td>${escapeHtml(row.assigned_seller_name || 'Sem vendedor')}</td>`}
               <td>${escapeHtml(row.telefone || '')}<small>${escapeHtml(row.email || '')}</small></td>
               <td><span class="status-pill ${row.ativo ? 'ok' : 'warn'}">${row.ativo ? 'Ativo' : 'Inativo'}</span></td>
               <td>
                 <div class="actions-row compact-actions">
                   <button class="btn btn-secondary" type="button" data-open-client="${index}">Historico</button>
-                  ${getStoredSession()?.perfil === 'ADMIN' ? `<button class="btn btn-secondary" type="button" data-b2b-client="${index}">Acesso B2B</button>` : ''}
-                  <button class="btn btn-ghost" type="button" data-edit-client="${index}">Editar</button>
+                  ${!readOnly && getStoredSession()?.perfil === 'ADMIN' ? `<button class="btn btn-secondary" type="button" data-b2b-client="${index}">Acesso B2B</button>` : ''}
+                  ${readOnly ? '' : `<button class="btn btn-ghost" type="button" data-edit-client="${index}">Editar</button>`}
                 </div>
               </td>
             </tr>
@@ -367,6 +386,7 @@ function fillPartnerClientForm(row) {
   document.getElementById('partnerClientCity').value = row.cidade || '';
   document.getElementById('partnerClientAddress').value = row.endereco || '';
   document.getElementById('partnerClientActive').value = row.ativo === false ? 'false' : 'true';
+  document.getElementById('partnerClientSeller').value = row.assigned_seller_id || '';
   document.getElementById('partnerClientDiscount').value = Number(row.commercial_discount_percent || 0);
   document.getElementById('partnerClientNotes').value = row.observacoes || '';
   document.getElementById('partnerClientName').focus();
@@ -376,6 +396,7 @@ function clearPartnerClientForm() {
   document.getElementById('partnerClientForm').reset();
   document.getElementById('partnerClientId').value = '';
   document.getElementById('partnerClientActive').value = 'true';
+  document.getElementById('partnerClientSeller').value = '';
   document.getElementById('partnerClientDiscount').value = '0';
   document.getElementById('partnerClientMessage').textContent = '';
 }
@@ -399,6 +420,7 @@ async function savePartnerClient(event) {
       endereco: document.getElementById('partnerClientAddress').value,
       ativo: document.getElementById('partnerClientActive').value === 'true',
       commercial_discount_percent: Number(document.getElementById('partnerClientDiscount').value || 0),
+      assigned_seller_id: document.getElementById('partnerClientSeller').value,
       observacoes: document.getElementById('partnerClientNotes').value
     });
     message.style.color = 'var(--success)';
@@ -563,6 +585,110 @@ function bindClientCommercialProfile(profile) {
       message.textContent = error.message;
     }
   });
+}
+
+function renderClientRegistrationRequestTab(target) {
+  target.innerHTML = `
+    <section class="partner-editor" aria-labelledby="clientRequestTitle">
+      <div class="section-heading"><div><h3 id="clientRequestTitle">Solicitar cadastro de cliente</h3><p>A solicitacao entra diretamente na fila do Portal de clientes para analise do cadastro.</p></div></div>
+      <form id="clientRegistrationRequestForm" class="field-grid">
+        <label class="span-4">CNPJ
+          <span class="cnpj-lookup-control"><input id="clientRequestCnpj" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" required><button class="btn btn-secondary" id="clientRequestCnpjLookup" type="button">Consultar</button></span>
+        </label>
+        <label class="span-5">Razao social<input id="clientRequestName" required></label>
+        <label class="span-3">Nome fantasia<input id="clientRequestFantasy"></label>
+        <label class="span-3">Inscricao estadual<input id="clientRequestIe"></label>
+        <label class="span-3">Responsavel por compras<input id="clientRequestContact"></label>
+        <label class="span-3">Telefone<input id="clientRequestPhone"></label>
+        <label class="span-3">WhatsApp<input id="clientRequestWhatsapp"></label>
+        <label class="span-4">Email de compras<input id="clientRequestEmail" type="email" required></label>
+        <label class="span-2">CEP<input id="clientRequestCep" inputmode="numeric"></label>
+        <label class="span-4">Endereco<input id="clientRequestAddress"></label>
+        <label class="span-2">Numero<input id="clientRequestNumber"></label>
+        <label class="span-4">Bairro<input id="clientRequestDistrict"></label>
+        <label class="span-4">Complemento<input id="clientRequestComplement"></label>
+        <label class="span-4">Cidade<input id="clientRequestCity"></label>
+        <label class="span-2">UF<input id="clientRequestState" maxlength="2"></label>
+        <label class="span-3">Segmento<input id="clientRequestSegment"></label>
+        <label class="span-4">Transportadora preferida<input id="clientRequestCarrier"></label>
+        <label class="span-3">Prazo desejado<input id="clientRequestTerm"></label>
+        <label class="span-12">Observacoes<textarea id="clientRequestNotes"></textarea></label>
+        <div class="span-12 actions-row">
+          <button class="btn btn-primary" id="clientRequestSubmit" type="submit">Enviar para o Portal de clientes</button>
+          <p id="clientRequestMessage" class="form-message"></p>
+        </div>
+      </form>
+    </section>
+  `;
+  document.getElementById('clientRegistrationRequestForm').addEventListener('submit', submitClientRegistrationRequest);
+  document.getElementById('clientRequestCnpjLookup').addEventListener('click', lookupClientRegistrationCnpj);
+  document.getElementById('clientRequestCnpj').addEventListener('blur', formatPartnerCnpjInput);
+}
+
+async function lookupClientRegistrationCnpj() {
+  const button = document.getElementById('clientRequestCnpjLookup');
+  const message = document.getElementById('clientRequestMessage');
+  button.disabled = true;
+  message.style.color = 'var(--muted)';
+  message.textContent = 'Consultando CNPJ...';
+  try {
+    const company = await fetchBusinessRegistryByCnpj(document.getElementById('clientRequestCnpj').value);
+    document.getElementById('clientRequestCnpj').value = formatCnpj(company.cnpj || '');
+    document.getElementById('clientRequestName').value = company.legal_name || '';
+    document.getElementById('clientRequestFantasy').value = company.trade_name || '';
+    document.getElementById('clientRequestPhone').value = company.phone || '';
+    document.getElementById('clientRequestEmail').value = company.email || '';
+    document.getElementById('clientRequestState').value = company.state || '';
+    document.getElementById('clientRequestCity').value = company.city || '';
+    document.getElementById('clientRequestAddress').value = company.address || '';
+    message.style.color = 'var(--success)';
+    message.textContent = 'Dados encontrados. Confira e complete antes de enviar.';
+  } catch (error) {
+    message.style.color = 'var(--accent)';
+    message.textContent = (error.message || 'Nao foi possivel consultar o CNPJ.') + ' O preenchimento manual continua disponivel.';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitClientRegistrationRequest(event) {
+  event.preventDefault();
+  const button = document.getElementById('clientRequestSubmit');
+  const message = document.getElementById('clientRequestMessage');
+  button.disabled = true;
+  message.style.color = 'var(--muted)';
+  message.textContent = 'Enviando solicitacao...';
+  try {
+    const result = await supabaseSubmitClientRegistrationRequest({
+      cnpj: document.getElementById('clientRequestCnpj').value,
+      razao_social: document.getElementById('clientRequestName').value,
+      nome_fantasia: document.getElementById('clientRequestFantasy').value,
+      ie: document.getElementById('clientRequestIe').value,
+      responsavel_compras: document.getElementById('clientRequestContact').value,
+      telefone: document.getElementById('clientRequestPhone').value,
+      whatsapp: document.getElementById('clientRequestWhatsapp').value,
+      email_compras: document.getElementById('clientRequestEmail').value,
+      cep: document.getElementById('clientRequestCep').value,
+      endereco: document.getElementById('clientRequestAddress').value,
+      numero: document.getElementById('clientRequestNumber').value,
+      bairro: document.getElementById('clientRequestDistrict').value,
+      complemento: document.getElementById('clientRequestComplement').value,
+      cidade: document.getElementById('clientRequestCity').value,
+      estado: document.getElementById('clientRequestState').value,
+      segmento: document.getElementById('clientRequestSegment').value,
+      transportadora: document.getElementById('clientRequestCarrier').value,
+      prazo_desejado: document.getElementById('clientRequestTerm').value,
+      observacoes: document.getElementById('clientRequestNotes').value
+    });
+    event.currentTarget.reset();
+    message.style.color = 'var(--success)';
+    message.textContent = 'Solicitacao enviada. Protocolo: ' + (result.protocolo || result.id || '') + '.';
+  } catch (error) {
+    message.style.color = 'var(--accent)';
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function renderCarriersTab(target) {

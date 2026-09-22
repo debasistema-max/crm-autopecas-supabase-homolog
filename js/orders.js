@@ -5,6 +5,10 @@ let orderImportPreviewItems = [];
 let orderCreateSaved = false;
 let orderClientDiscountPercent = 0;
 
+function canRenderTransferInformation() {
+  return typeof canCurrentUserAccessTransfers !== 'function' || canCurrentUserAccessTransfers();
+}
+
 async function renderOrders(container) {
   if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   orderItems = [];
@@ -504,7 +508,7 @@ function renderCart() {
     return;
   }
   list.className = 'sap-items-wrap';
-  list.innerHTML = renderOrderTransferSummary(orderItems) + renderSapOrderItemsTable(orderItems);
+  list.innerHTML = (canRenderTransferInformation() ? renderOrderTransferSummary(orderItems) : '') + renderSapOrderItemsTable(orderItems);
   list.querySelectorAll('[data-cart-qty]').forEach((input) => {
     input.addEventListener('change', () => {
       orderItems[Number(input.dataset.cartQty)].quantidade = Math.max(1, Number(input.value || 1));
@@ -532,7 +536,7 @@ function renderSapOrderItemsTable(items) {
     const rowTotal = finalUnit * item.quantidade;
     const region = document.getElementById('orderRegion')?.value || 'PR';
     const branchInfo = formatBranchAvailability(item, region, item.quantidade);
-    const transferNotice = getBranchTransferNotice(item, region, item.quantidade);
+    const transferNotice = canRenderTransferInformation() ? getBranchTransferNotice(item, region, item.quantidade) : null;
     return `
       <tr>
         <td class="commercial-item-product"><strong><span class="sap-code">${escapeHtml(item.codigo)}</span> · ${escapeHtml(item.descricao || '')}</strong>
@@ -593,9 +597,9 @@ function renderSapTotals(subtotal, discount, total) {
   `;
 }
 
-function validateCommercialDocument(payload, label) {
+function validateCommercialDocument(payload, label, options = {}) {
   const docLabel = label || 'documento';
-  if (!String(payload.cliente || '').trim()) {
+  if (!options.allowAnonymous && !String(payload.cliente || '').trim()) {
     throw new Error('Informe o cliente antes de salvar ' + docLabel + '.');
   }
   if (!Array.isArray(payload.items) || !payload.items.length) {
@@ -644,7 +648,7 @@ async function saveCurrentOrder() {
     orderItems = [];
     orderCreateSaved = true;
     renderCart();
-    const transferSummary = data.transferencias || {};
+    const transferSummary = canRenderTransferInformation() ? (data.transferencias || {}) : {};
     const transferCount = Number(transferSummary.created || 0) + Number(transferSummary.updated || 0);
     const transferWarnings = Array.isArray(transferSummary.warnings) ? transferSummary.warnings : [];
     message.style.color = transferWarnings.length ? 'var(--warning)' : 'var(--success)';

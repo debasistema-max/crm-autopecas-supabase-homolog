@@ -57,6 +57,7 @@ function canViewDashboardTransfers() {
   try {
     const session = getCurrentSession && getCurrentSession();
     const modules = Array.isArray(session && session.modules) ? session.modules : [];
+    if (String(session && session.perfil || '').toUpperCase() === 'VENDEDOR') return false;
     return (session && session.perfil === 'ADMIN') || modules.includes('pedidos');
   } catch (error) {
     return false;

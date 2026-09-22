@@ -3,6 +3,19 @@
   overflow-x: hidden;
 }
 
+.commercial-anonymous-client {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.commercial-anonymous-client input {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 /* Fluxo comercial enxuto: cotacoes e pedidos */
 body.commercial-focus-mode {
   padding-bottom: 0;

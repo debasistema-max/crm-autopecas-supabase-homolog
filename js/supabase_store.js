@@ -827,7 +827,7 @@ async function enrichOrdersWithTransferSummaries(rows) {
 async function supabaseListQuotationsReport(filters = {}) {
   let query = supabaseClient
     .from('quotations')
-    .select('id, numero_cotacao, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, quotation_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item, preco_sem_imposto_unitario, imposto_unitario, fiscal_tax_rule_id, fiscal_status, fiscal_details)')
+    .select('id, client_id, numero_cotacao, data_hora, created_at, regiao, vendedor, codigo_sap_cliente, cliente, cnpj, telefone, endereco, prazo, transportadora, transportadora_cnpj, transportadora_endereco, observacao, subtotal, desconto_total, total, status, quotation_items(id, item, codigo, descricao, marca, aplicacao, quantidade, preco_unitario, desconto_percentual, preco_final_unitario, total_item, preco_sem_imposto_unitario, imposto_unitario, fiscal_tax_rule_id, fiscal_status, fiscal_details)')
     .order('created_at', { ascending: false })
     .limit(300);
   if (filters.from) query = query.gte('created_at', filters.from);
@@ -915,17 +915,18 @@ function sanitizeDocumentItemsUpdate(payload = {}) {
 }
 
 async function supabaseListBusinessClients(filters = {}) {
-  let query = supabaseClient
-    .from('clients')
-    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, commercial_discount_percent, observacoes, created_at, updated_at')
-    .order('nome', { ascending: true })
-    .limit(300);
-  if (filters.ativos === true) query = query.eq('ativo', true);
-  if (filters.termo) {
-    const term = `%${escapePostgrestFilter(filters.termo)}%`;
-    query = query.or(`codigo_sap_cliente.ilike.${term},nome.ilike.${term},nome_fantasia.ilike.${term},cnpj.ilike.${term},cidade.ilike.${term}`);
-  }
-  const { data, error } = await query;
+  const { data, error } = await supabaseClient.rpc('list_business_clients_scoped', {
+    filters: {
+      termo: String(filters.termo || '').trim(),
+      ativos: filters.ativos === true
+    }
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+async function supabaseListActiveCrmSellers() {
+  const { data, error } = await supabaseClient.rpc('list_active_crm_sellers');
   if (error) throw error;
   return data || [];
 }
@@ -943,6 +944,7 @@ async function supabaseSaveBusinessClient(payload = {}) {
     estado: String(payload.estado || '').trim().toUpperCase() || null,
     ativo: payload.ativo !== false,
     commercial_discount_percent: Math.max(0, Number(payload.commercial_discount_percent || 0)),
+    assigned_seller_id: String(payload.assigned_seller_id || '').trim() || null,
     observacoes: String(payload.observacoes || '').trim() || null
   };
   if (!client.nome) throw new Error('Informe a razao social/nome do cliente.');
@@ -951,7 +953,7 @@ async function supabaseSaveBusinessClient(payload = {}) {
   const { data, error } = await supabaseClient
     .from('clients')
     .upsert(record, { onConflict: 'id' })
-    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, commercial_discount_percent, observacoes')
+    .select('id, codigo_sap_cliente, nome, nome_fantasia, cnpj, telefone, email, endereco, cidade, estado, ativo, commercial_discount_percent, assigned_seller_id, observacoes')
     .single();
   if (error) throw error;
   await supabaseLog('SALVAR_CLIENTE', 'clients', data.id, client);
@@ -977,6 +979,7 @@ async function supabaseSaveBusinessClientFromCadastro(cadastro = {}) {
     estado: cadastro.estado || '',
     ativo: true,
     commercial_discount_percent: Number((existing && existing.commercial_discount_percent) || 0),
+    assigned_seller_id: cadastro.requested_by || (existing && existing.assigned_seller_id) || null,
     observacoes: [
       cadastro.protocolo ? `Origem portal: ${cadastro.protocolo}` : '',
       cadastro.observacoes || ''
@@ -987,7 +990,7 @@ async function supabaseSaveBusinessClientFromCadastro(cadastro = {}) {
 async function supabaseFindBusinessClient(field, value) {
   const { data, error } = await supabaseClient
     .from('clients')
-    .select('id, commercial_discount_percent')
+    .select('id, commercial_discount_percent, assigned_seller_id')
     .eq(field, value)
     .limit(1)
     .maybeSingle();
@@ -1046,9 +1049,10 @@ async function supabaseSaveBusinessCarrier(payload = {}) {
 }
 
 async function supabaseSearchOrderClients(term = '') {
+  const sellerSession = String((getStoredSession() || {}).perfil || '').toUpperCase() === 'VENDEDOR';
   const [clients, cadastros] = await Promise.all([
     supabaseListBusinessClients({ termo: term, ativos: true }),
-    supabaseSearchCadastrosClientesForOrder(term)
+    sellerSession ? Promise.resolve([]) : supabaseSearchCadastrosClientesForOrder(term)
   ]);
   const rows = clients.map((client) => ({
     origem: 'cliente',
@@ -1089,7 +1093,7 @@ async function supabaseGetLogs(filters) {
 async function supabaseListCadastrosClientes(filters = {}) {
   let query = supabaseClient
     .from('cadastros_clientes')
-    .select('id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, ie, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, segmento, transportadora, prazo_desejado, vendedor, situacao_cadastral, cnae, possui_regime_especial, descricao_regime, observacoes, observacoes_internas, anexos, created_at')
+    .select('id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, ie, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, segmento, transportadora, prazo_desejado, vendedor, requested_by, situacao_cadastral, cnae, possui_regime_especial, descricao_regime, observacoes, observacoes_internas, anexos, created_at')
     .order('created_at', { ascending: false })
     .limit(150);
   if (filters.status) query = query.eq('status', filters.status);
@@ -1146,7 +1150,7 @@ async function supabaseGetCadastrosPortalReport(filters = {}) {
   const totalPromise = buildCadastrosPortalQuery('id', { count: 'exact', head: true }, filters);
   const statusPromises = statuses.map((status) => buildCadastrosPortalQuery('id', { count: 'exact', head: true }, filters).eq('status', status));
   const recentPromise = buildCadastrosPortalQuery(
-    'id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, observacoes, vendedor, anexos, created_at',
+    'id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, observacoes, vendedor, requested_by, anexos, created_at',
     {},
     filters
   )
@@ -1210,7 +1214,7 @@ async function supabaseSearchCadastrosClientesForOrder(term = '') {
   const search = String(term || '').trim();
   let query = supabaseClient
     .from('cadastros_clientes')
-    .select('id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, transportadora, prazo_desejado, vendedor, created_at')
+    .select('id, protocolo, status, codigo_sap_cliente, cnpj, razao_social, nome_fantasia, telefone, whatsapp, email_compras, cidade, estado, endereco, numero, bairro, complemento, transportadora, prazo_desejado, vendedor, requested_by, created_at')
     .in('status', ['Aprovado', 'Finalizado SAP'])
     .order('created_at', { ascending: false })
     .limit(30);
@@ -1999,6 +2003,41 @@ async function supabaseGetProductRoutePrices(productCode) {
   const { data, error } = await supabaseClient.rpc('get_product_route_prices', { product_code: productCode });
   if (error) throw error;
   return data || [];
+}
+
+async function supabaseSubmitClientRegistrationRequest(payload = {}) {
+  const request = {
+    cnpj: onlyDigits(payload.cnpj || ''),
+    razao_social: String(payload.razao_social || '').trim(),
+    nome_fantasia: String(payload.nome_fantasia || '').trim(),
+    ie: String(payload.ie || '').trim(),
+    telefone: String(payload.telefone || '').trim(),
+    whatsapp: String(payload.whatsapp || '').trim(),
+    email_compras: String(payload.email_compras || '').trim(),
+    responsavel_compras: String(payload.responsavel_compras || '').trim(),
+    cep: onlyDigits(payload.cep || ''),
+    endereco: String(payload.endereco || '').trim(),
+    numero: String(payload.numero || '').trim(),
+    bairro: String(payload.bairro || '').trim(),
+    complemento: String(payload.complemento || '').trim(),
+    cidade: String(payload.cidade || '').trim(),
+    estado: String(payload.estado || '').trim().toUpperCase(),
+    segmento: String(payload.segmento || '').trim(),
+    transportadora: String(payload.transportadora || '').trim(),
+    prazo_desejado: String(payload.prazo_desejado || '').trim(),
+    observacoes: String(payload.observacoes || '').trim()
+  };
+  if (request.cnpj.length !== 14) throw new Error('Informe um CNPJ valido.');
+  if (!request.razao_social) throw new Error('Informe a razao social.');
+  if (!isValidEmail(request.email_compras)) throw new Error('Informe um email de compras valido.');
+  const { data, error } = await supabaseClient.rpc('submit_client_registration_request', { payload: request });
+  if (error) {
+    const message = String(error.message || '');
+    if (message.includes('CADASTRO_RECENTE_EXISTENTE')) throw new Error('Ja existe uma solicitacao recente para este CNPJ.');
+    if (message.includes('SEM_PERMISSAO')) throw new Error('Seu perfil nao pode solicitar este cadastro.');
+    throw error;
+  }
+  return data || {};
 }
 
 async function supabaseGetCommercialDiscountLimit() {

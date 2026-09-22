@@ -457,3 +457,23 @@ test('manual Excel parsing uses the patched, vendored SheetJS build', () => {
   assert.equal(hash, 'cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41');
   assert.match(read('app.html'), /xlsx\.full\.min\.js\?v=0\.20\.3/);
 });
+
+test('seller CRM is portfolio-scoped and keeps anonymous quotations separate from orders', () => {
+  const migration = read('supabase/migrations/087_crm_seller_portfolio.sql');
+  const app = read('js/app.js');
+  const partners = read('js/partners.js');
+  const quotes = read('js/quotes.js');
+  const store = read('js/supabase_store.js');
+
+  assert.match(migration, /assigned_seller_id uuid references public\.profiles/);
+  assert.match(migration, /not public\.is_crm_seller\(\) or assigned_seller_id=auth\.uid\(\)/);
+  assert.match(migration, /submit_client_registration_request/);
+  assert.match(migration, /SEM_PERMISSAO_TRANSFERENCIAS/);
+  assert.match(migration, /CLIENTE OBRIGATORIO PARA CONVERSAO|CLIENTE_OBRIGATORIO_PARA_CONVERSAO/);
+  assert.match(app, /deniedRoles: \['VENDEDOR'\]/);
+  assert.match(partners, /Solicitar cadastro/);
+  assert.match(partners, /renderClientsTable\(rows, seller\)/);
+  assert.match(quotes, /quoteAnonymousClient/);
+  assert.match(store, /list_business_clients_scoped/);
+  assert.match(store, /sellerSession \? Promise\.resolve\(\[\]\)/);
+});

@@ -2,7 +2,7 @@ const MODULES = {
   dashboard: { title: 'Início', section: 'Comercial', domain: 'dashboard', permission: 'dashboard', render: renderDashboard },
   products: { title: 'Produtos', section: 'Catálogo', domain: 'products', permission: 'produtos', render: renderProducts },
   ordersReport: { title: 'Pedidos', section: 'Comercial', domain: 'orders', permission: ['pedidos', 'novo_pedido'], render: renderOrdersReport },
-  stockTransfers: { title: 'Transferências', section: 'Operação', domain: 'orders', permission: 'pedidos', render: renderStockTransfers },
+  stockTransfers: { title: 'Transferências', section: 'Operação', domain: 'orders', permission: 'pedidos', deniedRoles: ['VENDEDOR'], render: renderStockTransfers },
   quoteReports: { title: 'Cotações', section: 'Comercial', domain: 'quotes', permission: ['cotacoes', 'nova_cotacao'], render: renderQuotationsReport },
   partners: { title: 'Parceiros de negócios', section: 'Comercial', domain: 'customers', permission: 'parceiros', render: renderBusinessPartners },
   dataCentral: { title: 'Central de Dados', section: 'Operação', domain: 'imports', permission: ['alimentacao', 'importar_estoque_preco'], adminOnly: true, render: renderDataSyncCenter },
@@ -111,7 +111,8 @@ function applyNavigationVisibility() {
     const module = MODULES[button.dataset.module];
     const blockedByPermission = !!(module && !hasModuleAccess(module, allowed));
     const blockedByAdmin = !!(module && module.adminOnly && !isCurrentUserAdmin());
-    button.hidden = blockedByPermission || blockedByAdmin;
+    const blockedByRole = !!(module && isModuleBlockedForCurrentRole(module));
+    button.hidden = blockedByPermission || blockedByAdmin || blockedByRole;
   });
   document.querySelectorAll('[data-nav-group]').forEach((group) => {
     group.hidden = !Array.from(group.querySelectorAll('.nav-item')).some((button) => !button.hidden);
@@ -157,7 +158,8 @@ function applyMobileNavigationVisibility() {
     const module = MODULES[button.dataset.mobileModule];
     const blockedByPermission = !!(module && !hasModuleAccess(module, allowed));
     const blockedByAdmin = !!(module && module.adminOnly && !isCurrentUserAdmin());
-    button.hidden = blockedByPermission || blockedByAdmin;
+    const blockedByRole = !!(module && isModuleBlockedForCurrentRole(module));
+    button.hidden = blockedByPermission || blockedByAdmin || blockedByRole;
   });
 }
 
@@ -207,6 +209,12 @@ async function openModule(name) {
     return;
   }
 
+  if (isModuleBlockedForCurrentRole(module)) {
+    content.innerHTML = CrmUi.renderState('error', 'Acesso não permitido', 'Este módulo não está disponível para o perfil vendedor.');
+    content.focus();
+    return;
+  }
+
   if (!hasModuleAccess(module, allowed)) {
     content.innerHTML = CrmUi.renderState('error', 'Acesso não permitido', 'Seu perfil não possui permissão para acessar este módulo.');
     content.focus();
@@ -250,6 +258,19 @@ async function logoutCurrentUser() {
 
 function isCurrentUserAdmin() {
   return String(currentSession && currentSession.perfil || '').toUpperCase() === 'ADMIN';
+}
+
+function isCurrentUserSeller() {
+  return String(currentSession && currentSession.perfil || '').toUpperCase() === 'VENDEDOR';
+}
+
+function isModuleBlockedForCurrentRole(module) {
+  const role = String(currentSession && currentSession.perfil || '').toUpperCase();
+  return Array.isArray(module && module.deniedRoles) && module.deniedRoles.includes(role);
+}
+
+function canCurrentUserAccessTransfers() {
+  return !isCurrentUserSeller();
 }
 
 function hasModuleAccess(module, allowed) {

@@ -5,6 +5,10 @@ let quoteImportPreviewItems = [];
 let quoteCreateSaved = false;
 let quoteClientDiscountPercent = 0;
 
+function canRenderReportTransferInformation() {
+  return typeof canCurrentUserAccessTransfers !== 'function' || canCurrentUserAccessTransfers();
+}
+
 async function renderCreateQuotation(container) {
   if (typeof setCommercialFocusMode === 'function') setCommercialFocusMode(true);
   quoteItems = [];
@@ -29,6 +33,7 @@ async function renderCreateQuotation(container) {
                 <button class="sap-search-button" id="quoteClientSearchSubmitButton" type="button" title="Buscar cliente" aria-label="Buscar cliente">&#128269;</button>
               </span>
             </label>
+            <label class="commercial-anonymous-client"><input id="quoteAnonymousClient" type="checkbox"> Gerar cotacao sem dados do cliente</label>
             <label>Filial de faturamento<select id="quoteRegion"><option value="PR">Matriz PR</option><option value="SP">Filial SP</option></select></label>
             <input id="quoteUsage" type="hidden" value="Revenda">
           </div>
@@ -195,6 +200,9 @@ async function renderCreateQuotation(container) {
       grupo: '',
       regiao: document.getElementById('quoteRegion').value
     }, selectProductForQuote);
+  });
+  document.getElementById('quoteAnonymousClient').addEventListener('change', (event) => {
+    setAnonymousQuoteMode(event.target.checked);
   });
   document.getElementById('quoteRegion').addEventListener('change', () => {
     quoteItems = [];
@@ -548,7 +556,9 @@ async function saveCurrentQuote() {
       observacao: document.getElementById('quoteNotes').value,
       items: quoteItems
     };
-    validateCommercialDocument(payload, 'a cotacao');
+    validateCommercialDocument(payload, 'a cotacao', {
+      allowAnonymous: document.getElementById('quoteAnonymousClient').checked
+    });
     const data = await supabaseCreateQuotation(payload);
     quoteItems = [];
     quoteCreateSaved = true;
@@ -653,6 +663,8 @@ function renderQuoteClientsResults(rows) {
 function applyClientToQuote(row) {
   const clientName = row.razao_social || row.nome_fantasia || '';
   document.getElementById('quoteClientSapCode').value = row.codigo_sap_cliente || '';
+  document.getElementById('quoteAnonymousClient').checked = false;
+  setAnonymousQuoteMode(false);
   document.getElementById('quoteClient').value = clientName;
   document.getElementById('quoteClientSearch').value = clientName;
   document.getElementById('quoteCnpj').value = formatCnpj(row.cnpj || '');
@@ -666,7 +678,32 @@ function applyClientToQuote(row) {
   renderQuoteCart();
   const message = document.getElementById('quoteMessage');
   message.style.color = 'var(--success)';
-  message.textContent = 'Cliente carregado na cotacao. Desconto padrao: ' + quoteClientDiscountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%. Faturamento: ' + getBillingBranchLabel(document.getElementById('quoteRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+  const discountMessage = typeof isCurrentUserSeller === 'function' && isCurrentUserSeller()
+    ? ''
+    : ' Desconto padrao: ' + quoteClientDiscountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%.';
+  message.textContent = 'Cliente carregado na cotacao.' + discountMessage + ' Faturamento: ' + getBillingBranchLabel(document.getElementById('quoteRegion').value) + '.' + (billingChanged ? ' Itens removidos para recalcular valores.' : '');
+}
+
+function setAnonymousQuoteMode(enabled) {
+  const clientFieldIds = ['quoteClientSearch', 'quoteClientSapCode', 'quoteCnpj', 'quoteClient', 'quotePhone', 'quoteClientRef', 'quoteAddress'];
+  clientFieldIds.forEach((id) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    if (enabled) field.value = '';
+    field.disabled = enabled;
+  });
+  document.getElementById('quoteClientSearchSubmitButton').disabled = enabled;
+  document.getElementById('quoteClientSearchButton').disabled = enabled;
+  document.getElementById('quoteClientResults').hidden = true;
+  if (enabled) {
+    document.getElementById('quoteBillingState').value = '';
+    quoteClientDiscountPercent = 0;
+    quoteItems.forEach((item) => { item.desconto_percentual = 0; });
+    renderQuoteCart();
+    const message = document.getElementById('quoteMessage');
+    message.style.color = 'var(--muted)';
+    message.textContent = 'Cotacao sem cliente selecionada. Para transformar em pedido, sera necessario informar um cliente.';
+  }
 }
 
 function applyBillingRegionToQuote(uf) {
@@ -884,7 +921,7 @@ function renderDocumentReport(kind, rows) {
       <table class="document-report-table">
         <thead>
           <tr>
-            <th>Numero</th><th>Data</th><th>Cliente</th><th>SAP</th><th>Vendedor</th><th>Status</th>${kind === 'pedidos' ? '<th>Transferencia</th>' : ''}<th>Total</th><th></th>
+            <th>Numero</th><th>Data</th><th>Cliente</th><th>SAP</th><th>Vendedor</th><th>Status</th>${kind === 'pedidos' && canRenderReportTransferInformation() ? '<th>Transferencia</th>' : ''}<th>Total</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -896,13 +933,13 @@ function renderDocumentReport(kind, rows) {
               <td>${escapeHtml(row.codigo_sap_cliente || '')}</td>
               <td>${escapeHtml(row.vendedor || '')}</td>
               <td><span class="status-pill">${escapeHtml(formatDocumentStatus(kind, row.status))}</span></td>
-              ${kind === 'pedidos' ? `<td>${renderOrderTransferBadge(row.transfer_summary)}</td>` : ''}
+              ${kind === 'pedidos' && canRenderReportTransferInformation() ? `<td>${renderOrderTransferBadge(row.transfer_summary)}</td>` : ''}
               <td>${money(row.total)}</td>
               <td>
                 <div class="actions-row compact-actions">
                   <button class="btn btn-secondary" type="button" data-edit-document="${index}">Abrir</button>
                   <button class="btn btn-ghost" type="button" data-duplicate-document="${index}">Duplicar</button>
-                  ${kind === 'cotacoes' ? `<button class="btn btn-primary" type="button" data-convert-quotation="${index}">Converter</button>` : ''}
+                  ${kind === 'cotacoes' ? (isAnonymousQuotation(row) ? '<button class="btn btn-primary" type="button" disabled title="Informe um cliente antes de converter em pedido">Converter</button>' : `<button class="btn btn-primary" type="button" data-convert-quotation="${index}">Converter</button>`) : ''}
                 </div>
               </td>
             </tr>
@@ -1048,7 +1085,7 @@ function showDocumentEditForm(kind, row) {
             </div>
           </div>
         </section>
-        ${kind === 'pedidos' ? `<section class="sap-section" id="${kind}TransferPanel"><div class="sap-section-heading"><div><h3>Transferencias</h3><p>Solicitacoes vinculadas a este pedido.</p></div></div>${CrmUi.renderState('loading', 'Carregando transferencias', 'Consultando movimentacoes vinculadas.')}</section>` : ''}
+        ${kind === 'pedidos' && canRenderReportTransferInformation() ? `<section class="sap-section" id="${kind}TransferPanel"><div class="sap-section-heading"><div><h3>Transferencias</h3><p>Solicitacoes vinculadas a este pedido.</p></div></div>${CrmUi.renderState('loading', 'Carregando transferencias', 'Consultando movimentacoes vinculadas.')}</section>` : ''}
         <section class="sap-section">
           <div class="sap-section-heading"><div><h3>Memoria fiscal</h3><p>Snapshot preservado no momento da criacao do documento; esta abertura nao recalcula impostos.</p></div></div>
           ${renderDocumentFiscalPanel(window[`${kind}EditingItems`] || [])}
@@ -1107,7 +1144,7 @@ function showDocumentEditForm(kind, row) {
   `;
   bindSapTabs(panel);
   renderDocumentEditItems(kind);
-  if (kind === 'pedidos') loadOrderTransferPanel(row.id, `${kind}TransferPanel`);
+  if (kind === 'pedidos' && canRenderReportTransferInformation()) loadOrderTransferPanel(row.id, `${kind}TransferPanel`);
   const searchButton = document.getElementById(`${kind}EditProductSearchButton`);
   const searchInput = document.getElementById(`${kind}EditProductTerm`);
   searchButton.addEventListener('click', () => searchProductsForDocumentEdit(kind, row.regiao || 'SP'));
@@ -1138,6 +1175,13 @@ async function loadOrderTransferPanel(orderId, panelId) {
   } catch (error) {
     panel.innerHTML = heading + CrmUi.renderState('error', 'Nao foi possivel carregar as transferencias', error.message);
   }
+}
+
+function isAnonymousQuotation(row) {
+  return !row.client_id
+    && !String(row.codigo_sap_cliente || '').trim()
+    && !String(row.cnpj || '').trim()
+    && String(row.cliente || '').trim().toUpperCase() === 'CLIENTE NÃO INFORMADO';
 }
 
 function renderOrderTransferPanelRows(rows) {
