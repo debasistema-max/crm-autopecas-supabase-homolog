@@ -303,8 +303,20 @@ function getBranchTransferNotice(product, region, requestedQty = 1) {
   const requested = Math.max(Number(requestedQty || 0), 0);
 
   if (sp === null) {
-    const prStatus = pr === null ? 'Estoque PR tambem nao importado.' : 'Matriz PR: ' + formatQuantity(pr) + ' transferivel.';
-    return { code: 'ESTOQUE_SP_NAO_IMPORTADO', level: 'blocked', message: 'Estoque SP nao importado. ' + prStatus + ' A transferencia automatica aguarda um saldo SP confirmado.' };
+    if (pr === null) {
+      return { code: 'ESTOQUE_PR_NAO_IMPORTADO', level: 'blocked', message: 'Estoque PR nao importado. A transferencia automatica nao pode ser calculada.' };
+    }
+    if (pr <= 0) {
+      return { code: 'ESTOQUE_PR_INDISPONIVEL', level: 'blocked', message: 'Sem disponibilidade na Matriz PR para atender o pedido de SP.' };
+    }
+    const transferQty = Math.min(requested, pr);
+    return {
+      code: transferQty < requested ? 'TRANSFERENCIA_PARCIAL' : 'TRANSFERENCIA_PR_SP',
+      level: transferQty < requested ? 'partial' : 'transfer',
+      transferQty,
+      message: 'Transferencia PR -> SP de ' + formatQuantity(transferQty) + ' unidade(s) sera solicitada ao salvar o pedido.'
+        + (transferQty < requested ? ' O saldo PR atende apenas parte do pedido.' : '')
+    };
   }
   const shortage = Math.max(requested - sp, 0);
   if (shortage <= 0) return null;

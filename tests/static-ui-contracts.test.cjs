@@ -278,13 +278,13 @@ test('own ICMS stays informational and never composes the commercial price', () 
   assert.match(taxRules, /resale_include_own_icms: false/);
 });
 
-test('SP orders warn and create safe PR transfer requests without inventing stock zero', () => {
+test('SP orders use imported PR stock for fulfillment when SP has no snapshot', () => {
   const store = read('js/supabase_store.js');
   const orders = read('js/orders.js');
-  const migration = read('supabase/migrations/067_safe_sp_pr_order_transfers.sql');
+  const migration = read('supabase/migrations/088_sp_orders_pr_fulfillment.sql');
   const regression = read('supabase/tests/067_safe_sp_pr_order_transfers_regression.sql');
   assert.match(store, /function getBranchTransferNotice/);
-  assert.match(store, /ESTOQUE_SP_NAO_IMPORTADO/);
+  assert.match(store, /Sem disponibilidade na Matriz PR para atender o pedido de SP/);
   assert.match(store, /sp_transfer_available_qty/);
   assert.match(store, /pr_transfer_available_qty/);
   assert.match(orders, /commercial-transfer-warning/);
@@ -293,10 +293,11 @@ test('SP orders warn and create safe PR transfer requests without inventing stoc
   assert.match(read('js/products.js'), /product-picker-stock/);
   assert.match(migration, /PEDIDO_NAO_EH_SP_SP/);
   assert.match(migration, /ORDER_SP_SHORTAGE_PR_TRANSFER/);
+  assert.match(migration, /ORDER_SP_PR_FULFILLMENT/);
   assert.match(migration, /source_stock\.available_qty/);
   assert.doesNotMatch(migration, /insert into public\.product_branch_stock/i);
   assert.match(regression, /TRANSFERENCIA_SP_PR_NAO_CRIADA/);
-  assert.match(regression, /SNAPSHOT_SP_AUSENTE_FOI_TRATADO_COMO_ZERO/);
+  assert.match(regression, /ATENDIMENTO_PR_SEM_SNAPSHOT_SP_NAO_CRIADO/);
 });
 
 test('commercial creation uses a focused shell and supports standalone mobile launch', () => {

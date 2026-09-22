@@ -82,14 +82,18 @@ begin
   ));
   v_order_id:=(v_result->>'id')::uuid;
 
-  if coalesce((v_result->'transferencias'->>'created')::integer,0)<>0
-     or not exists(
-       select 1 from jsonb_array_elements(v_result->'transferencias'->'warnings') w
-       where w->>'code'='ESTOQUE_SP_NAO_IMPORTADO' and w->>'product_code'='9900000068'
-     )
-     or exists(select 1 from public.stock_transfer_requests where order_id=v_order_id)
+  select * into v_transfer from public.stock_transfer_requests
+  where order_id=v_order_id and product_code='9900000068';
+
+  if coalesce((v_result->'transferencias'->>'created')::integer,0)<>1
+     or v_transfer.id is null
+     or v_transfer.requested_qty<>1
+     or v_transfer.source_branch_id<>v_branch_pr
+     or v_transfer.target_branch_id<>v_branch_sp
+     or v_transfer.status<>'PENDING'
+     or v_transfer.reason<>'ORDER_SP_PR_FULFILLMENT'
      or exists(select 1 from public.product_branch_stock where product_code='9900000068' and branch_id=v_branch_sp) then
-    raise exception 'SNAPSHOT_SP_AUSENTE_FOI_TRATADO_COMO_ZERO: %',v_result;
+    raise exception 'ATENDIMENTO_PR_SEM_SNAPSHOT_SP_NAO_CRIADO: % / %',v_result,to_jsonb(v_transfer);
   end if;
 end;
 $$;
