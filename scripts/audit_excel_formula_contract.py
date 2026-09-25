@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,31 @@ def audit(source: Path) -> dict[str, Any]:
         if not counter_formula:
             raise FormulaContractError("FORMULA_CRITICA_AUSENTE:Pesquisa Marcas!K4")
 
+        stock = workbook["PORTAL ESTOQUE PR"]
+        last_stock_row = 1
+        for row_number, (product_code,) in enumerate(
+            stock.iter_rows(min_row=2, min_col=2, max_col=2, values_only=True),
+            start=2,
+        ):
+            if product_code not in (None, "", 0):
+                last_stock_row = row_number
+        stock_lookup_rows = [
+            int(match)
+            for match in re.findall(
+                r"'PORTAL ESTOQUE PR'!\$[BH]\$2:\$[BH]\$(\d+)",
+                search_formula,
+                flags=re.IGNORECASE,
+            )
+        ]
+        warnings: list[str] = []
+        if not stock_lookup_rows:
+            raise FormulaContractError("FORMULA_BUSCA_SEM_INTERVALO_ESTOQUE:Pesquisa Marcas!A10")
+        lookup_last_row = min(stock_lookup_rows)
+        if lookup_last_row < last_stock_row:
+            warnings.append(
+                f"INTERVALO_ESTOQUE_DESATUALIZADO:Pesquisa Marcas!A10:{lookup_last_row}:{last_stock_row}"
+            )
+
         list_summary: dict[str, Any] = {}
         for sheet_name in ("LISTA PR-PR", "LISTA SP-SP", "LISTA PR-SC"):
             sheet = workbook[sheet_name]
@@ -82,6 +108,9 @@ def audit(source: Path) -> dict[str, Any]:
             "last_product_row": last_product_row,
             "search_formula": "Pesquisa Marcas!A10",
             "counter_formula": "Pesquisa Marcas!K4",
+            "last_stock_row": last_stock_row,
+            "stock_lookup_last_row": lookup_last_row,
+            "warnings": warnings,
             "lists": list_summary,
         }
     finally:
