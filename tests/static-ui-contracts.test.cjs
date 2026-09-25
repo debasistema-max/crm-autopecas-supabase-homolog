@@ -489,3 +489,12 @@ test('Excel synchronization rejects zero prices but preserves valid zero-tax rou
   assert.match(migration, /coalesce\(new\.preco_pr,0\) <= 0/);
   assert.match(regression, /TRIBUTO_ZERO_VALIDO_FOI_REJEITADO/);
 });
+
+test('OneDrive synchronization blocks workbooks with missing search formulas', () => {
+  const audit = read('scripts/audit_excel_formula_contract.py');
+  const runner = read('scripts/sync_onedrive_personal.py');
+  assert.match(audit, /FORMULA_CRITICA_AUSENTE:Pesquisa Marcas!A10/);
+  assert.match(audit, /FORMULAS_LISTA_AUSENTES/);
+  assert.match(audit, /PORTAL ESTOQUE PR/);
+  assert.match(runner, /FORMULAS_INVALIDAS:/);
+});

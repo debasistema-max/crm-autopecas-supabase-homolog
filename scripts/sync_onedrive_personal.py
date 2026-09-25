@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import sys
 import tempfile
 import time
 import urllib.error
@@ -26,6 +27,13 @@ if SPEC is None or SPEC.loader is None:
     raise RuntimeError("Não foi possível carregar o normalizador do Excel.")
 excel_payload = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(excel_payload)
+
+AUDIT_MODULE_PATH = Path(__file__).with_name("audit_excel_formula_contract.py")
+AUDIT_SPEC = importlib.util.spec_from_file_location("excel_formula_audit", AUDIT_MODULE_PATH)
+if AUDIT_SPEC is None or AUDIT_SPEC.loader is None:
+    raise RuntimeError("Não foi possível carregar a validação de fórmulas do Excel.")
+excel_formula_audit = importlib.util.module_from_spec(AUDIT_SPEC)
+AUDIT_SPEC.loader.exec_module(excel_formula_audit)
 
 GRAPH_ROOT = "https://graph.microsoft.com/v1.0"
 TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
@@ -252,6 +260,11 @@ def synchronize() -> dict[str, Any]:
         for field in ("size", "eTag", "lastModifiedDateTime"):
             if after.get(field) != before.get(field):
                 raise SyncError("EXCEL_ALTERADO_DURANTE_DOWNLOAD")
+        try:
+            formula_audit = excel_formula_audit.audit(source)
+        except Exception as error:
+            raise SyncError(f"FORMULAS_INVALIDAS:{error}") from error
+        print(json.dumps({"formula_audit": formula_audit}, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
         payload = excel_payload.build(source, str(before.get("lastModifiedDateTime") or ""))
         metadata = {key: payload[key] for key in (
             "source_name", "source_version", "source_updated_at", "file_hash", "original_filename", "file_size"
