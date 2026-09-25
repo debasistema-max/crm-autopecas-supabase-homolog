@@ -69,10 +69,15 @@ def audit(source: Path) -> dict[str, Any]:
             )
         ]
         warnings: list[str] = []
-        if not stock_lookup_rows:
-            raise FormulaContractError("FORMULA_BUSCA_SEM_INTERVALO_ESTOQUE:Pesquisa Marcas!A10")
-        lookup_last_row = min(stock_lookup_rows)
-        if lookup_last_row < last_stock_row:
+        portal_segments = [
+            segment.strip()[:500]
+            for segment in search_formula.split(",")
+            if "PORTAL ESTOQUE PR" in segment.upper()
+        ]
+        lookup_last_row = min(stock_lookup_rows) if stock_lookup_rows else None
+        if lookup_last_row is None:
+            warnings.append("FORMULA_BUSCA_SEM_INTERVALO_ESTOQUE_PADRAO:Pesquisa Marcas!A10")
+        elif lookup_last_row < last_stock_row:
             warnings.append(
                 f"INTERVALO_ESTOQUE_DESATUALIZADO:Pesquisa Marcas!A10:{lookup_last_row}:{last_stock_row}"
             )
@@ -110,6 +115,7 @@ def audit(source: Path) -> dict[str, Any]:
             "counter_formula": "Pesquisa Marcas!K4",
             "last_stock_row": last_stock_row,
             "stock_lookup_last_row": lookup_last_row,
+            "portal_formula_segments": portal_segments,
             "warnings": warnings,
             "lists": list_summary,
         }
