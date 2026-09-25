@@ -61,9 +61,9 @@ def audit(source: Path) -> dict[str, Any]:
             if product_code not in (None, "", 0):
                 last_stock_row = row_number
         stock_lookup_rows = [
-            int(match)
-            for match in re.findall(
-                r"'PORTAL ESTOQUE PR'!\$[BH]\$2:\$[BH]\$(\d+)",
+            int(last_row)
+            for _column, last_row in re.findall(
+                r"'PORTAL ESTOQUE PR'!\$([A-Z]{1,3})\$2:\$\1\$(\d+)",
                 search_formula,
                 flags=re.IGNORECASE,
             )

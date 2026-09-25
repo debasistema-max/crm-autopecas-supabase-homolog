@@ -498,3 +498,13 @@ test('OneDrive synchronization blocks workbooks with missing search formulas', (
   assert.match(audit, /PORTAL ESTOQUE PR/);
   assert.match(runner, /FORMULAS_INVALIDAS:/);
 });
+
+test('one-time OneDrive formula repair is scoped and concurrency-safe', () => {
+  const repair = read('scripts/repair_onedrive_search_formula.py');
+  assert.match(repair, /SCOPES = "Files\.ReadWrite"/);
+  assert.doesNotMatch(repair, /offline_access/);
+  assert.match(repair, /"If-Match": str\(item\.get\("eTag"\)/);
+  assert.match(repair, /Pesquisa Marcas/);
+  assert.match(repair, /A10/);
+  assert.match(repair, /INTERVALO_ESTOQUE_DESATUALIZADO/);
+});
