@@ -19,9 +19,8 @@ class AuthorizeOneDrivePersonalTest(unittest.TestCase):
         self.assertEqual(kwargs["input"], "secret-refresh-token")
         self.assertTrue(kwargs["check"])
 
-    def test_scope_is_read_only(self):
-        self.assertEqual(MODULE.SCOPES, "offline_access Files.Read")
-        self.assertNotIn("ReadWrite", MODULE.SCOPES)
+    def test_scope_supports_version_backups(self):
+        self.assertEqual(MODULE.SCOPES, "offline_access Files.ReadWrite")
 
     def test_workbook_is_verified_before_secret_can_be_stored(self):
         root_response = MagicMock()

@@ -67,6 +67,34 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
         self.assertEqual(result["state"], "COMMITTED")
         self.assertEqual(edge.call_count, 1)
 
+    def test_backup_filename_is_versioned_by_timestamp_and_full_hash(self):
+        filename = MODULE.backup_filename(
+            "master.xlsx", "2026-09-25T14:08:53+00:00", "a" * 64
+        )
+        self.assertEqual(filename, f"master__20260925140853Z__sha256-{'a' * 64}.xlsx")
+
+    def test_existing_version_backup_is_not_uploaded_twice(self):
+        filename = MODULE.backup_filename(
+            "master.xlsx", "2026-09-25T14:08:53+00:00", "b" * 64
+        )
+        existing = {
+            "id": "backup", "name": filename, "size": 10,
+            "lastModifiedDateTime": "2026-09-25T14:09:00Z", "file": {"mimeType": "xlsx"},
+        }
+        with patch.object(MODULE, "locate_sync_folder", return_value={"id": "sync"}), \
+                patch.object(MODULE, "ensure_backup_folder", return_value={"id": "backups"}), \
+                patch.object(MODULE, "graph_collection", return_value=[existing]), \
+                patch.object(MODULE, "upload_backup") as upload, \
+                patch.object(MODULE, "request_json") as request:
+            result = MODULE.create_version_backup(
+                "token", "IPS CRM Excel Sync", "master.xlsx", Path("master.xlsx"),
+                "2026-09-25T14:08:53+00:00", "b" * 64,
+            )
+        self.assertFalse(result["created"])
+        self.assertEqual(result["retained"], 1)
+        upload.assert_not_called()
+        request.assert_not_called()
+
     def test_graph_timestamp_overrides_download_mtime(self):
         with patch.dict(os.environ, {
             "MS_GRAPH_CLIENT_ID": "client", "MS_GRAPH_REFRESH_TOKEN": "refresh",
@@ -80,7 +108,8 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                 patch.object(MODULE, "download_workbook") as download, \
                 patch.object(MODULE, "graph_json", return_value={
                     "id": "item", "size": 4, "eTag": "etag", "lastModifiedDateTime": "2026-09-10T22:33:33Z",
-                }), patch.object(MODULE.excel_payload, "build", return_value={
+                }), patch.object(MODULE.excel_formula_audit, "audit", return_value={"status": "OK"}), \
+                patch.object(MODULE.excel_payload, "build", return_value={
                     "source_name": "Excel Mestre", "source_version": "hash", "source_updated_at": "2026-09-10T22:33:33Z",
                     "file_hash": "0" * 64, "original_filename": "master.xlsx", "file_size": 4,
                     "records": [], "summary": {"records": 0},
@@ -88,7 +117,9 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
                         "ncm_rules": [{"rule_key": "84136019|PR|PR"}],
                         "group_rules": [{"rule_key": "84136019|GRUPO|PR-PR"}],
                     },
-                }) as build, patch.object(MODULE, "edge_call", side_effect=[
+                }) as build, patch.object(MODULE, "create_version_backup", return_value={
+                    "created": True, "filename": "backup.xlsx", "retained": 1, "removed_to_recycle_bin": 0,
+                }) as backup, patch.object(MODULE, "edge_call", side_effect=[
                     {"duplicate": True, "batch_id": "batch"},
                     {"batch": {"state": "COMMITTED"}},
                     {"source_version": "hash", "ncm_rules": 1, "group_rules": 1},
@@ -97,6 +128,8 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
         download.assert_called_once()
         self.assertEqual(build.call_args.args[1], "2026-09-10T22:33:33Z")
         self.assertTrue(result["duplicate"])
+        backup.assert_called_once()
+        self.assertEqual(result["backup"]["retained"], 1)
         self.assertEqual(edge.call_args_list[-1].args[2]["operation"], "fiscal-bases")
         self.assertEqual(result["fiscal_bases"]["group_rules"], 1)
 

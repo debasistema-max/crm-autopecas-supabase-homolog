@@ -133,7 +133,7 @@ test('Data Center is wired without frontend secrets and keeps manual imports', (
   assert.doesNotMatch(smoke, /\b(?:fetch|XMLHttpRequest|createClient)\s*\(/);
 });
 
-test('personal OneDrive runner is server-only, chunked and least-privileged', () => {
+test('personal OneDrive runner is server-only, chunked and backup-scoped', () => {
   const workflow = read('.github/workflows/excel-sync.yml');
   const runner = read('scripts/sync_onedrive_personal.py');
   const edge = read('supabase/functions/excel-sync/index.ts');
@@ -142,8 +142,11 @@ test('personal OneDrive runner is server-only, chunked and least-privileged', ()
   assert.doesNotMatch(workflow, /pull_request:/);
   assert.doesNotMatch(workflow, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(workflow, /vars\.DATA_SYNC_ENABLED == 'true'/);
-  assert.match(runner, /offline_access Files\.Read/);
-  assert.doesNotMatch(runner, /Files\.ReadWrite/);
+  assert.match(runner, /offline_access Files\.ReadWrite/);
+  assert.match(runner, /BACKUP_FOLDER_NAME = "Backups CRM"/);
+  assert.match(runner, /BACKUP_RETENTION = 30/);
+  assert.match(runner, /"If-None-Match": "\*"/);
+  assert.match(runner, /removed_to_recycle_bin/);
   assert.match(runner, /CHUNK_ROWS = 500/);
   assert.match(runner, /"operation": "prepare"/);
   assert.match(runner, /"operation": "validate"/);

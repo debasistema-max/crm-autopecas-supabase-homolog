@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Authorize a read-only personal OneDrive and store its refresh token securely.
+"""Authorize the dedicated OneDrive workbook and its automatic backup folder.
 
 The refresh token is kept in memory and sent to `gh secret set` through stdin.
 It is never printed or written to disk.
@@ -18,7 +18,7 @@ import urllib.request
 
 AUTHORITY = "https://login.microsoftonline.com/consumers/oauth2/v2.0"
 GRAPH_ROOT = "https://graph.microsoft.com/v1.0"
-SCOPES = "offline_access Files.Read"
+SCOPES = "offline_access Files.ReadWrite"
 
 
 def post_form(url: str, data: dict[str, str]) -> dict:
@@ -41,7 +41,10 @@ def authorize(client_id: str) -> tuple[str, str]:
         raise RuntimeError(f"DISPOSITIVO_NAO_AUTORIZADO:{device.get('error', 'UNKNOWN')}")
     print("Abra:", device.get("verification_uri", "https://microsoft.com/devicelogin"), flush=True)
     print("Código:", device.get("user_code", ""), flush=True)
-    print("Entre somente com a conta exclusiva da integração e confirme a permissão de leitura.", flush=True)
+    print(
+        "Entre somente com a conta exclusiva da integração e confirme leitura e gravação para os backups.",
+        flush=True,
+    )
 
     deadline = time.monotonic() + int(device.get("expires_in", 900))
     interval = max(int(device.get("interval", 5)), 5)
@@ -111,7 +114,7 @@ def main() -> None:
     access_token, refresh_token = authorize(args.client_id)
     verify_workbook(access_token, args.folder_path, args.workbook_name)
     store_github_secret(args.repo, refresh_token)
-    print("Autorização somente leitura validada; token salvo no GitHub Secrets sem ser exibido.")
+    print("Autorização de backup validada; token salvo no GitHub Secrets sem ser exibido.")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Download the master XLSX from an exact personal OneDrive path and sync it.
+"""Back up, download and synchronize the master XLSX from personal OneDrive.
 
-Only delegated read access is requested. Runtime code is constrained to one
-configured folder and filename. Tokens, pre-authenticated download URLs and
-workbook contents are never printed or persisted outside a temporary directory.
+Runtime code is constrained to one configured folder, filename and backup
+subfolder. Tokens and pre-authenticated download URLs are never printed.
 """
 
 from __future__ import annotations
@@ -11,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -39,6 +39,8 @@ GRAPH_ROOT = "https://graph.microsoft.com/v1.0"
 TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
 MAX_WORKBOOK_BYTES = 300 * 1024 * 1024
 CHUNK_ROWS = 500
+BACKUP_FOLDER_NAME = "Backups CRM"
+BACKUP_RETENTION = 30
 
 
 class SyncError(RuntimeError):
@@ -97,7 +99,7 @@ def access_token(client_id: str, refresh_token: str) -> str:
         "client_id": client_id,
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-        "scope": "offline_access Files.Read",
+        "scope": "offline_access Files.ReadWrite",
     }).encode("ascii")
     try:
         with urllib.request.urlopen(urllib.request.Request(
@@ -116,6 +118,24 @@ def graph_json(path: str, token: str) -> dict[str, Any]:
     return request_json(f"{GRAPH_ROOT}{path}", headers={"Authorization": f"Bearer {token}"})
 
 
+def graph_collection(path: str, token: str) -> list[dict[str, Any]]:
+    url = f"{GRAPH_ROOT}{path}"
+    items: list[dict[str, Any]] = []
+    for _ in range(100):
+        page = request_json(url, headers={"Authorization": f"Bearer {token}"})
+        values = page.get("value") or []
+        if not isinstance(values, list):
+            raise SyncError("RESPOSTA_GRAPH_INVALIDA")
+        items.extend(value for value in values if isinstance(value, dict))
+        next_url = str(page.get("@odata.nextLink") or "")
+        if not next_url:
+            return items
+        if not next_url.startswith(f"{GRAPH_ROOT}/"):
+            raise SyncError("PAGINACAO_GRAPH_INVALIDA")
+        url = next_url
+    raise SyncError("PAGINACAO_GRAPH_EXCESSIVA")
+
+
 def _validate_workbook_match(items: list[dict[str, Any]], filename: str) -> dict[str, Any]:
     matches = [item for item in items if item.get("name") == filename and item.get("file")]
     if len(matches) != 1:
@@ -127,7 +147,7 @@ def _validate_workbook_match(items: list[dict[str, Any]], filename: str) -> dict
     return item
 
 
-def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, Any]:
+def locate_sync_folder(token: str, folder_path: str) -> dict[str, Any]:
     normalized_path = folder_path.strip().strip("/")
     if not normalized_path or "/" in normalized_path or normalized_path in {".", ".."}:
         raise SyncError("CAMINHO_ONEDRIVE_INVALIDO")
@@ -136,12 +156,133 @@ def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, An
     folders = [item for item in root_items if item.get("name") == normalized_path and item.get("folder") is not None]
     if len(folders) != 1:
         raise SyncError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
-    folder_id = urllib.parse.quote(str(folders[0].get("id") or ""), safe="")
+    if not str(folders[0].get("id") or ""):
+        raise SyncError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
+    return folders[0]
+
+
+def locate_workbook(token: str, filename: str, folder_path: str) -> dict[str, Any]:
+    folder = locate_sync_folder(token, folder_path)
+    folder_id = urllib.parse.quote(str(folder.get("id") or ""), safe="")
     if not folder_id:
         raise SyncError("PASTA_EXCLUSIVA_NAO_ENCONTRADA")
     fields = urllib.parse.quote("id,name,size,eTag,lastModifiedDateTime,file", safe=",")
     children = graph_json(f"/me/drive/items/{folder_id}/children?$select={fields}", token).get("value", [])
     return _validate_workbook_match(children, filename)
+
+
+def ensure_backup_folder(token: str, parent_folder_id: str) -> dict[str, Any]:
+    parent_id = urllib.parse.quote(parent_folder_id, safe="")
+    fields = urllib.parse.quote("id,name,folder", safe=",")
+    children = graph_json(f"/me/drive/items/{parent_id}/children?$select={fields}", token).get("value", [])
+    matches = [
+        item
+        for item in children
+        if item.get("name") == BACKUP_FOLDER_NAME and item.get("folder") is not None
+    ]
+    if len(matches) > 1:
+        raise SyncError("PASTA_BACKUP_DUPLICADA")
+    if matches:
+        return matches[0]
+    created = request_json(
+        f"{GRAPH_ROOT}/me/drive/items/{parent_id}/children",
+        method="POST",
+        headers={"Authorization": f"Bearer {token}"},
+        payload={
+            "name": BACKUP_FOLDER_NAME,
+            "folder": {},
+            "@microsoft.graph.conflictBehavior": "fail",
+        },
+    )
+    if not created.get("id") or created.get("folder") is None:
+        raise SyncError("PASTA_BACKUP_NAO_CRIADA")
+    return created
+
+
+def backup_filename(workbook_name: str, source_updated_at: str, file_hash: str) -> str:
+    safe_hash = file_hash.lower().strip()
+    if not re.fullmatch(r"[0-9a-f]{64}", safe_hash):
+        raise SyncError("HASH_BACKUP_INVALIDO")
+    stamp = re.sub(r"[^0-9]", "", source_updated_at)[:14]
+    if len(stamp) != 14:
+        raise SyncError("DATA_BACKUP_INVALIDA")
+    source_path = Path(workbook_name)
+    safe_stem = re.sub(r"[^A-Za-z0-9._ -]", "_", source_path.stem).strip(" .") or "planilha"
+    return f"{safe_stem}__{stamp}Z__sha256-{safe_hash}{source_path.suffix.lower()}"
+
+
+def upload_backup(token: str, folder_id: str, filename: str, source: Path) -> dict[str, Any]:
+    encoded_folder_id = urllib.parse.quote(folder_id, safe="")
+    encoded_filename = urllib.parse.quote(filename, safe="")
+    request = urllib.request.Request(
+        f"{GRAPH_ROOT}/me/drive/items/{encoded_folder_id}:/{encoded_filename}:/content",
+        data=source.read_bytes(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "If-None-Match": "*",
+        },
+        method="PUT",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            result = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        raise SyncError(f"BACKUP_UPLOAD_HTTP_{error.code}") from error
+    if result.get("name") != filename or int(result.get("size") or 0) != source.stat().st_size:
+        raise SyncError("BACKUP_UPLOAD_INCOMPLETO")
+    return result
+
+
+def create_version_backup(token: str, folder_path: str, workbook_name: str,
+                          source: Path, source_updated_at: str, file_hash: str) -> dict[str, Any]:
+    sync_folder = locate_sync_folder(token, folder_path)
+    backup_folder = ensure_backup_folder(token, str(sync_folder["id"]))
+    backup_id = urllib.parse.quote(str(backup_folder.get("id") or ""), safe="")
+    if not backup_id:
+        raise SyncError("PASTA_BACKUP_SEM_ID")
+    fields = urllib.parse.quote("id,name,size,lastModifiedDateTime,file", safe=",")
+    items = graph_collection(f"/me/drive/items/{backup_id}/children?$select={fields}&$top=200", token)
+    filename = backup_filename(workbook_name, source_updated_at, file_hash)
+    existing = [item for item in items if item.get("name") == filename and item.get("file")]
+    created = False
+    if len(existing) > 1:
+        raise SyncError("BACKUP_DUPLICADO_NO_ONEDRIVE")
+    if not existing:
+        uploaded = upload_backup(token, str(backup_folder["id"]), filename, source)
+        items.append(uploaded)
+        created = True
+
+    prefix = filename.split("__", 1)[0] + "__"
+    managed = [
+        item
+        for item in items
+        if item.get("file")
+        and str(item.get("name") or "").startswith(prefix)
+        and "__sha256-" in str(item.get("name") or "")
+        and str(item.get("name") or "").lower().endswith(".xlsx")
+    ]
+    managed.sort(
+        key=lambda item: (str(item.get("lastModifiedDateTime") or ""), str(item.get("name") or "")),
+        reverse=True,
+    )
+    removed = 0
+    for old_item in managed[BACKUP_RETENTION:]:
+        old_id = urllib.parse.quote(str(old_item.get("id") or ""), safe="")
+        if not old_id:
+            raise SyncError("BACKUP_ANTIGO_SEM_ID")
+        request_json(
+            f"{GRAPH_ROOT}/me/drive/items/{old_id}",
+            method="DELETE",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        removed += 1
+    return {
+        "created": created,
+        "filename": filename,
+        "retained": min(len(managed), BACKUP_RETENTION),
+        "removed_to_recycle_bin": removed,
+    }
 
 
 def download_workbook(token: str, item: dict[str, Any], destination: Path) -> None:
@@ -266,6 +407,15 @@ def synchronize() -> dict[str, Any]:
             raise SyncError(f"FORMULAS_INVALIDAS:{error}") from error
         print(json.dumps({"formula_audit": formula_audit}, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
         payload = excel_payload.build(source, str(before.get("lastModifiedDateTime") or ""))
+        backup = create_version_backup(
+            token,
+            folder_path,
+            workbook_name,
+            source,
+            str(payload["source_updated_at"]),
+            str(payload["file_hash"]),
+        )
+        print(json.dumps({"backup": backup}, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
         metadata = {key: payload[key] for key in (
             "source_name", "source_version", "source_updated_at", "file_hash", "original_filename", "file_size"
         )}
@@ -287,6 +437,7 @@ def synchronize() -> dict[str, Any]:
         return {
             "duplicate": bool(created.get("duplicate")), "batch_id": batch_id,
             "summary": payload["summary"], "result": completed, "fiscal_bases": fiscal_result,
+            "backup": backup,
         }
 
 
