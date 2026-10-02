@@ -337,8 +337,18 @@ function productCard(product, index) {
 
 function availabilityLabel(product) {
   if (product.availability === 'NAO_IMPORTADO') return { text: 'Estoque não importado', className: 'unknown', disabled: false };
-  if (product.availability === 'TRANSFERENCIA_PR') return { text: `Disponível via PR: ${number(product.pr_transfer_available_qty)}`, className: 'transfer', disabled: false };
+  if (product.availability === 'TRANSFERENCIA_PR') {
+    const transferQuantity = Number(product.pr_transfer_available_qty);
+    if (Number.isFinite(transferQuantity) && transferQuantity > 0 && transferQuantity < 20) {
+      return { text: `Confirmar via PR: ${number(transferQuantity)}`, className: 'transfer', disabled: false };
+    }
+    return { text: `Disponível via PR: ${number(product.pr_transfer_available_qty)}`, className: 'transfer', disabled: false };
+  }
   if (product.availability === 'INDISPONIVEL') return { text: 'Indisponível', className: 'out', disabled: false };
+  const availableQuantity = Number(product.available_qty);
+  if (Number.isFinite(availableQuantity) && availableQuantity > 0 && availableQuantity < 20) {
+    return { text: `Confirmar: ${product.source_display_value || number(availableQuantity)}`, className: 'transfer', disabled: false };
+  }
   return { text: `Disponível: ${product.source_display_value || number(product.available_qty)}`, className: 'available', disabled: false };
 }
 
