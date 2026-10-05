@@ -1,5 +1,18 @@
 # Changelog técnico
 
+## 2026-10-05 — portal do vendedor otimizado para celular
+
+- o perfil VENDEDOR ganhou uma apresentação própria inspirada no portal B2B,
+  sem alterar o fluxo dos perfis administrativos;
+- a tela inicial agora oferece boas-vindas e atalhos diretos para nova cotação,
+  novo pedido, consulta de produtos e atualização dos indicadores;
+- a navegação inferior do vendedor reúne Início, Produtos, Clientes, Cotações e
+  Pedidos, com alvos de toque maiores e indicação clara da área ativa;
+- menu lateral, cartões, cabeçalho e espaçamentos foram simplificados em telas
+  pequenas, preservando permissões, carteira de clientes e regras comerciais;
+- um smoke test dedicado valida o perfil VENDEDOR, os cinco atalhos e a ausência
+  de rolagem horizontal no viewport de celular.
+
 ## 2026-10-05 — acompanhamento visual da sincronização
 
 - a Central de Dados agora acompanha automaticamente a solicitação desde a fila

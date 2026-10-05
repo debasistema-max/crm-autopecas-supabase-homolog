@@ -65,9 +65,10 @@ function canViewDashboardTransfers() {
 }
 
 function renderCommercialDashboardShell(state) {
+  const seller = isSellerDashboardSession();
   return `
     <div class="module-page dashboard-workspace">
-      ${CrmUi.renderPageHeader(
+      ${seller ? renderSellerDashboardWelcome() : CrmUi.renderPageHeader(
         'Visao comercial',
         'Acompanhe vendas, cotacoes e desempenho da operacao no periodo selecionado.',
         '<button class="btn btn-secondary" type="button" data-dashboard-refresh>Atualizar indicadores</button>',
@@ -117,6 +118,34 @@ function renderCommercialDashboardShell(state) {
         ${CrmUi.renderState('loading', 'Carregando indicadores', 'Estamos consolidando os dados comerciais do periodo.')}
       </div>
     </div>
+  `;
+}
+
+function isSellerDashboardSession() {
+  const session = typeof getStoredSession === 'function' ? getStoredSession() : {};
+  return String(session && session.perfil || '').toUpperCase() === 'VENDEDOR';
+}
+
+function renderSellerDashboardWelcome() {
+  const session = typeof getStoredSession === 'function' ? (getStoredSession() || {}) : {};
+  const name = String(session.nome || session.usuario || 'Vendedor').trim().split(/\s+/)[0];
+  const modules = Array.isArray(session.modules) ? session.modules : [];
+  const canCreateQuote = modules.includes('nova_cotacao');
+  const canCreateOrder = modules.includes('novo_pedido');
+  return `
+    <section class="seller-welcome" aria-labelledby="sellerWelcomeTitle">
+      <div>
+        <p class="seller-welcome-eyebrow">Portal do vendedor</p>
+        <h2 id="sellerWelcomeTitle">Ola, ${escapeHtml(name)}</h2>
+        <p>Consulte produtos e clientes, acompanhe seus documentos e continue a venda pelo celular.</p>
+      </div>
+      <div class="seller-welcome-actions" aria-label="Acoes rapidas">
+        ${canCreateQuote ? '<button class="btn seller-welcome-primary" type="button" data-dashboard-route="quoteCreate">Nova cotacao</button>' : ''}
+        ${canCreateOrder ? '<button class="btn seller-welcome-secondary" type="button" data-dashboard-route="orderCreate">Novo pedido</button>' : ''}
+        <button class="btn seller-welcome-secondary" type="button" data-dashboard-route="products">Consultar produtos</button>
+        <button class="btn seller-welcome-secondary" type="button" data-dashboard-refresh>Atualizar indicadores</button>
+      </div>
+    </section>
   `;
 }
 

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke UI — Portal do vendedor</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body class="app-page">
+  <output id="smokeResult" hidden>Executando</output>
+  <div class="app-shell">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Fechar menu"></button>
+    <aside class="sidebar" id="sidebar" aria-label="Navegacao principal">
+      <div class="sidebar-header"><a class="sidebar-brand" href="#dashboard"><img src="../assets/logo-neutral.svg" alt="" class="sidebar-logo"><span class="sidebar-brand-copy"><strong>IPS do Brasil</strong><small>CRM Comercial</small></span></a></div>
+      <nav class="side-nav">
+        <section class="nav-group" data-nav-group>
+          <h2 class="nav-group-label">Comercial</h2>
+          <button class="nav-item" data-module="dashboard" type="button"><span class="nav-label">Inicio</span></button>
+          <button class="nav-item" data-module="partners" type="button"><span class="nav-label">Parceiros</span></button>
+          <button class="nav-item" data-module="quoteReports" type="button"><span class="nav-label">Cotacoes</span></button>
+          <button class="nav-item" data-module="ordersReport" type="button"><span class="nav-label">Pedidos</span></button>
+          <button class="nav-item" data-module="products" type="button"><span class="nav-label">Produtos</span></button>
+        </section>
+      </nav>
+      <div class="sidebar-footer"><button class="sidebar-collapse" id="sidebarCollapseButton" type="button"><span class="sidebar-collapse-icon">‹</span><span class="sidebar-collapse-label">Recolher menu</span></button></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button>
+        <div class="topbar-title"><p class="topbar-kicker" id="pageContext">Comercial</p><h1 id="pageTitle">Inicio</h1></div>
+        <div class="topbar-user"><span class="topbar-user-copy"><strong id="userName">Vendedor</strong><small id="userRole">VENDEDOR</small></span><button class="btn btn-ghost" id="logoutButton" type="button">Sair</button></div>
+      </header>
+      <main class="content" id="content" tabindex="-1"></main>
+    </section>
+  </div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="Acesso rapido">
+    <button type="button" data-mobile-module="dashboard" data-seller-only hidden><span class="mobile-nav-icon" aria-hidden="true">IN</span><span>Inicio</span></button>
+    <button type="button" data-mobile-module="products"><span class="mobile-nav-icon" aria-hidden="true">PR</span><span>Produtos</span></button>
+    <button type="button" data-mobile-module="partners"><span class="mobile-nav-icon" aria-hidden="true">CL</span><span>Clientes</span></button>
+    <button type="button" data-mobile-module="ordersReport"><span class="mobile-nav-icon" aria-hidden="true">PD</span><span>Pedidos</span></button>
+    <button type="button" data-mobile-module="quoteReports"><span class="mobile-nav-icon" aria-hidden="true">CT</span><span>Cotacoes</span></button>
+  </nav>
+  <script src="../js/config.js"></script>
+  <script src="../js/components/ui.js"></script>
+  <script>
+    const sellerSession = {
+      nome: 'Marina Vendas', usuario: 'marina', perfil: 'VENDEDOR',
+      modules: ['dashboard', 'produtos', 'parceiros', 'cotacoes', 'nova_cotacao', 'pedidos', 'novo_pedido']
+    };
+    function getStoredSession() { return sellerSession; }
+    async function validateCurrentSession() { return sellerSession; }
+    async function loadCompanySettings() { return {}; }
+    async function supabaseLogout() {}
+    function clearStoredSession() {}
+    async function supabaseGetCommercialDashboardSummary() {
+      return {
+        meta: { fallback: false, version: 'smoke' },
+        access: { scope: 'own', can_filter_seller: false, can_view_seller_ranking: false, can_view_stock: false, can_view_imports: false },
+        kpis: { orders_count: 8, orders_value: 18450.35, quotations_count: 13, quotations_value: 32780.50, pending_quotations: 4, approved_quotations: 7, conversion_rate: 53.84, average_ticket: 2306.29, active_clients: 6, products_sold: 41, converted_quotations: 7 },
+        orders: { by_status: [{ status: 'APROVADO', count: 8, total_value: 18450.35 }] },
+        quotations: { by_status: [{ status: 'ENVIADA', count: 6, total_value: 14220.40 }] },
+        rankings: { sellers: [], products: [], clients: [] }, abc_curve: [], series: [], sellers: []
+      };
+    }
+    async function renderProducts(container) { container.innerHTML = '<section class="panel" data-smoke-module="products"><h2>Catalogo de produtos</h2></section>'; }
+    async function renderOrdersReport(container) { container.innerHTML = '<section class="panel"><h2>Pedidos</h2></section>'; }
+    async function renderStockTransfers() {}
+    async function renderQuotationsReport(container) { container.innerHTML = '<section class="panel"><h2>Cotacoes</h2></section>'; }
+    async function renderBusinessPartners(container) { container.innerHTML = '<section class="panel"><h2>Clientes</h2></section>'; }
+    async function renderDataSyncCenter() {}
+    async function renderImportCenter() {}
+    async function renderCadastrosClientes() {}
+    async function renderPortalCadastrosControle() {}
+    async function renderCompanySettings() {}
+    async function renderFiscalTaxRules() {}
+    async function renderUsers() {}
+    async function renderLogs() {}
+  </script>
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(async () => {
+        const mobileItems = Array.from(document.querySelectorAll('[data-mobile-module]')).filter((item) => !item.hidden);
+        const dashboardPassed = document.body.classList.contains('seller-portal-mode')
+          && mobileItems.length === 5
+          && document.querySelector('.seller-welcome');
+        if (new URLSearchParams(location.search).has('stay')) {
+          document.documentElement.dataset.smoke = dashboardPassed ? 'pass' : 'fail';
+          document.getElementById('smokeResult').value = dashboardPassed ? 'PASS' : 'FAIL';
+          return;
+        }
+        document.querySelector('[data-mobile-module="products"]').click();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const passed = dashboardPassed
+          && document.querySelector('[data-smoke-module="products"]')
+          && location.hash === '#products';
+        document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
+        document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';
+      }, 80);
+    });
+  </script>
+</body>
+</html>

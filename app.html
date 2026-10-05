@@ -11,7 +11,7 @@
   <title>Nova Empresa | CRM</title>
   <link rel="manifest" href="manifest.webmanifest?v=20260911-1">
   <link rel="stylesheet" href="css/theme.css?v=20260826-2">
-  <link rel="stylesheet" href="css/app.css?v=20261005-1">
+  <link rel="stylesheet" href="css/app.css?v=20261005-2">
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -78,10 +78,11 @@
     </section>
   </div>
   <nav class="mobile-nav" id="mobileNav" aria-label="Acesso rapido">
-    <button type="button" data-mobile-module="products">Produtos</button>
-    <button type="button" data-mobile-module="partners">Clientes</button>
-    <button type="button" data-mobile-module="ordersReport">Pedidos</button>
-    <button type="button" data-mobile-module="quoteReports">Cotacoes</button>
+    <button type="button" data-mobile-module="dashboard" data-seller-only hidden><span class="mobile-nav-icon" aria-hidden="true">IN</span><span>Inicio</span></button>
+    <button type="button" data-mobile-module="products"><span class="mobile-nav-icon" aria-hidden="true">PR</span><span>Produtos</span></button>
+    <button type="button" data-mobile-module="partners"><span class="mobile-nav-icon" aria-hidden="true">CL</span><span>Clientes</span></button>
+    <button type="button" data-mobile-module="ordersReport"><span class="mobile-nav-icon" aria-hidden="true">PD</span><span>Pedidos</span></button>
+    <button type="button" data-mobile-module="quoteReports"><span class="mobile-nav-icon" aria-hidden="true">CT</span><span>Cotacoes</span></button>
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script>
@@ -94,7 +95,7 @@
   <script src="js/company_settings.js?v=20260828-1"></script>
   <script src="js/auth.js?v=20260815-1"></script>
   <script src="js/components/ui.js?v=20260826-2"></script>
-  <script src="js/dashboard.js?v=20260921-1"></script>
+  <script src="js/dashboard.js?v=20261005-2"></script>
   <script src="js/products.js?v=20260918-5"></script>
   <script src="js/partners.js?v=20260921-1"></script>
   <script src="js/orders.js?v=20260921-1"></script>
@@ -105,6 +106,6 @@
   <script src="js/quotes.js?v=20260921-1"></script>
   <script src="js/tax_rules.js?v=20260828-1"></script>
   <script src="js/users.js?v=20260828-1"></script>
-  <script src="js/app.js?v=20260921-1"></script>
+  <script src="js/app.js?v=20261005-2"></script>
 </body>
 </html>

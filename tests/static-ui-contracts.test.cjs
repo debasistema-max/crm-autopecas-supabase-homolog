@@ -212,6 +212,26 @@ test('mobile CRM keeps document scrolling available on iOS', () => {
   assert.match(app, /aria-expanded/);
 });
 
+test('seller portal uses a B2B-inspired mobile shell without changing other roles', () => {
+  const html = read('app.html');
+  const app = read('js/app.js');
+  const dashboard = read('js/dashboard.js');
+  const css = read('css/app.css');
+  assert.match(html, /data-mobile-module="dashboard" data-seller-only hidden/);
+  for (const module of ['dashboard', 'products', 'partners', 'quoteReports', 'ordersReport']) {
+    assert.match(html, new RegExp(`data-mobile-module="${module}"`));
+  }
+  assert.match(app, /classList\.toggle\('seller-portal-mode', isCurrentUserSeller\(\)\)/);
+  assert.match(app, /button\.hasAttribute\('data-seller-only'\) && !isCurrentUserSeller\(\)/);
+  assert.match(app, /orderCreate: \{ module: 'ordersReport', action: 'create' \}/);
+  assert.match(dashboard, /class="seller-welcome"/);
+  assert.match(dashboard, /data-dashboard-route="quoteCreate"/);
+  assert.match(dashboard, /data-dashboard-route="orderCreate"/);
+  assert.match(dashboard, /class="btn seller-welcome-secondary" type="button" data-dashboard-refresh/);
+  assert.match(css, /\.seller-portal-mode \.mobile-nav \{[\s\S]*?grid-template-columns: repeat\(5/);
+  assert.match(css, /\.seller-portal-mode \.sidebar,[\s\S]*?display: none !important/);
+});
+
 test('product detail opens in an isolated full-screen sheet without moving the catalog', () => {
   const products = read('js/products.js');
   const css = read('css/app.css');

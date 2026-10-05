@@ -25,6 +25,7 @@ const MODULE_ALIASES = {
   transfers: { module: 'stockTransfers' },
   quotes: { module: 'quoteReports' },
   quoteCreate: { module: 'quoteReports', action: 'create' },
+  orderCreate: { module: 'ordersReport', action: 'create' },
   reports: { module: 'quoteReports' },
   settings: { module: 'companySettings' },
   impostos: { module: 'taxRules' },
@@ -85,6 +86,7 @@ function bootstrapAppShell() {
 }
 
 function applySessionToShell() {
+  document.body.classList.toggle('seller-portal-mode', isCurrentUserSeller());
   document.getElementById('userName').textContent = currentSession.nome || currentSession.usuario || 'Usuario';
   const role = document.getElementById('userRole');
   if (role) role.textContent = String(currentSession.perfil || 'Usuário').toUpperCase();
@@ -156,10 +158,11 @@ function applyMobileNavigationVisibility() {
   const allowed = getCurrentSessionModules();
   document.querySelectorAll('[data-mobile-module]').forEach((button) => {
     const module = MODULES[button.dataset.mobileModule];
+    const blockedByAudience = button.hasAttribute('data-seller-only') && !isCurrentUserSeller();
     const blockedByPermission = !!(module && !hasModuleAccess(module, allowed));
     const blockedByAdmin = !!(module && module.adminOnly && !isCurrentUserAdmin());
     const blockedByRole = !!(module && isModuleBlockedForCurrentRole(module));
-    button.hidden = blockedByPermission || blockedByAdmin || blockedByRole;
+    button.hidden = blockedByAudience || blockedByPermission || blockedByAdmin || blockedByRole;
   });
 }
 
@@ -230,7 +233,7 @@ async function openModule(name) {
   document.querySelectorAll('[data-mobile-module]').forEach((item) => item.classList.toggle('is-active', item.dataset.mobileModule === moduleName));
   document.getElementById('pageTitle').textContent = module.title;
   const context = document.getElementById('pageContext');
-  if (context) context.textContent = module.section || 'CRM Comercial';
+  if (context) context.textContent = isCurrentUserSeller() ? 'Portal do vendedor' : (module.section || 'CRM Comercial');
   if (location.hash !== `#${moduleName}`) {
     history.replaceState(null, '', `#${moduleName}`);
   }
