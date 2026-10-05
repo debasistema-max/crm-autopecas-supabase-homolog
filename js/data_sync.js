@@ -3,7 +3,15 @@ const DATA_SYNC_STATUS_LABELS = {
   completed_with_errors: 'Concluído com erros', failed: 'Falhou'
 };
 
-const dataSyncUiState = { status: null, batches: [], activePanel: 'history' };
+const dataSyncUiState = {
+  status: null,
+  batches: [],
+  activePanel: 'history',
+  syncRequest: null,
+  pollTimer: null
+};
+
+const DATA_SYNC_TERMINAL_STATUSES = new Set(['completed', 'completed_with_errors', 'failed']);
 
 async function renderDataSyncCenter(container) {
   container.innerHTML = `
@@ -29,13 +37,13 @@ async function renderDataSyncCenter(container) {
           <button class="btn btn-secondary" id="dataSyncErrors" type="button">Visualizar erros</button>
           <button class="btn btn-secondary" id="dataSyncHistory" type="button">Visualizar histórico</button>
         </div>
-        <p class="form-message" id="dataSyncMessage" role="status" aria-live="polite"></p>
+        <div class="data-sync-notice" id="dataSyncMessage" role="status" aria-live="polite"></div>
       </section>
       <section class="panel data-sync-result-panel" id="dataSyncResult" aria-live="polite">
         ${CrmUi.renderState('loading', 'Carregando histórico', 'Consultando os lotes mais recentes.')}
       </section>
     </div>`;
-  document.getElementById('dataSyncRefresh').addEventListener('click', loadDataSyncOverview);
+  document.getElementById('dataSyncRefresh').addEventListener('click', () => loadDataSyncOverview());
   document.getElementById('dataSyncNow').addEventListener('click', triggerDataSyncFromUi);
   document.getElementById('dataSyncDetails').addEventListener('click', () => renderDataSyncPanel('details'));
   document.getElementById('dataSyncErrors').addEventListener('click', () => renderDataSyncPanel('errors'));
@@ -43,10 +51,11 @@ async function renderDataSyncCenter(container) {
   await loadDataSyncOverview();
 }
 
-async function loadDataSyncOverview() {
+async function loadDataSyncOverview(options = {}) {
+  const refreshPanel = options.refreshPanel !== false;
   const statusTarget = document.getElementById('dataSyncStatusContent');
   const resultTarget = document.getElementById('dataSyncResult');
-  if (!statusTarget || !resultTarget) return;
+  if (!statusTarget || !resultTarget) return null;
   statusTarget.innerHTML = CrmUi.renderState('loading', 'Consultando sincronização', 'Carregando a última execução e o estado do adapter.');
   try {
     const [status, history] = await Promise.all([
@@ -56,10 +65,12 @@ async function loadDataSyncOverview() {
     dataSyncUiState.status = status;
     dataSyncUiState.batches = history.rows || [];
     statusTarget.innerHTML = renderDataSyncStatus(status);
-    await renderDataSyncPanel(dataSyncUiState.activePanel);
+    if (refreshPanel) await renderDataSyncPanel(dataSyncUiState.activePanel);
+    return status;
   } catch (error) {
     statusTarget.innerHTML = CrmUi.renderState('error', 'Status indisponível', error.message || 'Não foi possível consultar a integração.');
-    resultTarget.innerHTML = CrmUi.renderState('error', 'Dados indisponíveis', 'A última versão válida do CRM não foi alterada.');
+    if (refreshPanel) resultTarget.innerHTML = CrmUi.renderState('error', 'Dados indisponíveis', 'A última versão válida do CRM não foi alterada.');
+    return null;
   }
 }
 
@@ -100,34 +111,195 @@ function dataSyncCounter(label, value, danger = false) {
 
 async function triggerDataSyncFromUi() {
   const button = document.getElementById('dataSyncNow');
-  const message = document.getElementById('dataSyncMessage');
+  if (!button || dataSyncUiState.syncRequest) return;
   button.disabled = true;
-  message.textContent = 'Sincronização iniciada. O arquivo será lido e validado no backend.';
+  renderDataSyncNotice('checking', 'Validando acesso', 'Conferindo sua sessão e preparando a solicitação segura.');
+  let keepDisabled = false;
   try {
     const result = await supabaseTriggerDataSync();
     if (result.queued) {
-      message.textContent = 'Atualização colocada na fila. O processamento ocorre em segundo plano e costuma levar cerca de 3 minutos.';
-      scheduleDataSyncRefreshes();
+      const status = dataSyncUiState.status || {};
+      const source = status.source || {};
+      const batch = status.last_batch || {};
+      const queuedAt = dataSyncDateMillis(result.queued_at) || Date.now();
+      dataSyncUiState.syncRequest = {
+        queuedAt,
+        baselineBatchId: batch.id || '',
+        baselineSuccessAt: dataSyncDateMillis(source.last_success_at || batch.finished_at),
+        attempts: 0
+      };
+      keepDisabled = true;
+      renderDataSyncNotice(
+        'queued',
+        'Solicitação enviada',
+        'Aguardando o executor seguro buscar e validar a planilha do OneDrive.',
+        { meta: `Enviada às ${formatDataSyncTime(queuedAt)}` }
+      );
+      scheduleDataSyncPoll(5000);
       return;
     }
     const batch = result.batch || {};
-    message.textContent = result.duplicate
-      ? `A versão já foi processada no lote ${shortDataSyncId(batch.id)}.`
-      : `Sincronização ${DATA_SYNC_STATUS_LABELS[batch.status] || batch.status || 'concluída'}. Lote ${shortDataSyncId(batch.id)}.`;
+    renderDataSyncCompletion(batch, result.duplicate === true);
     await loadDataSyncOverview();
   } catch (error) {
-    message.textContent = `${error.message || 'Não foi possível sincronizar'} A última versão válida permanece disponível no CRM.`;
+    renderDataSyncNotice(
+      'error',
+      'Não foi possível iniciar',
+      `${error.message || 'Não foi possível sincronizar.'} A última versão válida permanece disponível no CRM.`
+    );
   } finally {
-    button.disabled = false;
+    button.disabled = keepDisabled;
   }
 }
 
-function scheduleDataSyncRefreshes() {
-  [15000, 45000, 90000, 150000].forEach((delay) => {
-    setTimeout(() => {
-      if (document.getElementById('dataSyncStatusContent')) loadDataSyncOverview();
-    }, delay);
-  });
+function scheduleDataSyncPoll(delay = 10000) {
+  if (dataSyncUiState.pollTimer) clearTimeout(dataSyncUiState.pollTimer);
+  dataSyncUiState.pollTimer = setTimeout(pollDataSyncRequest, delay);
+}
+
+async function pollDataSyncRequest() {
+  dataSyncUiState.pollTimer = null;
+  const request = dataSyncUiState.syncRequest;
+  if (!request || !document.getElementById('dataSyncMessage')) return stopDataSyncPolling();
+  request.attempts += 1;
+
+  const status = await loadDataSyncOverview({ refreshPanel: false });
+  if (!status) {
+    renderDataSyncNotice(
+      'warning',
+      'Acompanhamento temporariamente indisponível',
+      'A execução continua no backend. O CRM tentará consultar o resultado novamente.',
+      { meta: `Tentativa ${request.attempts}` }
+    );
+    return scheduleDataSyncPoll(15000);
+  }
+
+  const source = status.source || {};
+  const batch = status.last_batch || {};
+  const sourceErrorAt = dataSyncDateMillis(source.last_error_at);
+  const sourceSuccessAt = dataSyncDateMillis(source.last_success_at || batch.finished_at);
+  const batchChanged = Boolean(batch.id && batch.id !== request.baselineBatchId);
+  const successAdvanced = sourceSuccessAt > Math.max(request.baselineSuccessAt || 0, request.queuedAt - 2000);
+  const elapsed = Date.now() - request.queuedAt;
+
+  if (source.last_error && sourceErrorAt >= request.queuedAt - 2000) {
+    renderDataSyncNotice(
+      'error',
+      'Sincronização não concluída',
+      `${source.last_error} A última versão válida permanece disponível no CRM.`,
+      { meta: `Falha registrada às ${formatDataSyncTime(sourceErrorAt)}` }
+    );
+    return stopDataSyncPolling();
+  }
+
+  if (batchChanged && batch.status === 'failed') {
+    renderDataSyncNotice(
+      'error',
+      'Sincronização não concluída',
+      'O processamento foi encerrado com erro. Consulte Visualizar erros; a última versão válida não foi alterada.',
+      { meta: batch.id ? `Lote ${shortDataSyncId(batch.id)}` : '' }
+    );
+    return stopDataSyncPolling();
+  }
+
+  if (successAdvanced && (!batchChanged || DATA_SYNC_TERMINAL_STATUSES.has(batch.status))) {
+    await loadDataSyncOverview();
+    renderDataSyncCompletion(batch, !batchChanged);
+    return stopDataSyncPolling();
+  }
+
+  if (batchChanged) {
+    renderDataSyncNotice(
+      'processing',
+      'Planilha em processamento',
+      'O arquivo foi localizado. Os dados estão sendo validados e gravados com segurança no Supabase.',
+      { meta: batch.id ? `Lote ${shortDataSyncId(batch.id)}` : '' }
+    );
+  } else if (elapsed > 120000) {
+    renderDataSyncNotice(
+      'warning',
+      'Ainda aguardando o processamento',
+      'O GitHub pode demorar alguns minutos para liberar o executor. Você pode continuar usando o CRM normalmente.',
+      { meta: `Solicitada às ${formatDataSyncTime(request.queuedAt)}` }
+    );
+  }
+
+  if (elapsed >= 10 * 60 * 1000) {
+    renderDataSyncNotice(
+      'warning',
+      'A execução está demorando mais que o normal',
+      'Use Atualizar para consultar novamente. A última versão válida continua disponível no CRM.',
+      { meta: `Solicitada às ${formatDataSyncTime(request.queuedAt)}` }
+    );
+    return stopDataSyncPolling();
+  }
+  scheduleDataSyncPoll(request.attempts < 3 ? 8000 : 15000);
+}
+
+function stopDataSyncPolling() {
+  if (dataSyncUiState.pollTimer) clearTimeout(dataSyncUiState.pollTimer);
+  dataSyncUiState.pollTimer = null;
+  dataSyncUiState.syncRequest = null;
+  const button = document.getElementById('dataSyncNow');
+  if (button) button.disabled = false;
+}
+
+function renderDataSyncCompletion(batch, duplicate) {
+  if (duplicate) {
+    renderDataSyncNotice(
+      'success',
+      'CRM já estava atualizado',
+      'A planilha foi conferida e nenhuma versão nova foi encontrada. Nenhum registro foi duplicado.',
+      { meta: batch.id ? `Último lote ${shortDataSyncId(batch.id)}` : '' }
+    );
+    return;
+  }
+  const errors = Number(batch.error_count || 0);
+  const summary = [
+    `${Number(batch.updated_rows || 0).toLocaleString('pt-BR')} alterados`,
+    `${Number(batch.inserted_rows || 0).toLocaleString('pt-BR')} novos`,
+    `${errors.toLocaleString('pt-BR')} erros`
+  ].join(' · ');
+  renderDataSyncNotice(
+    errors ? 'warning' : 'success',
+    errors ? 'Sincronização concluída com avisos' : 'Sincronização concluída',
+    summary,
+    { meta: batch.id ? `Lote ${shortDataSyncId(batch.id)}` : '', complete: true }
+  );
+}
+
+function renderDataSyncNotice(kind, title, description, options = {}) {
+  const target = document.getElementById('dataSyncMessage');
+  if (!target) return;
+  const stage = options.stage ?? ({ checking: 0, queued: 1, processing: 1, success: 2, warning: 1, error: 1 }[kind] ?? 0);
+  const complete = kind === 'success' || options.complete === true;
+  const steps = ['Solicitação', 'Leitura e validação', 'Resultado'];
+  target.className = `data-sync-notice is-${kind}`;
+  target.innerHTML = `
+    <div class="data-sync-notice-mark" aria-hidden="true"></div>
+    <div class="data-sync-notice-body">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${escapeHtml(description)}</p>
+      <ol class="data-sync-progress" aria-label="Andamento da sincronização">
+        ${steps.map((label, index) => {
+          const stepClass = complete || index < stage ? 'is-complete' : (index === stage ? (kind === 'error' ? 'is-error' : 'is-active') : '');
+          return `<li class="${stepClass}"><i aria-hidden="true"></i><span>${escapeHtml(label)}</span></li>`;
+        }).join('')}
+      </ol>
+      ${options.meta ? `<small>${escapeHtml(options.meta)}</small>` : ''}
+    </div>`;
+}
+
+function dataSyncDateMillis(value) {
+  if (!value) return 0;
+  const result = new Date(value).valueOf();
+  return Number.isFinite(result) ? result : 0;
+}
+
+function formatDataSyncTime(value) {
+  const milliseconds = typeof value === 'number' ? value : dataSyncDateMillis(value);
+  if (!milliseconds) return '—';
+  return new Date(milliseconds).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 async function renderDataSyncPanel(panel) {

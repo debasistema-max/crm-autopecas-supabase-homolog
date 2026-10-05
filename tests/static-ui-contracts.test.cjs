@@ -117,14 +117,21 @@ test('Data Center is wired without frontend secrets and keeps manual imports', (
   assert.match(html, /Importação e Integrações/);
   assert.match(html, /src="js\/data_sync\.js/);
   assert.match(app, /dataCentral: \{[^\n]+adminOnly: true/);
-  for (const id of ['dataSyncNow', 'dataSyncDetails', 'dataSyncErrors', 'dataSyncHistory', 'dataSyncStatusContent']) {
+  for (const id of ['dataSyncNow', 'dataSyncDetails', 'dataSyncErrors', 'dataSyncHistory', 'dataSyncStatusContent', 'dataSyncMessage']) {
     assert.ok(sync.includes(`id="${id}"`), id);
   }
+  assert.match(sync, /Solicitação enviada/);
+  assert.match(sync, /Planilha em processamento/);
+  assert.match(sync, /CRM já estava atualizado/);
+  assert.match(sync, /scheduleDataSyncPoll/);
+  assert.match(sync, /last_success_at/);
   assert.match(store, /functions\.invoke\('excel-sync'/);
   assert.match(store, /refreshDataSyncSession/);
   assert.match(store, /auth\.getSession\(\)/);
   assert.match(store, /Authorization: `Bearer \$\{session\.access_token\}`/);
   assert.match(store, /error\?\.context\?\.status/);
+  assert.match(store, /dataSyncFunctionErrorMessage/);
+  assert.match(store, /SEM_PERMISSAO_SINCRONIZAR/);
   assert.match(store, /supabaseDataSyncRpc\('list_data_sync_batches'/);
   assert.doesNotMatch(sync + store, /service[_ -]?role|DATA_SYNC_ADAPTER_TOKEN/i);
   assert.match(read('js/imports.js'), /function renderImportCenter/);

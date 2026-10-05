@@ -2167,6 +2167,27 @@ async function supabaseDataSyncRpc(name, params) {
   return result.data;
 }
 
+async function dataSyncFunctionErrorMessage(error) {
+  let payload = null;
+  const response = error?.context;
+  if (response && typeof response.json === 'function') {
+    try {
+      const readable = typeof response.clone === 'function' ? response.clone() : response;
+      payload = await readable.json();
+    } catch (_) {
+      payload = null;
+    }
+  }
+  const code = String(payload?.error || '').trim();
+  const friendly = {
+    AUTENTICACAO_OBRIGATORIA: 'Sua sessão expirou. Saia e entre novamente no CRM.',
+    SESSAO_INVALIDA: 'Sua sessão expirou. Saia e entre novamente no CRM.',
+    SEM_PERMISSAO_SINCRONIZAR: 'Seu usuário não possui permissão administrativa para sincronizar.',
+    ORIGEM_NAO_AUTORIZADA: 'Este endereço do CRM não está autorizado a iniciar a sincronização.'
+  };
+  return friendly[code] || code || error?.message || 'Não foi possível iniciar a sincronização.';
+}
+
 async function supabaseTriggerDataSync() {
   async function currentSession(forceRefresh = false) {
     if (forceRefresh) return refreshDataSyncSession();
@@ -2189,10 +2210,7 @@ async function supabaseTriggerDataSync() {
     ({ data, error } = await invoke(session));
   }
   if (error) {
-    const contextMessage = error.context && typeof error.context.json === 'function'
-      ? await error.context.json().catch(() => null)
-      : null;
-    throw new Error(contextMessage?.error || error.message || 'Não foi possível iniciar a sincronização.');
+    throw new Error(await dataSyncFunctionErrorMessage(error));
   }
   if (data?.error) throw new Error(data.error);
   return data || {};

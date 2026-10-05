@@ -1,5 +1,17 @@
 # Changelog técnico
 
+## 2026-10-05 — acompanhamento visual da sincronização
+
+- a Central de Dados agora acompanha automaticamente a solicitação desde a fila
+  até o resultado, sem exigir que o administrador clique repetidamente em
+  “Atualizar”;
+- o aviso diferencia execução em fila, processamento, conclusão, conclusão com
+  avisos, falha e arquivo já processado;
+- o resultado mostra quantidades de registros novos, alterados e com erro, além
+  do lote relacionado;
+- sessão expirada e falta de permissão administrativa passam a ter mensagens
+  diretas, mantendo a última versão válida do Supabase disponível.
+
 ## 2026-09-21 — sincronização manual confiável no CRM
 
 - o botão “Sincronizar agora” passa a enviar explicitamente o JWT da sessão e
