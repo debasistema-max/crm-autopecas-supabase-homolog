@@ -12,6 +12,26 @@ Ambiente auditado: `mtwvxyvpnbgwgltelozw`. Produção não foi acessada.
 
 O histórico remoto confirma migrations 001–059. O Git contém 043–059; os
 arquivos originais 001–042 ainda precisam ser recuperados da fonte histórica.
+
+### Reconciliação executada em 03/10/2026
+
+A conferência encontrou `090` e `095` no remoto sem os arquivos locais e
+`082–089` no Git sem registro no histórico remoto. A reconciliação foi feita
+sem reexecutar migrations:
+
+- `090_sp_ipi_only_from_2026_10_01.sql` e
+  `095_restore_b2b_catalog_for_valid_excel_statuses.sql` foram reconstruídas a
+  partir dos statements armazenados pelo Supabase; os hashes MD5 locais ficaram
+  idênticos aos hashes do SQL remoto;
+- os objetos principais de `082–089` foram confirmados no schema e essas versões
+  foram marcadas como aplicadas no histórico remoto, sem executar seu SQL;
+- `096_import_stage_retention` foi aplicada e registrada somente na homologação
+  após teste transacional com rollback.
+
+O histórico está alinhado entre Git e homologação para `043–090`, `095` e
+`096`. A pendência remanescente são os arquivos históricos `001–042`, que ainda
+precisam ser recuperados antes de considerar este repositório um baseline
+completo do zero.
 Não devem ser recriados por inferência nem marcados artificialmente como
 aplicados.
 

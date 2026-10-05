@@ -214,9 +214,14 @@ validadas e gravadas. Uma repetição do mesmo hash é idempotente.
 
 Falha do adapter não apaga dados. O lote fica `failed`/`completed_with_errors`, a fonte fica degradada e o CRM mantém a última versão confirmada.
 
-## Rollback
+## Rollback e retenção
 
-Rollback automático não foi implementado nesta fase. Uma reversão segura precisa comparar, por campo, a versão atual com `version_after` e impedir que um lote antigo desfaça edição manual ou sincronização posterior. A auditoria criada contém os dados necessários para uma futura RPC de reversão otimista. Nunca apagar lote, staging, auditoria ou movimento para simular rollback.
+Rollback automático não foi implementado nesta fase. Uma reversão segura precisa comparar, por campo, a versão atual com `version_after` e impedir que um lote antigo desfaça edição manual ou sincronização posterior. A auditoria criada contém os dados necessários para uma futura RPC de reversão otimista. Nunca apagar lote, auditoria ou movimento para simular rollback.
+
+O staging é uma área temporária de processamento, não o registro autoritativo da
+operação. Depois do prazo de retenção ele pode ser removido somente pela rotina
+administrativa documentada em `docs/import-storage-retention.md`, que preserva
+o resumo do lote e toda a auditoria. A migration não ativa agenda automática.
 
 ## Como adicionar nova origem
 
