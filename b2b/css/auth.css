@@ -1,0 +1,212 @@
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 10% 10%, rgba(11, 112, 99, 0.15), transparent 34%),
+    radial-gradient(circle at 92% 88%, rgba(23, 76, 104, 0.12), transparent 35%),
+    linear-gradient(145deg, #eef5f3 0%, #f8fafb 54%, #edf2f4 100%);
+}
+
+.auth-shell::before,
+.auth-shell::after {
+  position: absolute;
+  z-index: -1;
+  width: 290px;
+  height: 290px;
+  border: 1px solid rgba(11, 112, 99, 0.09);
+  border-radius: 50%;
+  content: "";
+}
+
+.auth-shell::before {
+  top: -175px;
+  right: -105px;
+}
+
+.auth-shell::after {
+  bottom: -205px;
+  left: -95px;
+}
+
+.auth-card {
+  width: min(100%, 420px);
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 64px rgba(16, 32, 51, 0.13);
+  backdrop-filter: blur(18px);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.auth-logo-frame {
+  display: grid;
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  padding: 9px;
+  border: 1px solid #dce8e5;
+  border-radius: 18px;
+  background: #f5faf9;
+}
+
+.auth-card .brand-logo {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  object-fit: contain;
+  object-position: center;
+}
+
+.auth-brand .eyebrow {
+  margin: 0 0 3px;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+
+.auth-brand-note {
+  color: #71808e;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-card h1 {
+  max-width: 350px;
+  margin: 0;
+  color: #102033;
+  font-size: clamp(2rem, 8vw, 2.55rem);
+  letter-spacing: -0.045em;
+  line-height: 1.04;
+}
+
+.auth-intro {
+  max-width: 350px;
+  margin: 13px 0 0;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.auth-card .stack {
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.auth-card label {
+  gap: 7px;
+  color: #354555;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.auth-card input {
+  min-height: 52px;
+  padding: 12px 14px;
+  border-color: #ccd8de;
+  border-radius: 13px;
+  background: #f8fafb;
+  color: #102033;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-card input:hover {
+  border-color: #aebdc5;
+  background: #fff;
+}
+
+.auth-card input:focus {
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(11, 112, 99, 0.12);
+}
+
+.auth-card .button.primary {
+  min-height: 52px;
+  margin-top: 2px;
+  border-radius: 13px;
+  box-shadow: 0 10px 24px rgba(11, 112, 99, 0.2);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.auth-card .button.primary:hover {
+  box-shadow: 0 13px 28px rgba(11, 112, 99, 0.25);
+  transform: translateY(-1px);
+}
+
+.auth-card .link-button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--primary-dark);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.auth-card .link-button:hover,
+.auth-card .link-button:focus-visible {
+  border-color: #c2ddd8;
+  background: #edf7f5;
+}
+
+.auth-card .message:empty {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .auth-shell {
+    align-items: center;
+    padding-inline: 12px;
+  }
+
+  .auth-card {
+    padding: 25px 20px;
+    border-radius: 24px;
+  }
+
+  .auth-brand {
+    margin-bottom: 22px;
+  }
+
+  .auth-logo-frame {
+    flex-basis: 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .auth-card h1 {
+    font-size: clamp(1.9rem, 10vw, 2.3rem);
+  }
+}
+
+@media (max-height: 690px) and (min-width: 521px) {
+  .auth-card {
+    padding-block: 24px;
+  }
+
+  .auth-brand {
+    margin-bottom: 18px;
+  }
+
+  .auth-card .stack {
+    margin-top: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card *,
+  .auth-card *::before,
+  .auth-card *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -497,6 +497,20 @@ test('B2B portal isolates customers and exposes only scoped RPCs', () => {
   assert.match(read('js/partners.js'), /data-b2b-review/);
 });
 
+test('customer portal presents a clean client-facing login without internal route language', () => {
+  const portal = read('b2b/index.html');
+  const authCss = read('b2b/css/auth.css');
+  const app = read('b2b/js/app.js');
+  assert.match(portal, /<title>Portal do Cliente \| IPS do Brasil<\/title>/);
+  assert.match(portal, /class="auth-brand"/);
+  assert.match(portal, /<h1>Pedidos e cotações<\/h1>/);
+  assert.doesNotMatch(portal, /Pedidos e cotações B2B|rota comercial|Portal B2B/);
+  assert.match(authCss, /\.auth-card[\s\S]+width: min\(100%, 420px\)[\s\S]+border-radius: 28px/);
+  assert.match(authCss, /\.auth-card input[\s\S]+min-height: 52px/);
+  assert.match(app, /document\.getElementById\('routeBadge'\)\.textContent = 'Dados atualizados'/);
+  assert.doesNotMatch(app, /Rota comercial<\/span>|rota comercial B2B|Nenhum produto encontrado nessa rota/);
+});
+
 test('security hardening keeps secrets server-side and minimizes anonymous access', () => {
   const pages = ['index.html', 'app.html', 'b2b/index.html', 'cadastro-publico/index.html'];
   for (const file of pages) {
