@@ -125,6 +125,15 @@ test('login keeps the access card visible in portrait, landscape and desktop lay
   assert.match(auth, /customerPortalLink\.hidden = target !== 'login'/);
 });
 
+test('customer access and shared CRM buttons keep strong visual contrast', () => {
+  const loginCss = read('css/login.css');
+  const themeCss = read('css/theme.css');
+  assert.match(loginCss, /\.customer-portal-link[\s\S]+min-height: 48px[\s\S]+background: #e5f3f0/);
+  assert.match(loginCss, /\.customer-portal-link:hover,[\s\S]+border-color: var\(--primary\)/);
+  assert.match(themeCss, /\.btn-secondary[\s\S]+background: #d8ece8[\s\S]+border-color: #84bbb2/);
+  assert.match(themeCss, /\.btn-ghost[\s\S]+background: #fff[\s\S]+border-color: var\(--line-strong\)/);
+});
+
 test('CRM login provides secure email password recovery with a mobile-friendly policy', () => {
   const login = read('index.html');
   const auth = read('js/auth.js');
