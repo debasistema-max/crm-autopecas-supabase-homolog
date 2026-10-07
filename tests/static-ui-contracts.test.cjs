@@ -108,6 +108,36 @@ test('login retains browser credential autofill and labeled inputs', () => {
   assert.match(source, /id="loginMessage"[^>]*role="alert"/);
 });
 
+test('login keeps the access card visible in portrait, landscape and desktop layouts', () => {
+  const html = read('index.html');
+  const css = read('css/login.css');
+  const auth = read('js/auth.js');
+  assert.match(html, /class="login-brand__lockup"/);
+  assert.match(html, /class="login-card__eyebrow">Área restrita/);
+  assert.match(html, /class="login-brand__status"/);
+  assert.doesNotMatch(html, /class="brand-watermark"/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(360px, 420px\)/);
+  assert.match(css, /@media \(max-width: 700px\)/);
+  assert.match(css, /@media \(min-width: 701px\) and \(max-height: 620px\)/);
+  assert.match(css, /\.customer-portal-link\[hidden\]/);
+  assert.match(auth, /cardHeader\.hidden = target !== 'login'/);
+  assert.match(auth, /customerPortalLink\.hidden = target !== 'login'/);
+});
+
+test('CRM login provides secure email password recovery with a mobile-friendly policy', () => {
+  const login = read('index.html');
+  const auth = read('js/auth.js');
+  assert.match(login, /id="forgotPasswordButton"/);
+  assert.match(login, /id="recoveryRequestForm"/);
+  assert.match(login, /id="passwordResetForm"/);
+  assert.match(login, /id="newPassword"[^>]+minlength="8"/);
+  assert.match(auth, /resetPasswordForEmail\(email, \{ redirectTo \}\)/);
+  assert.match(auth, /event === 'PASSWORD_RECOVERY'/);
+  assert.match(auth, /updateUser\(\{ password \}\)/);
+  assert.match(auth, /password\.length < 8/);
+  assert.match(auth, /supabaseClient\.auth\.signOut\(\)/);
+});
+
 test('company identity uses an admin-only image upload instead of an editable logo URL', () => {
   const settings = read('js/company_settings.js');
   const migration = read('supabase/migrations/099_company_logo_storage.sql');
