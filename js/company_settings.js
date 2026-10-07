@@ -18,8 +18,17 @@ const DEFAULT_COMPANY_SETTINGS = {
   language: 'pt-BR'
 };
 
+const COMPANY_LOGO_BUCKET = 'company-assets';
+const COMPANY_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const COMPANY_LOGO_ALLOWED_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp'
+};
+
 let cachedCompanySettings = null;
 let cachedFullCompanySettings = null;
+let companyLogoPreviewObjectUrl = '';
 
 async function loadCompanySettings() {
   if (cachedCompanySettings) return cachedCompanySettings;
@@ -200,6 +209,7 @@ function stringOrNull(value) {
 }
 
 async function renderCompanySettings(container) {
+  releaseCompanyLogoPreview();
   container.innerHTML = '<div class="empty-state">Carregando configuracoes da empresa...</div>';
   try {
     const settings = await supabaseGetCompanySettings();
@@ -220,14 +230,19 @@ async function renderCompanySettings(container) {
           <label class="span-3">WhatsApp<input id="companyWhatsapp"></label>
           <label class="span-3">E-mail<input id="companyEmail" type="email"></label>
           <label class="span-3">Site<input id="companyWebsite" type="url"></label>
-          <label class="span-6">Logotipo URL<input id="companyLogoUrl"></label>
+          <div class="span-6 company-logo-upload">
+            <label for="companyLogoFile">Logotipo da empresa</label>
+            <input id="companyLogoFile" type="file" accept="image/png,image/jpeg,image/webp">
+            <small>Envie uma imagem PNG, JPG ou WebP de ate 2 MB. O logo atual sera mantido ate salvar.</small>
+            <span id="companyLogoFileName" class="company-logo-file-name">Nenhuma nova imagem selecionada.</span>
+          </div>
           <label class="span-2">Cor principal<input id="companyPrimaryColor" type="color"></label>
           <label class="span-2">Cor secundaria<input id="companySecondaryColor" type="color"></label>
           <label class="span-2">Moeda<input id="companyCurrency" maxlength="3"></label>
           <label class="span-3">Timezone<input id="companyTimezone"></label>
           <label class="span-3">Idioma<input id="companyLanguage"></label>
           <div class="span-12 company-settings-preview">
-            <img data-company-logo src="${escapeHtml(settings.logo_url)}" alt="">
+            <img id="companyLogoPreview" data-company-logo src="${escapeHtml(settings.logo_url)}" alt="">
             <div>
               <strong data-company-name>${escapeHtml(settings.trade_name || settings.company_name)}</strong>
               <span data-company-legal-name>${escapeHtml(settings.company_name)}</span>
@@ -242,7 +257,10 @@ async function renderCompanySettings(container) {
       </section>
     `;
     fillCompanySettingsForm(settings);
-    document.getElementById('companySettingsForm').addEventListener('submit', saveCompanySettingsFromForm);
+    const form = document.getElementById('companySettingsForm');
+    form.dataset.currentLogoUrl = settings.logo_url || '';
+    document.getElementById('companyLogoFile').addEventListener('change', previewSelectedCompanyLogo);
+    form.addEventListener('submit', saveCompanySettingsFromForm);
   } catch (error) {
     container.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
   }
@@ -260,12 +278,121 @@ function fillCompanySettingsForm(settings) {
   document.getElementById('companyWhatsapp').value = settings.whatsapp || '';
   document.getElementById('companyEmail').value = settings.email || '';
   document.getElementById('companyWebsite').value = settings.website || '';
-  document.getElementById('companyLogoUrl').value = settings.logo_url || '';
   document.getElementById('companyPrimaryColor').value = settings.primary_color || DEFAULT_COMPANY_SETTINGS.primary_color;
   document.getElementById('companySecondaryColor').value = settings.secondary_color || DEFAULT_COMPANY_SETTINGS.secondary_color;
   document.getElementById('companyCurrency').value = settings.currency || 'BRL';
   document.getElementById('companyTimezone').value = settings.timezone || 'America/Sao_Paulo';
   document.getElementById('companyLanguage').value = settings.language || 'pt-BR';
+}
+
+function releaseCompanyLogoPreview() {
+  if (!companyLogoPreviewObjectUrl) return;
+  URL.revokeObjectURL(companyLogoPreviewObjectUrl);
+  companyLogoPreviewObjectUrl = '';
+}
+
+async function validateCompanyLogoFile(file) {
+  if (!file) throw new Error('Selecione uma imagem para o logotipo.');
+  if (!COMPANY_LOGO_ALLOWED_TYPES[file.type]) {
+    throw new Error('Formato nao permitido. Use PNG, JPG ou WebP.');
+  }
+  if (file.size > COMPANY_LOGO_MAX_BYTES) {
+    throw new Error('O logotipo deve ter no maximo 2 MB.');
+  }
+  const dimensions = await readCompanyLogoDimensions(file);
+  if (!dimensions.width || !dimensions.height || dimensions.width > 4096 || dimensions.height > 4096) {
+    throw new Error('A imagem deve ter dimensoes validas de ate 4096 x 4096 pixels.');
+  }
+}
+
+function readCompanyLogoDimensions(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('O arquivo selecionado nao e uma imagem valida.'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function previewSelectedCompanyLogo(event) {
+  const input = event.currentTarget;
+  const file = input.files && input.files[0];
+  const form = document.getElementById('companySettingsForm');
+  const preview = document.getElementById('companyLogoPreview');
+  const fileName = document.getElementById('companyLogoFileName');
+  const message = document.getElementById('companySettingsMessage');
+  releaseCompanyLogoPreview();
+  if (!file) {
+    applyCompanyLogo(preview, form.dataset.currentLogoUrl, getCompanyDisplayName(cachedFullCompanySettings || DEFAULT_COMPANY_SETTINGS));
+    fileName.textContent = 'Nenhuma nova imagem selecionada.';
+    return;
+  }
+  try {
+    await validateCompanyLogoFile(file);
+    if (!input.files || input.files[0] !== file) return;
+    companyLogoPreviewObjectUrl = URL.createObjectURL(file);
+    preview.src = companyLogoPreviewObjectUrl;
+    preview.alt = `Previa do arquivo ${file.name}`;
+    fileName.textContent = file.name;
+    message.textContent = 'Previa carregada. Clique em Salvar configuracoes para enviar o novo logo.';
+    message.style.color = 'var(--muted)';
+  } catch (error) {
+    input.value = '';
+    applyCompanyLogo(preview, form.dataset.currentLogoUrl, getCompanyDisplayName(cachedFullCompanySettings || DEFAULT_COMPANY_SETTINGS));
+    fileName.textContent = 'Nenhuma nova imagem selecionada.';
+    message.textContent = error.message;
+    message.style.color = 'var(--accent)';
+  }
+}
+
+async function uploadCompanyLogo(file) {
+  await validateCompanyLogoFile(file);
+  const extension = COMPANY_LOGO_ALLOWED_TYPES[file.type];
+  const uniqueId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const path = `identity/logo-${uniqueId}.${extension}`;
+  const { error } = await supabaseClient.storage
+    .from(COMPANY_LOGO_BUCKET)
+    .upload(path, file, {
+      cacheControl: '3600',
+      contentType: file.type,
+      upsert: false
+    });
+  if (error) throw error;
+  const { data } = supabaseClient.storage.from(COMPANY_LOGO_BUCKET).getPublicUrl(path);
+  if (!data || !data.publicUrl) throw new Error('Nao foi possivel obter o endereco do logotipo enviado.');
+  return { path, publicUrl: `${data.publicUrl}?v=${Date.now()}` };
+}
+
+function getManagedCompanyLogoPath(logoUrl) {
+  const value = String(logoUrl || '').trim();
+  if (!value || typeof location === 'undefined') return '';
+  try {
+    const parsed = new URL(value, location.href);
+    const expectedOrigin = new URL(SUPABASE_CONFIG.url).origin;
+    if (parsed.origin !== expectedOrigin) return '';
+    const marker = `/storage/v1/object/public/${COMPANY_LOGO_BUCKET}/`;
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex < 0) return '';
+    const path = decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
+    return path.startsWith('identity/') && !path.includes('..') ? path : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+async function removeManagedCompanyLogo(path) {
+  if (!path) return;
+  const { error } = await supabaseClient.storage.from(COMPANY_LOGO_BUCKET).remove([path]);
+  if (error) throw error;
 }
 
 function formatCompanySettingsDate(value) {
@@ -277,12 +404,21 @@ function formatCompanySettingsDate(value) {
 
 async function saveCompanySettingsFromForm(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   const button = event.submitter || document.querySelector('#companySettingsForm button[type="submit"]');
   const message = document.getElementById('companySettingsMessage');
   message.style.color = 'var(--muted)';
   message.textContent = 'Salvando configuracoes...';
   if (button) button.disabled = true;
   try {
+    const logoInput = document.getElementById('companyLogoFile');
+    const logoFile = logoInput.files && logoInput.files[0];
+    const previousLogoUrl = form.dataset.currentLogoUrl || '';
+    let uploadedLogo = null;
+    if (logoFile) {
+      message.textContent = 'Enviando logotipo...';
+      uploadedLogo = await uploadCompanyLogo(logoFile);
+    }
     await supabaseSaveCompanySettings({
       company_name: document.getElementById('companyName').value,
       trade_name: document.getElementById('companyTradeName').value,
@@ -295,13 +431,23 @@ async function saveCompanySettingsFromForm(event) {
       whatsapp: document.getElementById('companyWhatsapp').value,
       email: document.getElementById('companyEmail').value,
       website: document.getElementById('companyWebsite').value,
-      logo_url: document.getElementById('companyLogoUrl').value,
+      logo_url: uploadedLogo ? uploadedLogo.publicUrl : previousLogoUrl,
       primary_color: document.getElementById('companyPrimaryColor').value,
       secondary_color: document.getElementById('companySecondaryColor').value,
       currency: document.getElementById('companyCurrency').value,
       timezone: document.getElementById('companyTimezone').value,
       language: document.getElementById('companyLanguage').value
     });
+    if (uploadedLogo) {
+      const previousLogoPath = getManagedCompanyLogoPath(previousLogoUrl);
+      form.dataset.currentLogoUrl = uploadedLogo.publicUrl;
+      logoInput.value = '';
+      document.getElementById('companyLogoFileName').textContent = 'Nenhuma nova imagem selecionada.';
+      releaseCompanyLogoPreview();
+      if (previousLogoPath && previousLogoPath !== uploadedLogo.path) {
+        removeManagedCompanyLogo(previousLogoPath).catch((error) => console.warn('Logo anterior nao removido.', error));
+      }
+    }
     message.style.color = 'var(--success)';
     message.textContent = 'Configuracoes salvas.';
   } catch (error) {

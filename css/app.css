@@ -3730,6 +3730,37 @@ textarea {
   font-size: 13px;
 }
 
+.company-logo-upload {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.company-logo-upload > label {
+  font-weight: 800;
+}
+
+.company-logo-upload input[type="file"] {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  font: inherit;
+}
+
+.company-logo-upload small,
+.company-logo-file-name {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.company-logo-file-name {
+  font-size: 13px;
+  font-weight: 800;
+}
+
 /* Administrative forms must retain usable controls between phone and desktop. */
 .admin-panel .span-5 {
   grid-column: span 5;
