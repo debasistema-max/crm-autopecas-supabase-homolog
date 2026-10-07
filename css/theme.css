@@ -99,6 +99,10 @@ a { color: inherit; }
 
 .btn-primary:hover { background: var(--primary-strong); }
 
+.btn-primary:active {
+  background: #06483f;
+}
+
 .btn-primary:focus-visible,
 .btn-secondary:focus-visible,
 .btn-ghost:focus-visible {
@@ -106,15 +110,26 @@ a { color: inherit; }
 }
 
 .btn-secondary {
-  color: var(--primary-strong);
-  background: #e4f3f0;
-  border-color: #b7d9d3;
+  color: #064c44;
+  background: #d8ece8;
+  border-color: #84bbb2;
+}
+
+.btn-secondary:hover {
+  color: #043f38;
+  background: #c8e4de;
+  border-color: #5fa69a;
 }
 
 .btn-ghost {
-  color: var(--text);
-  background: transparent;
-  border-color: var(--line);
+  color: var(--text-strong);
+  background: #fff;
+  border-color: var(--line-strong);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+  border-color: #a7b4bf;
 }
 
 .field-grid {
