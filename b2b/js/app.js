@@ -85,7 +85,7 @@ function renderProductDetail(product) {
     : `<article><strong>${escapeHtml(productApplications(product) || 'Aplicação não informada')}</strong></article>`;
   return `
     <div class="product-detail-heading"><p class="eyebrow">${escapeHtml(product.line || 'Produto Yokomitsu')}</p><small>${escapeHtml(product.product_code)}</small><h2>${escapeHtml(product.description || '')}</h2><p>${escapeHtml(details.details || '')}</p></div>
-    <div class="product-detail-commercial"><span class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</span><strong>${money(product.final_price)}</strong><small>Preço final · ${escapeHtml(product.route || '')}</small></div>
+    <div class="product-detail-commercial"><span class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</span><strong>${money(product.final_price)}</strong><small>Preço final</small></div>
     <section><h3>Veículos e anos</h3><div class="detail-applications">${applicationRows}</div></section>
     <section><h3>Detalhes técnicos</h3><div class="detail-specs"><span>Peso<strong>${detailValue(details.weight_kg, ' kg')}</strong></span><span>Altura<strong>${detailValue(details.height_cm, ' cm')}</strong></span><span>Largura<strong>${detailValue(details.width_cm, ' cm')}</strong></span><span>Comprimento<strong>${detailValue(details.length_cm, ' cm')}</strong></span><span>Volume<strong>${detailValue(details.volume_m3, ' m³')}</strong></span><span>EAN / GTIN<strong>${escapeHtml(details.ean_gtin || '—')}</strong></span></div></section>
     <section><h3>Códigos similares</h3>${referenceTags(details.similar_references || [])}</section>
@@ -227,7 +227,7 @@ async function openPortal(session) {
   document.getElementById('portalView').hidden = false;
   const client = state.context.client || {};
   document.getElementById('companyName').textContent = client.nome_fantasia || client.nome || '';
-  document.getElementById('routeBadge').textContent = state.context.route || 'Rota pendente';
+  document.getElementById('routeBadge').textContent = 'Dados atualizados';
   await navigate('home');
 }
 
@@ -266,9 +266,9 @@ async function renderHome() {
     ]);
     const client = state.context.client || {};
     target.innerHTML = `
-      <section class="welcome"><div><p class="eyebrow">${escapeHtml(state.context.route || '')}</p><h1>Olá, ${escapeHtml(state.context.account.contact_name || client.nome_fantasia || client.nome)}</h1><p>Preços finais e estoque atualizados pela central de dados.</p></div><button class="button primary" data-home-catalog>Consultar produtos</button></section>
-      ${state.context.route_supported ? '' : '<div class="alert error">Sua UF ainda não possui uma rota comercial B2B configurada. Entre em contato com seu representante.</div>'}
-      <div class="metrics"><article><span>Cotações recentes</span><strong>${quotes.length}</strong></article><article><span>Pedidos recentes</span><strong>${orders.length}</strong></article><article><span>Rota comercial</span><strong>${escapeHtml(state.context.route || 'Pendente')}</strong></article></div>
+      <section class="welcome"><div><p class="eyebrow">Portal do cliente</p><h1>Olá, ${escapeHtml(state.context.account.contact_name || client.nome_fantasia || client.nome)}</h1><p>Preços finais e estoque atualizados pela central de dados.</p></div><button class="button primary" data-home-catalog>Consultar produtos</button></section>
+      ${state.context.route_supported ? '' : '<div class="alert error">O atendimento para sua região ainda está em configuração. Entre em contato com seu representante.</div>'}
+      <div class="metrics"><article><span>Cotações recentes</span><strong>${quotes.length}</strong></article><article><span>Pedidos recentes</span><strong>${orders.length}</strong></article><article><span>Atendimento</span><strong>${state.context.route_supported ? 'Disponível' : 'Em configuração'}</strong></article></div>
       <div class="two-columns"><section class="panel"><div class="section-title"><h2>Últimas cotações</h2><button class="link-button" data-home-view="quotes">Ver todas</button></div>${documentRows(quotes,'cotacao')}</section><section class="panel"><div class="section-title"><h2>Últimos pedidos</h2><button class="link-button" data-home-view="orders">Ver todos</button></div>${documentRows(orders,'pedido')}</section></div>`;
     target.querySelector('[data-home-catalog]')?.addEventListener('click', () => navigate('catalog'));
     target.querySelectorAll('[data-home-view]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.homeView)));
@@ -281,7 +281,7 @@ async function renderHome() {
 async function renderCatalogShell() {
   const target = document.getElementById('catalogView');
   target.innerHTML = `
-    <div class="page-heading"><div><p class="eyebrow">Catálogo ${escapeHtml(state.context.route || '')}</p><h1>Produtos</h1><p>Digite peça + veículo + ano no mesmo campo, como no catálogo Yokomitsu.</p></div></div>
+    <div class="page-heading"><div><p class="eyebrow">Catálogo de produtos</p><h1>Produtos</h1><p>Digite peça + veículo + ano no mesmo campo, como no catálogo Yokomitsu.</p></div></div>
     <form id="catalogSearch" class="searchbar">
       <label class="catalog-keyword">Palavra-chave<input id="catalogTerm" type="search" placeholder="Ex.: caixa Hilux, amortecedor Corolla, bomba S10" autocomplete="off"></label>
       <label>Linha<select id="catalogLine"><option value="">Todas as linhas</option></select></label>
@@ -316,7 +316,7 @@ async function searchCatalog(event) {
       only_available: document.getElementById('catalogAvailable').checked,
       limit_count: 50
     });
-    if (!state.catalog.length) return target.innerHTML = '<div class="empty">Nenhum produto encontrado nessa rota.</div>';
+    if (!state.catalog.length) return target.innerHTML = '<div class="empty">Nenhum produto encontrado para sua busca.</div>';
     target.innerHTML = state.catalog.map((product, index) => productCard(product, index)).join('');
     bindProductImages(target);
     target.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addToCart(state.catalog[Number(button.dataset.add)])));
@@ -327,7 +327,7 @@ async function searchCatalog(event) {
 
 function productCard(product, index) {
   const availability = availabilityLabel(product);
-  const priceLabel = `Preço final · ${product.route}`;
+  const priceLabel = 'Preço final';
   return `<article class="product-card">
     <div class="product-image">${productImageMarkup(product, index)}</div>
     <div class="product-info"><small>${escapeHtml(product.product_code)} · ${escapeHtml(product.brand || '')}</small><button class="product-title-button" type="button" data-open-product-details="${index}">${escapeHtml(product.description || '')}</button><p>${escapeHtml(productApplications(product))}</p><div class="product-info-actions"><span class="stock ${escapeHtml(availability.className)}">${escapeHtml(availability.text)}</span><button class="link-button" type="button" data-open-product-details="${index}">Ver ficha completa</button></div></div>
@@ -494,12 +494,12 @@ function translateError(error) {
   const known = {
     'Invalid login credentials': 'E-mail ou senha inválidos.',
     'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
-    'ROTA_B2B_NAO_CONFIGURADA': 'Sua UF ainda não possui uma rota B2B configurada.',
+    'ROTA_B2B_NAO_CONFIGURADA': 'O atendimento para sua região ainda está em configuração.',
     'ESTOQUE_B2B_NAO_IMPORTADO': 'O estoque desta filial ainda não foi confirmado. Gere uma cotação ou fale com seu representante.',
     'ESTOQUE_B2B_INSUFICIENTE': 'Estoque insuficiente para concluir este pedido.',
     'ESTOQUE_B2B_INSUFICIENTE_SP_PR': 'A soma dos estoques de SP e PR não atende este pedido.',
     'ESTOQUE_PR_NAO_IMPORTADO': 'O saldo de transferência do PR ainda não foi confirmado.',
-    'PRECO_B2B_INDISPONIVEL': 'Um dos produtos está sem preço final aprovado para sua rota.',
+    'PRECO_B2B_INDISPONIVEL': 'Um dos produtos está sem preço final aprovado no momento.',
     'ALTERACAO_JA_PENDENTE': 'Já existe uma solicitação de alteração em análise.'
   };
   const key = Object.keys(known).find((code) => message.includes(code));

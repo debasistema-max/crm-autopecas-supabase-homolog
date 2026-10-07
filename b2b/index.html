@@ -6,22 +6,25 @@
   <meta name="theme-color" content="#0b7063">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
-  <title>Portal B2B | IPS do Brasil</title>
+  <title>Portal do Cliente | IPS do Brasil</title>
   <link rel="stylesheet" href="css/portal.css?v=20260912-1">
+  <link rel="stylesheet" href="css/auth.css?v=20261007-1">
   <link rel="stylesheet" href="css/catalog.css?v=20260918-1">
 </head>
 <body>
   <main id="authView" class="auth-shell">
     <section class="auth-card">
-      <img src="../assets/logo-neutral.svg" alt="IPS do Brasil" class="brand-logo">
-      <p class="eyebrow">Portal exclusivo para clientes</p>
-      <h1>Pedidos e cotações B2B</h1>
-      <p class="muted">Consulte preços e estoque da sua rota comercial com segurança.</p>
+      <div class="auth-brand">
+        <span class="auth-logo-frame"><img src="../assets/logo-neutral.svg" alt="IPS do Brasil" class="brand-logo"></span>
+        <div><p class="eyebrow">Portal do cliente</p><span class="auth-brand-note">Acesso seguro</span></div>
+      </div>
+      <h1>Pedidos e cotações</h1>
+      <p class="muted auth-intro">Consulte preços, estoque e acompanhe seus pedidos em um só lugar.</p>
       <form id="loginForm" class="stack">
         <label>Usuário, CNPJ ou e-mail<input id="loginIdentifier" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
         <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required></label>
         <button class="button primary" type="submit">Entrar</button>
-        <button class="link-button" id="forgotPassword" type="button">Esqueci meu acesso ou senha</button>
+        <button class="link-button" id="forgotPassword" type="button">Recuperar acesso</button>
         <p id="loginMessage" class="message" aria-live="polite"></p>
       </form>
       <form id="passwordForm" class="stack" hidden>
@@ -37,7 +40,7 @@
 
   <div id="portalView" class="portal" hidden>
     <header class="topbar">
-      <div class="brand"><img src="../assets/logo-neutral.svg" alt="IPS do Brasil"><div><strong>Portal B2B</strong><small id="companyName"></small></div></div>
+      <div class="brand"><img src="../assets/logo-neutral.svg" alt="IPS do Brasil"><div><strong>Portal do Cliente</strong><small id="companyName"></small></div></div>
       <div class="top-actions"><span id="routeBadge" class="route-badge"></span><button id="logoutButton" class="button ghost" type="button">Sair</button></div>
     </header>
     <nav class="portal-nav" aria-label="Navegação principal">
@@ -71,6 +74,6 @@
   </dialog>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script>
   <script src="js/config.js?v=20260912-1"></script>
-  <script src="js/app.js?v=20261002-1"></script>
+  <script src="js/app.js?v=20261007-1"></script>
 </body>
 </html>
