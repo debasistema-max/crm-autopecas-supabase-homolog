@@ -394,6 +394,33 @@
   }
 }
 
+@media (min-width: 701px) and (max-width: 860px) {
+  .login-shell {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 370px);
+    gap: 24px;
+  }
+
+  .login-brand__lockup {
+    gap: 15px;
+  }
+
+  .brand-logo {
+    width: 66px;
+    height: 66px;
+    padding: 9px;
+    border-radius: 18px;
+  }
+
+  .login-brand h1 {
+    font-size: 37px;
+    letter-spacing: -0.045em;
+  }
+
+  .brand-copy {
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 700px) {
   .login-page {
     place-items: start center;

@@ -119,6 +119,7 @@ test('login keeps the access card visible in portrait, landscape and desktop lay
   assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(360px, 420px\)/);
   assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /@media \(min-width: 701px\) and \(max-height: 620px\)/);
+  assert.match(css, /@media \(min-width: 701px\) and \(max-width: 860px\)/);
   assert.match(css, /\.customer-portal-link\[hidden\]/);
   assert.match(auth, /cardHeader\.hidden = target !== 'login'/);
   assert.match(auth, /customerPortalLink\.hidden = target !== 'login'/);
