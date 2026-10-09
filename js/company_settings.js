@@ -84,7 +84,7 @@ function applyCompanyIdentity(settings = DEFAULT_COMPANY_SETTINGS) {
   document.documentElement.lang = identity.language || 'pt-BR';
   document.title = document.body && document.body.classList.contains('login-page')
     ? `${displayName} | Login`
-    : `${displayName} | CRM`;
+    : `${displayName} | Portal Comercial`;
 
   document.querySelectorAll('[data-company-name]').forEach((node) => {
     node.textContent = displayName;

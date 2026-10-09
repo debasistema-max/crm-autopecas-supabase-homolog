@@ -11,12 +11,12 @@
 </head>
 <body class="login-page">
   <main class="login-shell">
-    <section class="login-brand" aria-label="CRM Comercial">
+    <section class="login-brand" aria-label="Portal Comercial">
       <div class="login-brand__lockup">
         <img src="assets/logo-neutral.svg" alt="Nova Empresa" class="brand-logo" data-company-logo>
         <div>
           <p class="eyebrow" data-company-kicker>Nova Empresa</p>
-          <h1>CRM <span>Comercial</span></h1>
+          <h1>Portal <span>Comercial</span></h1>
         </div>
       </div>
       <p class="brand-copy">Vendas, produtos e pedidos em um ambiente simples, rápido e conectado.</p>
@@ -27,7 +27,7 @@
       <div class="login-card__header">
         <p class="login-card__eyebrow">Área restrita</p>
         <h2>Bem-vindo</h2>
-        <p>Entre com suas credenciais para acessar o CRM.</p>
+        <p>Entre com suas credenciais para acessar o Portal Comercial.</p>
       </div>
 
       <form id="loginForm" autocomplete="on">
@@ -39,14 +39,14 @@
           <span>Senha</span>
           <input id="senha" name="senha" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
         </label>
-        <button class="btn btn-primary" id="loginButton" type="submit">Acessar CRM</button>
+        <button class="btn btn-primary" id="loginButton" type="submit">Acessar portal</button>
         <button class="login-link-button" id="forgotPasswordButton" type="button">Esqueci minha senha</button>
         <p id="loginMessage" class="form-message" role="alert"></p>
       </form>
 
       <form id="recoveryRequestForm" class="login-secondary-form" hidden>
         <h3>Recuperar senha</h3>
-        <p>Informe o e-mail cadastrado no CRM. Enviaremos um link seguro para criar uma nova senha.</p>
+        <p>Informe o e-mail cadastrado no portal. Enviaremos um link seguro para criar uma nova senha.</p>
         <label>
           E-mail
           <input id="recoveryEmail" name="email" type="email" autocomplete="email" required>
@@ -79,7 +79,7 @@
   <script src="js/utils/format.js?v=20260719-1"></script>
   <script src="js/supabase.js?v=20260701-2"></script>
   <script src="js/supabase_store.js?v=20261005-1"></script>
-  <script src="js/company_settings.js?v=20261007-1"></script>
-  <script src="js/auth.js?v=20261007-1"></script>
+  <script src="js/company_settings.js?v=20261009-1"></script>
+  <script src="js/auth.js?v=20261009-1"></script>
 </body>
 </html>

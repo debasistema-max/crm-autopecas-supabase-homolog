@@ -233,7 +233,7 @@ async function openModule(name) {
   document.querySelectorAll('[data-mobile-module]').forEach((item) => item.classList.toggle('is-active', item.dataset.mobileModule === moduleName));
   document.getElementById('pageTitle').textContent = module.title;
   const context = document.getElementById('pageContext');
-  if (context) context.textContent = isCurrentUserSeller() ? 'Portal do vendedor' : (module.section || 'CRM Comercial');
+  if (context) context.textContent = isCurrentUserSeller() ? 'Portal do vendedor' : (module.section || 'Portal Comercial');
   if (location.hash !== `#${moduleName}`) {
     history.replaceState(null, '', `#${moduleName}`);
   }

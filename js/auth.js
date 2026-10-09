@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       message.textContent = error.message;
     } finally {
       button.disabled = false;
-      button.textContent = 'Acessar CRM';
+      button.textContent = 'Acessar portal';
     }
   });
 });
