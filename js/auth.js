@@ -47,6 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!form) return;
 
   const message = document.getElementById('loginMessage');
+  try {
+    message.textContent = sessionStorage.getItem('appSessionMessage') || '';
+    sessionStorage.removeItem('appSessionMessage');
+  } catch (error) { console.warn(error); }
   const button = document.getElementById('loginButton');
   const recoveryForm = document.getElementById('recoveryRequestForm');
   const resetForm = document.getElementById('passwordResetForm');
@@ -134,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const { error } = await supabaseClient.auth.updateUser({ password });
       if (error) throw error;
-      await supabaseClient.auth.signOut();
+      await supabaseClient.auth.signOut({ scope: 'local' });
       cleanRecoveryUrl();
       resetForm.reset();
       showView('login');

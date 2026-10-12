@@ -1,27 +1,55 @@
 const PRODUCT_IMPORT_LOOKUP_CHUNK_SIZE = 100;
+let crmSessionGuard = null;
+
+function supabaseAppSessionGuard() {
+  if (!crmSessionGuard) {
+    crmSessionGuard = AppSessionGuard.create(supabaseClient, (message) => {
+      clearStoredSession();
+      try { sessionStorage.setItem('appSessionMessage', message); } catch (error) { console.warn(error); }
+      window.location.href = 'index.html';
+    });
+  }
+  return crmSessionGuard;
+}
 
 async function supabaseLogin(usuario, senha) {
   if (!isSupabaseReady()) throw new Error('Supabase nao configurado.');
   const login = String(usuario || '').trim();
   if (!login || !senha) throw new Error('Usuario ou senha invalidos.');
+  let user;
   try {
-    const email = await supabaseResolveLoginEmail(login);
-    if (!email) throw new Error('INVALID_LOGIN');
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
-    if (error) throw error;
-    const profile = await supabaseCurrentProfile(data.user.id);
-    await supabaseClient.from('logs').insert({
-      user_id: data.user.id,
-      usuario: profile.usuario,
-      acao: 'LOGIN',
-      entidade: 'auth',
-      id_entidade: data.user.id,
-      dados_novos: { email: data.user.email, ip: null }
+    const { data: result, error: loginError } = await supabaseClient.functions.invoke('crm-login', {
+      body: { login, password: senha }
     });
-    return supabaseSessionFromProfile(data.user, profile);
+    if (loginError || !result?.session?.access_token || !result.session.refresh_token) {
+      throw new Error('INVALID_LOGIN');
+    }
+    const { data, error } = await supabaseClient.auth.setSession(result.session);
+    if (error) throw error;
+    if (!data?.user) throw new Error('INVALID_LOGIN');
+    user = data.user;
   } catch (error) {
     throw new Error('Usuario ou senha invalidos.');
   }
+  const guard = supabaseAppSessionGuard();
+  await guard.claimAfterSignIn();
+  const profile = await supabaseCurrentProfile(user.id);
+  try {
+    const { error } = await supabaseClient.from('logs').insert({
+      user_id: user.id,
+      usuario: profile.usuario,
+      acao: 'LOGIN',
+      entidade: 'auth',
+      id_entidade: user.id,
+      dados_novos: { email: user.email, ip: null }
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn('Nao foi possivel registrar o login:', error);
+  }
+  const session = await supabaseSessionFromProfile(user, profile);
+  guard.start();
+  return session;
 }
 
 async function supabaseResolveLoginEmail(login) {
@@ -38,15 +66,19 @@ async function supabaseLogout() {
   } catch (error) {
     console.warn(error);
   }
-  await supabaseClient.auth.signOut();
+  await supabaseAppSessionGuard().logout();
 }
 
 async function supabaseValidateSession() {
   if (!isSupabaseReady()) return null;
   const { data, error } = await supabaseClient.auth.getUser();
   if (error || !data.user) return null;
+  const guard = supabaseAppSessionGuard();
+  if (!await guard.validate()) return null;
   const profile = await supabaseCurrentProfile(data.user.id);
-  return supabaseSessionFromProfile(data.user, profile);
+  const session = await supabaseSessionFromProfile(data.user, profile);
+  guard.start();
+  return session;
 }
 
 async function supabaseCurrentProfile(userId) {
@@ -1528,13 +1560,18 @@ function inferImportTypeFromMapping(mapping, currentType) {
 
 async function supabaseLog(acao, entidade, idEntidade, dadosNovos) {
   const session = getStoredSession() || {};
-  await supabaseClient.from('logs').insert({
+  const { data, error: userError } = await supabaseClient.auth.getUser();
+  if (userError) throw userError;
+  if (!data?.user) throw new Error('Sessao nao autenticada.');
+  const { error } = await supabaseClient.from('logs').insert({
+    user_id: data.user.id,
     usuario: session.usuario || null,
     acao,
     entidade,
     id_entidade: idEntidade == null ? null : String(idEntidade),
     dados_novos: dadosNovos || null
   });
+  if (error) throw error;
 }
 
 const allowedProductFields = [

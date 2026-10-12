@@ -1,3 +1,7 @@
+// Capture fresh link credentials before Auth consumes/clears the URL.
+const passwordLinkParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+const passwordLinkToken = /^(invite|recovery)$/.test(passwordLinkParams.get('type') || '')
+  && passwordLinkParams.get('refresh_token') ? passwordLinkParams.get('access_token') : null;
 const b2b = window.supabase.createClient(B2B_CONFIG.supabaseUrl, B2B_CONFIG.anonKey, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
@@ -11,6 +15,15 @@ const state = {
   pendingSubmission: null,
   currentView: 'home'
 };
+const sessionGuard = AppSessionGuard.create(b2b, (message) => {
+  state.session = null;
+  state.context = null;
+  state.cart = [];
+  state.pendingSubmission = null;
+  document.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close());
+  showAuth();
+  setMessage(document.getElementById('loginMessage'), message, 'error');
+});
 
 const money = (value) => new Intl.NumberFormat(B2B_CONFIG.locale, {
   style: 'currency', currency: B2B_CONFIG.currency
@@ -124,21 +137,54 @@ function loginIdentifierToEmail(value) {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+let passwordAuthToken = null;
+let passwordAuthPending = null;
+let passwordAuthEventSession = null;
+
+function beginPasswordAuth(session) {
+  if (!session?.access_token) return Promise.resolve();
+  if (passwordAuthToken === session.access_token) return passwordAuthPending;
+  passwordAuthToken = session.access_token;
+  passwordAuthPending = (async () => {
+    sessionGuard.stop();
+    state.session = session;
+    state.context = null;
+    history.replaceState({}, '', location.pathname);
+    try {
+      await sessionGuard.claimAfterSignIn();
+      state.context = await rpc('get_b2b_session');
+      sessionGuard.start();
+      showPasswordForm();
+    } catch (error) {
+      sessionGuard.stop();
+      showAuth();
+      setMessage(document.getElementById('loginMessage'), translateError(error), 'error');
+    }
+  })();
+  return passwordAuthPending;
+}
 
 async function init() {
   bindAuth();
   bindPortal();
-  const inviteFlow = /(?:^|[&#])type=(invite|recovery)(?:&|$)/.test(location.hash + '&' + location.search.slice(1));
-  const { data } = await b2b.auth.getSession();
-  if (inviteFlow && data.session) showPasswordForm();
-  else if (data.session) await openPortal(data.session);
-  else showAuth();
-
   b2b.auth.onAuthStateChange((event, session) => {
-    if (event === 'PASSWORD_RECOVERY') showPasswordForm();
-    if (event === 'SIGNED_OUT') showAuth();
+    if (session && (event === 'PASSWORD_RECOVERY'
+      || (event === 'SIGNED_IN' && passwordLinkToken && session.access_token === passwordLinkToken))) {
+      passwordAuthEventSession = session;
+      // RPC/Auth calls must run outside the Auth state callback's lock.
+      setTimeout(() => beginPasswordAuth(session), 0);
+    }
+    if (event === 'SIGNED_OUT') { sessionGuard.stop(); showAuth(); }
     state.session = session;
   });
+  const { data } = await b2b.auth.getSession();
+  if (data.session && passwordLinkToken && data.session.access_token === passwordLinkToken) {
+    await beginPasswordAuth(data.session);
+  } else if (data.session && passwordAuthEventSession?.access_token === data.session.access_token) {
+    await beginPasswordAuth(data.session);
+  } else if (passwordAuthPending) await passwordAuthPending;
+  else if (data.session) await openPortal(data.session);
+  else showAuth();
 }
 
 function bindAuth() {
@@ -151,7 +197,12 @@ function bindAuth() {
       password: document.getElementById('loginPassword').value
     });
     if (error) return setMessage(message, translateError(error), 'error');
-    await openPortal(data.session);
+    try {
+      await sessionGuard.claimAfterSignIn();
+      await openPortal(data.session);
+    } catch (error) {
+      setMessage(message, translateError(error), 'error');
+    }
   });
 
   document.getElementById('forgotPassword').addEventListener('click', async () => {
@@ -175,7 +226,7 @@ function bindAuth() {
       return setMessage(message, 'Use 12 ou mais caracteres, com maiúscula, minúscula e número.', 'error');
     }
     if (password !== confirmation) return setMessage(message, 'As senhas não conferem.', 'error');
-    if (state.context?.account?.must_change_password) {
+    if (state.context?.account?.must_change_password || state.context?.account?.activation_pending) {
       const { error } = await b2b.functions.invoke('b2b-change-password', { body: { password } });
       if (error) return setMessage(message, 'Não foi possível trocar a senha. Tente novamente.', 'error');
       state.context.account.must_change_password = false;
@@ -184,7 +235,7 @@ function bindAuth() {
       if (error) return setMessage(message, translateError(error), 'error');
     }
     history.replaceState({}, '', location.pathname);
-    await b2b.auth.signOut({ scope: 'local' });
+    await sessionGuard.logout();
     showAuth();
     setMessage(document.getElementById('loginMessage'), 'Senha atualizada. Entre novamente com a nova senha.', 'success');
   });
@@ -192,7 +243,7 @@ function bindAuth() {
 
 function bindPortal() {
   document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.view)));
-  document.getElementById('logoutButton').addEventListener('click', () => b2b.auth.signOut());
+  document.getElementById('logoutButton').addEventListener('click', () => sessionGuard.logout());
   document.getElementById('cartButton').addEventListener('click', openCart);
   document.getElementById('cartDialog').addEventListener('click', closeDialogOnBackdrop);
   document.getElementById('documentDialog').addEventListener('click', closeDialogOnBackdrop);
@@ -210,14 +261,24 @@ async function openPortal(session) {
   if (!session) return showAuth();
   state.session = session;
   try {
+    if (!await sessionGuard.validate()) return;
+  } catch (error) {
+    if (error.code === 'APP_SESSION_REPLACED') return;
+    showAuth();
+    setMessage(document.getElementById('loginMessage'), 'Nao foi possivel validar sua sessao. Tente novamente.', 'error');
+    return;
+  }
+  sessionGuard.start();
+  try {
     state.context = await rpc('get_b2b_session');
   } catch (error) {
-    await b2b.auth.signOut();
+    sessionGuard.stop();
+    await b2b.auth.signOut({ scope: 'local' });
     showAuth();
     setMessage(document.getElementById('loginMessage'), 'Este e-mail ainda não está vinculado a um cliente ativo. Fale com seu representante.', 'error');
     return;
   }
-  if (state.context.account?.must_change_password) {
+  if (state.context.account?.must_change_password || state.context.account?.activation_pending) {
     showPasswordForm();
     document.getElementById('passwordHelp').textContent = 'Por segurança, troque a senha inicial entregue pela IPS antes de acessar seus dados.';
     setMessage(document.getElementById('passwordMessage'), 'Troque a senha inicial antes de acessar o portal.', '');

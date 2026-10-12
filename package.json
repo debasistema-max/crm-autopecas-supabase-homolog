@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "dev": "python -m http.server 4173 --directory .",
+    "test": "npm run check && npm run test:static && npm run test:session && npm run test:python",
+    "check": "npm run check:migrations && npm run check:js",
+    "check:js": "node scripts/check_javascript_syntax.mjs",
+    "check:migrations": "node scripts/check_migration_sequence.mjs",
+    "test:static": "node tests/static-ui-contracts.test.cjs",
+    "test:session": "node --test tests/single-session-frontend.test.cjs",
+    "test:python": "python -m unittest discover -s tests -p \"test_*.py\"",
+    "setup:python": "python -m pip install -r scripts/requirements-data-sync.txt"
+  }
+}

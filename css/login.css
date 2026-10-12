@@ -1,4 +1,7 @@
 .login-page {
+  /* Company accent colors must not control text on the white login form. */
+  --primary-strong: #17232d;
+  color-scheme: light;
   box-sizing: border-box;
   min-height: 100vh;
   min-height: 100svh;
@@ -14,6 +17,7 @@
   overflow-x: hidden;
   overflow-y: auto;
 }
+
 .login-page::before,
 .login-page::after {
   content: '';
@@ -212,7 +216,8 @@
 
 #loginForm input::placeholder,
 .login-secondary-form input::placeholder {
-  color: #98a2aa;
+  color: #586574;
+  opacity: 1;
 }
 
 #loginForm input:focus,

@@ -7,6 +7,8 @@ const dataSyncUiState = {
   status: null,
   batches: [],
   activePanel: 'history',
+  auditFilters: null,
+  auditRequestId: 0,
   syncRequest: null,
   pollTimer: null
 };
@@ -33,7 +35,7 @@ async function renderDataSyncCenter(container) {
         <div class="section-heading"><div><h3 id="dataSyncActionsTitle">Ações</h3><p>A execução ocorre no backend; nenhuma credencial é enviada ao navegador.</p></div></div>
         <div class="actions-row data-sync-actions">
           <button class="btn btn-primary" id="dataSyncNow" type="button">Sincronizar agora</button>
-          <button class="btn btn-secondary" id="dataSyncDetails" type="button">Visualizar detalhes</button>
+          <button class="btn btn-secondary" id="dataSyncDetails" type="button">Relatório de alterações</button>
           <button class="btn btn-secondary" id="dataSyncErrors" type="button">Visualizar erros</button>
           <button class="btn btn-secondary" id="dataSyncHistory" type="button">Visualizar histórico</button>
         </div>
@@ -266,6 +268,15 @@ function renderDataSyncCompletion(batch, duplicate) {
     summary,
     { meta: batch.id ? `Lote ${shortDataSyncId(batch.id)}` : '', complete: true }
   );
+  const notice = document.getElementById('dataSyncMessage');
+  if (notice && batch.id) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-secondary';
+    button.textContent = 'Ver alterações deste lote';
+    button.addEventListener('click', () => openDataSyncBatchAudit(batch.id));
+    notice.appendChild(button);
+  }
 }
 
 function renderDataSyncNotice(kind, title, description, options = {}) {
@@ -319,7 +330,14 @@ function renderDataSyncHistory(target) {
   target.innerHTML = `<div class="section-heading"><div><h3>Histórico de sincronizações</h3><p>Versão, origem, contadores e resultado de cada lote automático.</p></div></div>
     ${rows.length ? `<div class="table-wrap data-sync-table-wrap"><table><thead><tr><th>Data</th><th>Lote</th><th>Origem</th><th>Versão</th><th>Lidas</th><th>Novas</th><th>Alteradas</th><th>Ignoradas</th><th>Erros</th><th>Status</th></tr></thead><tbody>
       ${rows.map((row) => `<tr><td>${escapeHtml(formatDataSyncDateTime(row.created_at))}</td><td>${escapeHtml(shortDataSyncId(row.id))}</td><td>${escapeHtml(row.integration_source)}</td><td title="${escapeHtml(row.source_version)}">${escapeHtml(shortDataSyncId(row.source_version))}</td><td>${row.total_rows || 0}</td><td>${row.inserted_rows || 0}</td><td>${row.updated_rows || 0}</td><td>${row.ignored_rows || 0}</td><td>${row.error_count || 0}</td><td><span class="status-pill data-sync-status-${escapeHtml(row.status)}">${escapeHtml(DATA_SYNC_STATUS_LABELS[row.status] || row.status)}</span></td></tr>`).join('')}
-    </tbody></table></div>` : CrmUi.renderState('empty', 'Nenhuma sincronização', 'O primeiro lote automático aparecerá aqui.')}`;
+    </tbody></table></div>` : CrmUi.renderState('empty', 'Nenhuma sincronização', 'O primeiro lote automático aparecerá aqui.')}
+    ${rows.length ? `<div class="data-sync-batch-reports"><label>Alterações da sincronização<select id="dataSyncHistoryBatch">${rows.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(formatDataSyncDateTime(row.created_at))} · ${escapeHtml(shortDataSyncId(row.id))}</option>`).join('')}</select></label><button class="btn btn-secondary" id="dataSyncHistoryAudit" type="button">Ver alterações</button></div>` : ''}`;
+  document.getElementById('dataSyncHistoryAudit')?.addEventListener('click', () => openDataSyncBatchAudit(document.getElementById('dataSyncHistoryBatch').value));
+}
+
+async function openDataSyncBatchAudit(batchId) {
+  dataSyncUiState.auditFilters = { batch_id: batchId, area: '', product_code: '' };
+  await renderDataSyncPanel('details');
 }
 
 async function renderDataSyncErrors(target) {
@@ -377,17 +395,83 @@ function dataSyncErrorAction(row) {
 }
 
 async function renderDataSyncAudit(target) {
-  target.innerHTML = CrmUi.renderState('loading', 'Carregando detalhes', 'Consultando as alterações campo a campo.');
+  const batches = dataSyncUiState.batches || [];
+  const filters = dataSyncUiState.auditFilters || { batch_id: batches[0]?.id || '', area: '', product_code: '' };
+  dataSyncUiState.auditFilters = filters;
+  target.innerHTML = `<div class="section-heading"><div><h3>Relatório de alterações</h3><p>Produtos modificados, campo alterado e valores antes e depois da sincronização.</p></div></div>
+    <form id="dataSyncAuditFilters" class="data-sync-audit-filters">
+      <label>Sincronização<select id="dataSyncAuditBatch"><option value="">Todas</option>${batches.map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(formatDataSyncDateTime(row.created_at))} · ${escapeHtml(shortDataSyncId(row.id))}</option>`).join('')}${filters.batch_id && !batches.some((row) => row.id === filters.batch_id) ? `<option value="${escapeHtml(filters.batch_id)}">${escapeHtml(shortDataSyncId(filters.batch_id))}</option>` : ''}</select></label>
+      <label>Tipo de alteração<select id="dataSyncAuditArea"><option value="">Todos</option><option value="STOCK">Quantidade / estoque</option><option value="BASE_PRICE">Preço-base</option><option value="ROUTE_PRICE">Preço final / impostos</option><option value="PRODUCT">Cadastro do produto</option></select></label>
+      <label>Código do produto<input id="dataSyncAuditProduct" type="search" placeholder="Código IPS"></label>
+      <button class="btn btn-secondary" type="submit">Filtrar</button>
+    </form><div id="dataSyncAuditRows" aria-live="polite"></div>`;
+  document.getElementById('dataSyncAuditBatch').value = filters.batch_id;
+  document.getElementById('dataSyncAuditArea').value = filters.area;
+  document.getElementById('dataSyncAuditProduct').value = filters.product_code;
+  document.getElementById('dataSyncAuditFilters').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    dataSyncUiState.auditFilters = {
+      batch_id: document.getElementById('dataSyncAuditBatch').value,
+      area: document.getElementById('dataSyncAuditArea').value,
+      product_code: document.getElementById('dataSyncAuditProduct').value.trim()
+    };
+    await loadDataSyncAudit(dataSyncUiState.auditFilters);
+  });
+  await loadDataSyncAudit(filters);
+}
+
+async function loadDataSyncAudit(filters) {
+  const target = document.getElementById('dataSyncAuditRows');
+  if (!target) return;
+  const requestId = ++dataSyncUiState.auditRequestId;
+  const button = document.querySelector('#dataSyncAuditFilters button');
+  if (button) button.disabled = true;
+  target.innerHTML = CrmUi.renderState('loading', 'Carregando alterações', 'Consultando a auditoria da sincronização.');
   try {
-    const result = await supabaseListDataSyncAudit({ limit: 500 });
+    const result = await supabaseListDataSyncAudit({ ...filters, limit: 2000 });
+    if (requestId !== dataSyncUiState.auditRequestId || !target.isConnected) return;
     const rows = result.rows || [];
-    target.innerHTML = `<div class="section-heading"><div><h3>Detalhes das alterações</h3><p>Valor anterior e novo, origem, filial/rota e responsável.</p></div></div>
-      ${rows.length ? `<div class="table-wrap data-sync-table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Área</th><th>Campo</th><th>Antes</th><th>Depois</th><th>Filial/rota</th><th>Origem</th><th>Responsável</th></tr></thead><tbody>
-        ${rows.map((row) => `<tr><td>${escapeHtml(formatDataSyncDateTime(row.created_at))}</td><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.area)}</td><td>${escapeHtml(row.field_name)}</td><td>${escapeHtml(dataSyncValue(row.old_value))}</td><td>${escapeHtml(dataSyncValue(row.new_value))}</td><td>${escapeHtml(row.route || row.branch_code || '—')}</td><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.created_by || 'SYSTEM')}</td></tr>`).join('')}
+    const products = new Set(rows.map((row) => row.product_code)).size;
+    target.innerHTML = `<p class="data-sync-audit-summary">${products.toLocaleString('pt-BR')} produtos · ${rows.length.toLocaleString('pt-BR')} alterações exibidas</p>
+      ${rows.length >= 2000 ? '<p class="form-message">Exibindo as 2.000 alterações mais recentes deste filtro. Refine por tipo ou código para consultar as demais.</p>' : ''}
+      ${rows.length ? `<div class="table-wrap data-sync-table-wrap"><table><thead><tr><th>Data</th><th>Código do produto</th><th>Tipo</th><th>O que mudou</th><th>Antes</th><th>Depois</th><th>Filial/rota</th><th>Lote</th><th>Origem</th><th>Responsável</th></tr></thead><tbody>
+        ${rows.map((row) => `<tr><td>${escapeHtml(formatDataSyncDateTime(row.created_at))}</td><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(dataSyncAuditArea(row.area))}</td><td>${escapeHtml(dataSyncAuditField(row.field_name))}</td><td>${escapeHtml(dataSyncAuditValue(row.old_value, row.field_name))}</td><td>${escapeHtml(dataSyncAuditValue(row.new_value, row.field_name))}</td><td>${escapeHtml(row.route || row.branch_code || '—')}</td><td title="${escapeHtml(row.batch_id)}">${escapeHtml(shortDataSyncId(row.batch_id))}</td><td>${escapeHtml(row.source || '—')}</td><td>${escapeHtml(row.created_by || 'Sistema')}</td></tr>`).join('')}
       </tbody></table></div>` : CrmUi.renderState('empty', 'Nenhuma alteração auditada', 'Linhas sem mudança não geram escrita nem auditoria.')}`;
   } catch (error) {
+    if (requestId !== dataSyncUiState.auditRequestId || !target.isConnected) return;
     target.innerHTML = CrmUi.renderState('error', 'Não foi possível carregar os detalhes', error.message);
+  } finally {
+    if (requestId === dataSyncUiState.auditRequestId && button?.isConnected) button.disabled = false;
   }
+}
+
+function dataSyncAuditArea(area) {
+  return { STOCK: 'Estoque', BASE_PRICE: 'Preço-base', ROUTE_PRICE: 'Preço / impostos', PRODUCT: 'Cadastro' }[area] || area || '—';
+}
+
+function dataSyncAuditField(field) {
+  return {
+    stock_qty: 'Estoque', confirmed_qty: 'Quantidade confirmada', sales_available_qty: 'Disponível para venda',
+    authorized_pending_qty: 'Quantidade pendente autorizada', general_available_qty: 'Disponibilidade geral',
+    general_available_capped: 'Estoque com limite informado', source_display_value: 'Quantidade informada na origem',
+    base_price: 'Preço-base', final_price: 'Preço final', total_taxes: 'Total de impostos',
+    tax_breakdown: 'Detalhamento dos impostos', calculation_status: 'Status do cálculo', currency: 'Moeda',
+    description: 'Descrição', brand: 'Marca', application: 'Aplicação / veículos', year: 'Ano', ncm: 'NCM',
+    cest: 'CEST', ipi_rate: 'Alíquota IPI', origin_code: 'Código de origem', origin_description: 'Origem',
+    material_group: 'Grupo de material', fiscal_group: 'Grupo fiscal', group: 'Grupo', model: 'Modelo',
+    oem_01: 'Código OEM', manufacturer: 'Fabricante', item_group: 'Grupo do item', sales_unit: 'Unidade de venda',
+    barcode: 'Código de barras', weight: 'Peso', volume: 'Volume', item_notes: 'Observações'
+  }[field] || field || '—';
+}
+
+function dataSyncAuditValue(value, field) {
+  if (value == null) return '—';
+  if (['base_price', 'final_price', 'total_taxes'].includes(field) && Number.isFinite(Number(value))) {
+    return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 4 });
+  }
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  if (typeof value === 'number') return value.toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+  return dataSyncValue(value);
 }
 
 function dataSyncValue(value) {
