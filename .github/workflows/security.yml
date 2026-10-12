@@ -49,9 +49,8 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: scripts/requirements-data-sync.txt
-      - run: pip install -r scripts/requirements-data-sync.txt
-      - run: python -m unittest discover -s tests -p 'test_*.py'
-      - run: node tests/static-ui-contracts.test.cjs
+      - run: python -m pip install -r scripts/requirements-data-sync.txt
+      - run: npm test
       - name: Reject committed private secrets
         shell: bash
         run: |

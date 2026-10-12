@@ -10,7 +10,7 @@ const DEFAULT_COMPANY_SETTINGS = {
   whatsapp: '',
   email: '',
   website: '',
-  logo_url: 'assets/logo-neutral.svg',
+  logo_url: 'assets/logo-ips-yokomitsu.png',
   primary_color: '#0d6b5f',
   secondary_color: '#17212b',
   currency: 'BRL',
