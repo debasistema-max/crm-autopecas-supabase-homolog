@@ -13,6 +13,111 @@ const resolveFile = (file) => {
   return fs.existsSync(publicFile) ? publicFile : path.join(repoRoot, relativeFile);
 };
 const read = (file) => fs.readFileSync(resolveFile(file), 'utf8');
+
+function documentStatusHarness(kind, status) {
+  const nodes = {
+    [`${kind}EditPanel`]: { dataset: { documentStatus: status, statusBusy: 'false' } },
+    [`${kind}EditId`]: { value: 'document-test' },
+    [`${kind}Results`]: {},
+    [`${kind}EditMessage`]: { style: {}, textContent: '' },
+    [`${kind}EditStatusDisplay`]: { value: status },
+    [`${kind}EditConfirmButton`]: { disabled: false },
+    [`${kind}EditCancelDocumentButton`]: { disabled: false }
+  };
+  const context = vm.createContext({ window: {}, document: { getElementById: (id) => nodes[id] || null } });
+  vm.runInContext(read('js/quotes.js'), context);
+  let calls = 0;
+  context.supabaseUpdateOrderStatus = context.supabaseUpdateQuotationStatus = async ({ status: next }) => {
+    calls += 1;
+    return { status: next };
+  };
+  context.loadDocumentReport = async () => {};
+  context.syncDocumentStatusActions(kind);
+  return { context, nodes, calls: () => calls };
+}
+
+test('document status buttons match the SQL transition rules and fail closed', () => {
+  const cases = [
+    ['pedidos', 'NOVO', true, true], ['pedidos', 'EM_ANALISE', true, true],
+    ['pedidos', 'APROVADO', false, true], ['pedidos', 'FATURADO', false, false],
+    ['pedidos', 'CANCELADO', false, false], ['cotacoes', 'NOVA', true, true],
+    ['cotacoes', 'ENVIADA', true, true], ['cotacoes', 'APROVADA', false, false],
+    ['cotacoes', 'CONVERTIDA', false, false], ['cotacoes', 'CANCELADA', false, false],
+    ['cotacoes', '', false, false], ['pedidos', 'UNKNOWN', false, false],
+    ['unknown', 'NOVO', false, false]
+  ];
+  for (const [kind, status, confirm, cancel] of cases) {
+    const { nodes } = documentStatusHarness(kind, status);
+    assert.equal(nodes[`${kind}EditConfirmButton`].disabled, !confirm, `${kind}/${status}/confirm`);
+    assert.equal(nodes[`${kind}EditCancelDocumentButton`].disabled, !cancel, `${kind}/${status}/cancel`);
+  }
+});
+
+test('approving a quotation disables both actions and rejects a subsequent cancellation', async () => {
+  const { context, nodes, calls } = documentStatusHarness('cotacoes', 'NOVA');
+  await context.updateDocumentStatus('cotacoes', 'document-test', 'APROVADA');
+  assert.equal(nodes.cotacoesEditPanel.dataset.documentStatus, 'APROVADA');
+  assert.equal(nodes.cotacoesEditConfirmButton.disabled, true);
+  assert.equal(nodes.cotacoesEditCancelDocumentButton.disabled, true);
+  await context.updateDocumentStatus('cotacoes', 'document-test', 'CANCELADA');
+  assert.equal(calls(), 1);
+});
+
+test('an approved order still permits cancellation', async () => {
+  const { context, nodes, calls } = documentStatusHarness('pedidos', 'APROVADO');
+  await context.updateDocumentStatus('pedidos', 'document-test', 'CANCELADO');
+  assert.equal(calls(), 1);
+  assert.equal(nodes.pedidosEditPanel.dataset.documentStatus, 'CANCELADO');
+  assert.equal(nodes.pedidosEditCancelDocumentButton.disabled, true);
+});
+
+test('failed status requests restore actions for the unchanged status', async () => {
+  const { context, nodes } = documentStatusHarness('cotacoes', 'NOVA');
+  context.supabaseUpdateQuotationStatus = async () => { throw new Error('Falha de teste'); };
+  await context.updateDocumentStatus('cotacoes', 'document-test', 'APROVADA');
+  assert.equal(nodes.cotacoesEditPanel.dataset.documentStatus, 'NOVA');
+  assert.equal(nodes.cotacoesEditConfirmButton.disabled, false);
+  assert.equal(nodes.cotacoesEditCancelDocumentButton.disabled, false);
+  assert.equal(nodes.cotacoesEditMessage.textContent, 'Falha de teste');
+});
+
+test('a report refresh failure does not restore actions for a committed quotation', async () => {
+  const { context, nodes } = documentStatusHarness('cotacoes', 'NOVA');
+  context.loadDocumentReport = async () => { throw new Error('Falha no relatorio'); };
+  await context.updateDocumentStatus('cotacoes', 'document-test', 'APROVADA');
+  assert.equal(nodes.cotacoesEditPanel.dataset.documentStatus, 'APROVADA');
+  assert.equal(nodes.cotacoesEditCancelDocumentButton.disabled, true);
+});
+
+test('pending status changes prevent double clicks and ignore responses for a replaced editor', async () => {
+  const { context, nodes } = documentStatusHarness('cotacoes', 'NOVA');
+  let resolve;
+  let calls = 0;
+  context.supabaseUpdateQuotationStatus = () => {
+    calls += 1;
+    return new Promise((done) => { resolve = done; });
+  };
+  const pending = context.updateDocumentStatus('cotacoes', 'document-test', 'APROVADA');
+  context.showDocumentEditForm('cotacoes', { id: 'document-test', status: 'NOVA' });
+  assert.equal(nodes.cotacoesEditPanel.dataset.statusBusy, 'true');
+  assert.equal(nodes.cotacoesEditConfirmButton.disabled, true);
+  assert.equal(nodes.cotacoesEditCancelDocumentButton.disabled, true);
+  await context.updateDocumentStatus('cotacoes', 'document-test', 'CANCELADA');
+  assert.equal(calls, 1);
+  nodes.cotacoesEditId = { value: 'different-document' };
+  nodes.cotacoesEditPanel.dataset.documentStatus = 'ENVIADA';
+  nodes.cotacoesEditPanel.dataset.statusBusy = 'false';
+  context.window.cotacoesLastRows = [{ id: 'document-test', status: 'NOVA' }];
+  let refreshes = 0;
+  context.loadDocumentReport = async () => { refreshes += 1; };
+  context.syncDocumentStatusActions('cotacoes');
+  resolve({ status: 'APROVADA' });
+  await pending;
+  assert.equal(nodes.cotacoesEditPanel.dataset.documentStatus, 'ENVIADA');
+  assert.equal(nodes.cotacoesEditCancelDocumentButton.disabled, false);
+  assert.equal(context.window.cotacoesLastRows[0].status, 'APROVADA');
+  assert.equal(refreshes, 1);
+});
 function filesIn(directory, extension) {
   const base = fs.existsSync(path.join(publicRoot, directory)) ? publicRoot : repoRoot;
   return fs.readdirSync(path.join(base, directory), { withFileTypes: true }).flatMap((entry) => {
