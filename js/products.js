@@ -41,6 +41,9 @@ async function renderProducts(container) {
           <label>Montadora
             <select id="productMakerFilter"><option value="">Todas</option></select>
           </label>
+          <label>Tipo de veiculo
+            <select id="productVehicleTypeFilter"><option value="">Todos</option><option value="LEVE">Leve</option><option value="UTILITARIO">Utilitario</option><option value="PESADO">Pesado</option><option value="NAO_CLASSIFICADO">Nao classificado</option></select>
+          </label>
           <label class="product-toggle"><input id="productAvailableFilter" type="checkbox"> Disponiveis</label>
           <label class="product-toggle"><input id="productOemFilter" type="checkbox"> Com OEM</label>
           <label class="product-toggle"><input id="productPhotoFilter" type="checkbox"> Com foto</label>
@@ -117,7 +120,8 @@ function bindProductSearch() {
     'productAvailableFilter',
     'productOemFilter',
     'productPhotoFilter',
-    'productFavoritesFilter'
+    'productFavoritesFilter',
+    'productVehicleTypeFilter'
   ].forEach((id) => {
     document.getElementById(id).addEventListener('change', () => runProductSearch({ silentEmpty: true }));
   });
@@ -137,6 +141,7 @@ function getProductSearchParams(options = {}) {
     linha: document.getElementById('productLineFilter').value,
     grupo: document.getElementById('productGroupFilter').value,
     montadora: document.getElementById('productMakerFilter').value,
+    tipoVeiculo: document.getElementById('productVehicleTypeFilter').value,
     disponiveis: document.getElementById('productAvailableFilter').checked,
     comOem: document.getElementById('productOemFilter').checked,
     comFoto: document.getElementById('productPhotoFilter').checked,
@@ -155,6 +160,7 @@ function clearProductFilters() {
   document.getElementById('productLineFilter').value = '';
   document.getElementById('productGroupFilter').value = '';
   document.getElementById('productMakerFilter').value = '';
+  document.getElementById('productVehicleTypeFilter').value = '';
   document.getElementById('productAvailableFilter').checked = false;
   document.getElementById('productOemFilter').checked = false;
   document.getElementById('productPhotoFilter').checked = false;
@@ -169,7 +175,7 @@ function clearProductFilters() {
 async function searchProductsInto(target, params, onAdd) {
   const requestId = ++productSearchRequestSequence;
   productSearchRequests.set(target, requestId);
-  const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
+  const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.tipoVeiculo || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
   if (!hasQuery) {
     if (!params.silentEmpty) target.innerHTML = CrmUi.renderState('empty', 'Informe o que deseja localizar', 'Pesquise por codigo, OEM, marca, veiculo ou aplicacao.');
     return;
@@ -397,6 +403,7 @@ function renderProductDetail(product, history) {
       <dl class="product-detail-grid">
         ${detailItem('Marca', product.marca)}
         ${detailItem('Linha', product.linha || product.categoria)}
+        ${detailItem('Tipo de veiculo', formatVehicleTypes(product.vehicle_types))}
         ${detailItem('Grupo', product.grupo)}
         ${detailItem('Montadora', product.montadora)}
         ${detailItem('OEM', product.oem)}
@@ -565,6 +572,7 @@ function renderProductFilterSummary(params) {
     params.linha ? 'linha: ' + params.linha : '',
     params.grupo ? 'grupo: ' + params.grupo : '',
     params.montadora ? 'montadora: ' + params.montadora : '',
+    params.tipoVeiculo ? 'veiculo: ' + formatVehicleTypes([params.tipoVeiculo]) : '',
     params.disponiveis ? 'disponiveis' : '',
     params.comOem ? 'com OEM' : '',
     params.comFoto ? 'com foto' : '',
@@ -587,12 +595,13 @@ function formatProductDate(value) {
 }
 
 function exportProductsCsv(products, params) {
-  const headers = ['codigo', 'linha', 'grupo', 'montadora', 'oem', 'similares', 'aplicacoes', 'estoque', 'preco'];
+  const headers = ['codigo', 'linha', 'grupo', 'tipo_veiculo', 'montadora', 'oem', 'similares', 'aplicacoes', 'estoque', 'preco'];
   const lines = [
     headers.join(';'),
     ...products.map((product) => headers.map((field) => {
       if (field === 'preco') return csvCell(product.preco);
       if (field === 'linha') return csvCell(product.linha || product.categoria);
+      if (field === 'tipo_veiculo') return csvCell(formatVehicleTypes(product.vehicle_types));
       if (field === 'similares') return csvCell(product.similar);
       if (field === 'aplicacoes') return csvCell(product.aplicacao);
       return csvCell(product[field]);

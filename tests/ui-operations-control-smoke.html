@@ -20,7 +20,7 @@
     let committedImportCalls = 0;
     let stagedRows = [];
     let createdBatchPayload = null;
-    async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO'], grupos: [], marcas: [], montadoras: [] }; }
+    async function supabaseListCommercialLines() { return ['DIRECAO', 'FAROL', 'LANTERNA', 'RETROVISOR']; }
 
     function formatDateInput(value) { return new Date(value).toISOString().slice(0, 10); }
     function formatDateTime() { return '27/08/2026 10:30'; }

@@ -855,6 +855,50 @@ test('commercial lists load every page and preserve line filters', async () => {
   assert.equal(calls[0].payload.filters.limit, 200);
 });
 
+test('commercial list pages retain every selected line', async () => {
+  const { context, calls } = commercialListHarness([
+    { data: { count: 2, rows: [{ product_code: 'A' }], has_more: true, next_offset: 1 } },
+    { data: { count: 2, rows: [{ product_code: 'B' }], has_more: false, next_offset: 2 } }
+  ]);
+  await context.supabaseGenerateCommercialList('PR-PR', { lines: ['FAROL', 'RETROVISOR'] });
+  for (const call of calls) assert.deepEqual(Array.from(call.payload.filters.lines), ['FAROL', 'RETROVISOR']);
+});
+
+test('commercial line options have their own validated RPC, not the SAP product filters', async () => {
+  const { context, calls } = commercialListHarness([{ data: { linhas: ['FAROL', 'LANTERNA', 'RETROVISOR'] } }]);
+  assert.deepEqual(Array.from(await context.supabaseListCommercialLines()), ['FAROL', 'LANTERNA', 'RETROVISOR']);
+  assert.equal(calls[0].name, 'get_commercial_list_lines');
+  const invalid = commercialListHarness([{ data: { linhas: [123] } }]);
+  await assert.rejects(() => invalid.context.supabaseListCommercialLines(), /Resposta invalida/);
+});
+
+test('invalid commercial line selections get friendly messages', async () => {
+  for (const [message, expected] of [['EXCESSO_DE_LINHAS', /maximo 100/], ['LINHAS_INVALIDAS', /Selecao de linhas invalida/]]) {
+    const { context } = commercialListHarness([{ error: { message } }]);
+    await assert.rejects(() => context.supabaseGenerateCommercialList('PR-PR', { lines: [] }), expected);
+  }
+});
+
+test('vehicle segments are carried in product search and all commercial pages', async () => {
+  const { context, calls } = commercialListHarness([{ data: [] }]);
+  await context.supabaseSearchProducts({ tipoVeiculo: 'UTILITARIO' });
+  assert.equal(calls[0].payload.filters.vehicle_type, 'UTILITARIO');
+  const commercial = commercialListHarness([
+    { data: { count: 2, rows: [{ product_code: 'A' }], has_more: true, next_offset: 1 } },
+    { data: { count: 2, rows: [{ product_code: 'B' }], has_more: false, next_offset: 2 } }
+  ]);
+  await commercial.context.supabaseGenerateCommercialList('PR-PR', { vehicle_type: 'PESADO' });
+  for (const call of commercial.calls) assert.equal(call.payload.filters.vehicle_type, 'PESADO');
+});
+
+test('vehicle segment display supports mixed and unknown applications', () => {
+  const context = vm.createContext({});
+  vm.runInContext(read('js/utils/format.js'), context);
+  assert.equal(context.formatVehicleTypes(['LEVE','UTILITARIO']), 'Leve / Utilitario');
+  assert.equal(context.formatVehicleTypes(null), 'Nao classificado');
+  assert.equal(context.formatVehicleTypes(['INVALIDO']), 'Nao classificado');
+});
+
 test('commercial list generation rejects partial, duplicated, oversized and changing results', async () => {
   const cases = [
     [{ data: { count: 2, rows: [{ product_code: 'A' }], has_more: false } }],

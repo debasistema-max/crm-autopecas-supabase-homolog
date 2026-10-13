@@ -37,3 +37,7 @@ function downloadCsv(filename, rows) {
   link.click();
   URL.revokeObjectURL(url);
 }
+function formatVehicleTypes(types) {
+  const labels = { LEVE: 'Leve', UTILITARIO: 'Utilitario', PESADO: 'Pesado', NAO_CLASSIFICADO: 'Nao classificado' };
+  return Array.isArray(types) && types.length ? [...new Set(types)].map((type) => labels[type] || 'Nao classificado').join(' / ') : 'Nao classificado';
+}
