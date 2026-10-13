@@ -4,6 +4,7 @@ let quoteSelectedProduct = null;
 let quoteImportPreviewItems = [];
 let quoteCreateSaved = false;
 let quoteClientDiscountPercent = 0;
+const documentStatusRequests = new Set();
 
 function canRenderReportTransferInformation() {
   return typeof canCurrentUserAccessTransfers !== 'function' || canCurrentUserAccessTransfers();
@@ -1037,6 +1038,7 @@ function buildDocumentDraft(kind, row) {
 }
 
 function showDocumentEditForm(kind, row) {
+  if (documentStatusRequests.has(kind)) return;
   const panel = document.getElementById(`${kind}EditPanel`);
   const numberKey = kind === 'pedidos' ? 'numero_pedido' : 'numero_cotacao';
   const itemsKey = kind === 'pedidos' ? 'order_items' : 'quotation_items';
@@ -1047,6 +1049,8 @@ function showDocumentEditForm(kind, row) {
   const branchLabel = formatCompanyBranchLabel(companySettings);
   window[`${kind}EditingItems`] = normalizeDocumentItems(row[itemsKey] || []);
   window[`${kind}EditDirty`] = false;
+  panel.dataset.documentStatus = row.status || '';
+  panel.dataset.statusBusy = 'false';
   panel.hidden = false;
   panel.innerHTML = `
     <section class="sap-document commercial-document document-edit-workspace">
@@ -1154,6 +1158,7 @@ function showDocumentEditForm(kind, row) {
       searchProductsForDocumentEdit(kind, row.regiao || 'SP');
     }
   });
+  syncDocumentStatusActions(kind);
   document.getElementById(`${kind}EditSaveButton`).addEventListener('click', () => saveDocumentEdit(kind));
   document.getElementById(`${kind}EditConfirmButton`).addEventListener('click', () => updateDocumentStatus(kind, row.id, getDocumentConfirmedStatus(kind)));
   document.getElementById(`${kind}EditCancelDocumentButton`).addEventListener('click', () => updateDocumentStatus(kind, row.id, getDocumentCanceledStatus(kind)));
@@ -1508,29 +1513,65 @@ function syncDocumentEditInputs(kind) {
   });
 }
 
-async function updateDocumentStatus(kind, id, status) {
-  const message = document.getElementById(`${kind}EditMessage`);
+function getDocumentStatusActions(kind, status) {
+  const openStatuses = kind === 'pedidos' ? ['NOVO', 'EM_ANALISE']
+    : kind === 'cotacoes' ? ['NOVA', 'ENVIADA'] : [];
+  return {
+    confirm: openStatuses.includes(status),
+    cancel: openStatuses.includes(status) || (kind === 'pedidos' && status === 'APROVADO')
+  };
+}
+
+function syncDocumentStatusActions(kind) {
+  const panel = document.getElementById(`${kind}EditPanel`);
+  if (!panel) return;
+  const actions = getDocumentStatusActions(kind, panel.dataset.documentStatus);
+  const busy = panel.dataset.statusBusy === 'true';
   const confirmButton = document.getElementById(`${kind}EditConfirmButton`);
   const cancelButton = document.getElementById(`${kind}EditCancelDocumentButton`);
+  if (confirmButton) confirmButton.disabled = busy || !actions.confirm;
+  if (cancelButton) cancelButton.disabled = busy || !actions.cancel;
+}
+
+async function updateDocumentStatus(kind, id, status) {
+  const panel = document.getElementById(`${kind}EditPanel`);
+  const editId = document.getElementById(`${kind}EditId`);
+  if (!panel || !editId || editId.value !== id || documentStatusRequests.has(kind) || panel.dataset.statusBusy === 'true') return;
+  const actions = getDocumentStatusActions(kind, panel.dataset.documentStatus);
+  const allowed = (status === getDocumentConfirmedStatus(kind) && actions.confirm)
+    || (status === getDocumentCanceledStatus(kind) && actions.cancel);
+  if (!allowed) return;
+  documentStatusRequests.add(kind);
+  const message = document.getElementById(`${kind}EditMessage`);
+  panel.dataset.statusBusy = 'true';
+  syncDocumentStatusActions(kind);
   message.style.color = 'var(--muted)';
   message.textContent = 'Atualizando status...';
-  if (confirmButton) confirmButton.disabled = true;
-  if (cancelButton) cancelButton.disabled = true;
   try {
     const data = kind === 'pedidos'
       ? await supabaseUpdateOrderStatus({ id, status })
       : await supabaseUpdateQuotationStatus({ id, status });
-    const display = document.getElementById(`${kind}EditStatusDisplay`);
-    if (display) display.value = formatDocumentStatus(kind, data.status || status);
-    message.style.color = 'var(--success)';
-    message.textContent = 'Status atualizado para ' + formatDocumentStatus(kind, data.status || status) + '.';
-    await loadDocumentReport(kind);
+    const currentStatus = data.status || status;
+    const cachedRow = (window[`${kind}LastRows`] || []).find((row) => row.id === id);
+    if (cachedRow) cachedRow.status = currentStatus;
+    // Only update editor elements when they still belong to this request.
+    if (document.getElementById(`${kind}EditId`) === editId) {
+      panel.dataset.documentStatus = currentStatus;
+      const display = document.getElementById(`${kind}EditStatusDisplay`);
+      if (display) display.value = formatDocumentStatus(kind, currentStatus);
+      message.style.color = 'var(--success)';
+      message.textContent = 'Status atualizado para ' + formatDocumentStatus(kind, currentStatus) + '.';
+    }
+    if (document.getElementById(`${kind}Results`)) await loadDocumentReport(kind);
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = error.message;
   } finally {
-    if (confirmButton) confirmButton.disabled = false;
-    if (cancelButton) cancelButton.disabled = false;
+    documentStatusRequests.delete(kind);
+    if (document.getElementById(`${kind}EditId`) === editId) {
+      panel.dataset.statusBusy = 'false';
+      syncDocumentStatusActions(kind);
+    }
   }
 }
 
