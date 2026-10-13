@@ -19,7 +19,7 @@
       { codigo: '7175526020', descricao: 'CAIXA DE DIRECAO HIDRAULICA', marca: 'TOYOTA', montadora: 'TOYOTA', linha: 'DIRECAO', aplicacao: 'HILUX / SW4', estoque: 'CONFIRMAR', preco: 680.02, preco_sp: 680.02 },
       { codigo: '87089483', descricao: 'TERMINAL DE DIRECAO', marca: 'NAKATA', montadora: 'FIAT', linha: 'SUSPENSAO', aplicacao: 'STRADA / PALIO', estoque: 'DISPONIVEL', preco: 128.40, preco_sp: 128.40 }
     ];
-    sampleProducts.forEach((product) => { product.ativo = true; });
+    sampleProducts.forEach((product, index) => { product.ativo = true; product.vehicle_types = index === 2 ? ['LEVE', 'UTILITARIO'] : ['UTILITARIO']; });
     sampleProducts.push({ codigo: 'QA_INACTIVE', descricao: 'ITEM INATIVO DE TESTE', linha: 'DIRECAO', ativo: false, preco: 10 });
     let productActivityCalls = 0;
 
@@ -38,7 +38,7 @@
     async function supabaseListProductFavorites() { return ['6111032201']; }
     async function supabaseListRecentProducts() { return sampleProducts.filter((product) => product.ativo).slice(0, 2); }
     async function supabaseGetTopSellingProducts() { return sampleProducts.filter((product) => product.ativo).map((item, index) => Object.assign({ quantidade_vendida: 24 - index * 5 }, item)); }
-    async function supabaseSearchProducts(params = {}) { return sampleProducts.filter((product) => product.ativo || (params.incluirInativos && getStoredSession().perfil === 'ADMIN')); }
+    async function supabaseSearchProducts(params = {}) { return sampleProducts.filter((product) => (product.ativo || (params.incluirInativos && getStoredSession().perfil === 'ADMIN')) && (!params.tipoVeiculo || (product.vehicle_types || ['NAO_CLASSIFICADO']).includes(params.tipoVeiculo))); }
     async function supabaseSetProductActive(code, isActive, expectedActive) {
       productActivityCalls += 1;
       await new Promise((resolve) => setTimeout(resolve, 40));

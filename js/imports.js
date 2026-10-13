@@ -423,8 +423,9 @@ async function renderCommercialListsPanel() {
   sapImportState.listLoadingFilters = true;
   target.innerHTML = `<section class="panel commercial-list-filter-panel"><div class="section-heading"><div><h3>Listas comerciais por rota</h3><p>Geradas dinamicamente a partir de preco base, estoque da filial e motor fiscal.</p></div></div>
     <div class="field-grid commercial-list-filters"><label class="span-3">Rota <select id="commercialListRoute"><option>PR-PR</option><option>SP-SP</option><option>PR-SC</option></select></label>
-      <label class="span-3">Linha <select id="commercialListLine" disabled><option value="">Carregando linhas...</option></select></label>
-      <label class="span-3">Marca <input id="commercialListBrand"></label><label class="span-3">Grupo <input id="commercialListGroup"></label></div>
+      <fieldset class="span-3 commercial-line-filter"><legend>Linhas</legend><details><summary id="commercialLineSummary">Todas as linhas</summary><div id="commercialListLine" class="commercial-line-options">Carregando...</div></details></fieldset>
+      <label class="span-3">Marca <input id="commercialListBrand"></label><label class="span-3">Grupo <input id="commercialListGroup"></label>
+      <label class="span-3">Tipo de veiculo <select id="commercialListVehicleType"><option value="">Todos</option><option value="LEVE">Leve</option><option value="UTILITARIO">Utilitario</option><option value="PESADO">Pesado</option><option value="NAO_CLASSIFICADO">Nao classificado</option></select></label></div>
     <div class="actions-row commercial-list-actions"><button class="btn btn-primary" id="generateCommercialList" type="button" disabled>Gerar lista</button>
       <button class="btn btn-secondary" id="commercialGeneralListButton" type="button" disabled>Lista geral</button><button class="btn btn-secondary" id="exportCommercialCsv" type="button" disabled>Exportar CSV</button>
       <button class="btn btn-secondary" id="exportCommercialXlsx" type="button" disabled>Exportar XLSX</button><p class="form-message" id="commercialListMessage" aria-live="polite"></p></div></section><section class="panel commercial-list-result" id="commercialListResult" aria-live="polite">${CrmUi.renderState('empty', 'Escolha uma rota', 'A lista sera calculada sob demanda, sem armazenar preco fiscal como verdade absoluta.')}</section>`;
@@ -432,22 +433,24 @@ async function renderCommercialListsPanel() {
   document.getElementById('generateCommercialList').addEventListener('click', generateCommercialListFromUi);
   document.getElementById('commercialGeneralListButton').addEventListener('click', () => {
     if (sapImportState.listGenerating || sapImportState.listLoadingFilters) return;
-    lineSelect.value = '';
+    lineSelect.querySelectorAll('input:checked').forEach((input) => { input.checked = false; });
+    updateCommercialLineSummary();
     document.getElementById('commercialListBrand').value = '';
     document.getElementById('commercialListGroup').value = '';
+    document.getElementById('commercialListVehicleType').value = '';
     return generateCommercialListFromUi();
   });
   document.getElementById('exportCommercialCsv').addEventListener('click', () => exportCommercialList('csv'));
   document.getElementById('exportCommercialXlsx').addEventListener('click', () => exportCommercialList('xlsx'));
   try {
-    const filters = await supabaseListProductFilters();
+    const lines = await supabaseListCommercialLines();
     if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListLine') !== lineSelect) return;
-    lineSelect.innerHTML = '<option value="">Todas</option>' + (filters.linhas || []).map((line) =>
-      `<option value="${escapeHtml(line)}">${escapeHtml(line)}</option>`).join('');
-    lineSelect.disabled = false;
+    lineSelect.innerHTML = lines.map((line) =>
+      `<label><input type="checkbox" value="${escapeHtml(line)}"><span>${escapeHtml(line)}</span></label>`).join('');
+    lineSelect.addEventListener('change', updateCommercialLineSummary);
   } catch (error) {
     if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListLine') !== lineSelect) return;
-    lineSelect.innerHTML = '<option value="">Todas</option>';
+    lineSelect.textContent = 'Linhas indisponiveis';
     document.getElementById('commercialListMessage').textContent = 'Nao foi possivel carregar as linhas. ' + (error.message || 'Tente novamente.');
   } finally {
     if (requestId === sapImportState.listRequestId && document.getElementById('commercialListLine') === lineSelect) {
@@ -458,13 +461,19 @@ async function renderCommercialListsPanel() {
   }
 }
 
+function updateCommercialLineSummary() {
+  const count = document.querySelectorAll('#commercialListLine input:checked').length;
+  document.getElementById('commercialLineSummary').textContent = count ? `${count} linha${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}` : 'Todas as linhas';
+}
+
 async function generateCommercialListFromUi() {
   if (sapImportState.listGenerating || sapImportState.listLoadingFilters) return;
   const route = document.getElementById('commercialListRoute').value;
   const filters = {
     brand: document.getElementById('commercialListBrand').value.trim(),
     group: document.getElementById('commercialListGroup').value.trim(),
-    line: document.getElementById('commercialListLine').value
+    lines: Array.from(document.querySelectorAll('#commercialListLine input:checked'), (input) => input.value),
+    vehicle_type: document.getElementById('commercialListVehicleType').value
   };
   const requestId = ++sapImportState.listRequestId;
   const target = document.getElementById('commercialListResult');
@@ -487,8 +496,8 @@ async function generateCommercialListFromUi() {
     sapImportState.listBatch = { route, filters: { ...filters } };
     const count = Number.isFinite(Number(data.count)) ? Number(data.count) : sapImportState.listRows.length;
     target.innerHTML = sapImportState.listRows.length ? `<div class="section-heading"><div><h3>Lista ${escapeHtml(route)}</h3><p>${escapeHtml(count)} produtos. A tela exibe no maximo 500 registros; a exportacao utiliza a lista completa.</p></div></div>
-      <div class="table-wrap commercial-list-table-wrap"><table class="commercial-list-table"><thead><tr><th>CODIGO IPS</th><th>DESCRICAO</th><th>MARCA</th><th>LINHA</th><th>APLICACAO</th><th>ANO</th><th>PRECO S/IMP</th><th>TRIBUTOS</th><th>PRECO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
-      <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.line || '')}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
+      <div class="table-wrap commercial-list-table-wrap"><table class="commercial-list-table"><thead><tr><th>CODIGO IPS</th><th>DESCRICAO</th><th>MARCA</th><th>LINHA</th><th>TIPO DE VEICULO</th><th>APLICACAO</th><th>ANO</th><th>PRECO S/IMP</th><th>TRIBUTOS</th><th>PRECO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
+      <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.line || '')}</td><td>${escapeHtml(formatVehicleTypes(row.vehicle_types))}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
         <td>${money(row.base_price)}</td><td>${money(row.total_taxes)}</td><td>${money(row.final_price)}</td><td>${escapeHtml(row.availability)}</td><td>${escapeHtml(row.source_display_value || row.available_qty)}</td><td><span class="status-pill">${escapeHtml(row.status)}</span></td></tr>`).join('')}</tbody></table></div>` : CrmUi.renderState('empty', `Lista ${route} sem produtos`, 'Revise os filtros ou verifique preco, estoque e configuracao fiscal da rota.');
   } catch (error) {
     if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListResult') !== target) return;
@@ -508,7 +517,7 @@ async function generateCommercialListFromUi() {
 
 function commercialExportRows() {
   return sapImportState.listRows.map((row) => ({ 'CODIGO IPS': row.product_code, 'DESCRIÇÃO': row.description, 'MARCA': row.brand, 'LINHA': row.line || '', 'APLICAÇÃO': row.application,
-    'ANO': row.year, 'PREÇO S/IMP': row.base_price, 'TRIBUTOS': row.total_taxes, 'PREÇO C/IMPOSTOS': row.final_price,
+    'TIPO DE VEICULO': formatVehicleTypes(row.vehicle_types), 'ANO': row.year, 'PREÇO S/IMP': row.base_price, 'TRIBUTOS': row.total_taxes, 'PREÇO C/IMPOSTOS': row.final_price,
     'ESTOQUE': row.availability, 'QUANTIDADE': row.source_display_value || row.available_qty, 'STATUS FISCAL': row.status }));
 }
 

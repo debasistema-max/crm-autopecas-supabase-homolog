@@ -278,6 +278,7 @@ async function supabaseSearchProducts(params) {
       group: params.grupo || '',
       maker: params.montadora || '',
       brand: params.marca || '',
+      vehicle_type: params.tipoVeiculo || '',
       include_inactive: params.incluirInativos === true,
       only_available: params.disponiveis === true || params.disponibilidade === 'disponivel',
       with_oem: params.comOem === true,
@@ -2263,6 +2264,15 @@ async function supabaseGetFiscalPending(filters = {}) {
   return data || { summary: {}, rows: [] };
 }
 
+async function supabaseListCommercialLines() {
+  const { data, error } = await supabaseClient.rpc('get_commercial_list_lines');
+  if (error) throw new Error('Nao foi possivel carregar as linhas comerciais. ' + (error.message || ''));
+  if (!data || !Array.isArray(data.linhas) || data.linhas.some((line) => typeof line !== 'string')) {
+    throw new Error('Resposta invalida das linhas comerciais.');
+  }
+  return data.linhas;
+}
+
 async function supabaseGenerateCommercialList(route, filters = {}) {
   const rows = [];
   const seen = new Set();
@@ -2277,6 +2287,9 @@ async function supabaseGenerateCommercialList(route, filters = {}) {
       if (String(error.message).includes('CATALOGO_ALTERADO_DURANTE_GERACAO')) {
         throw new Error('O catalogo mudou durante a geracao. Gere a lista novamente.');
       }
+      if (String(error.message).includes('EXCESSO_DE_LINHAS')) throw new Error('Selecione no maximo 100 linhas.');
+      if (String(error.message).includes('LINHAS_INVALIDAS')) throw new Error('Selecao de linhas invalida. Selecione novamente.');
+      if (String(error.message).includes('TIPO_VEICULO_INVALIDO')) throw new Error('Tipo de veiculo invalido. Selecione novamente.');
       throw error;
     }
     if (!data || !Array.isArray(data.rows)) throw new Error('Resposta invalida ao gerar lista comercial.');
