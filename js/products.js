@@ -10,6 +10,10 @@ let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
 let productDetailReturnFocus = null;
 
+function canManageProductActivity() {
+  return getStoredSession()?.perfil === 'ADMIN';
+}
+
 async function renderProducts(container) {
   container.innerHTML = `
     <section class="module-page product-shell">
@@ -41,6 +45,7 @@ async function renderProducts(container) {
           <label class="product-toggle"><input id="productOemFilter" type="checkbox"> Com OEM</label>
           <label class="product-toggle"><input id="productPhotoFilter" type="checkbox"> Com foto</label>
           <label class="product-toggle"><input id="productFavoritesFilter" type="checkbox"> Favoritos</label>
+          ${canManageProductActivity() ? '<label class="product-toggle"><input id="productInactiveFilter" type="checkbox"> Gerenciar inativos</label>' : ''}
           <div class="product-search-actions">
             <button class="btn btn-primary" type="submit">Pesquisar</button>
             <button class="btn btn-secondary" id="productGeneralListButton" type="button">Lista geral</button>
@@ -117,6 +122,7 @@ function bindProductSearch() {
     document.getElementById(id).addEventListener('change', () => runProductSearch({ silentEmpty: true }));
   });
   document.getElementById('productGeneralListButton').addEventListener('click', () => runProductSearch({ listaGeral: true }));
+  document.getElementById('productInactiveFilter')?.addEventListener('change', () => runProductSearch({ listaGeral: true }));
   document.getElementById('productClearFiltersButton').addEventListener('click', clearProductFilters);
 }
 
@@ -135,6 +141,7 @@ function getProductSearchParams(options = {}) {
     comOem: document.getElementById('productOemFilter').checked,
     comFoto: document.getElementById('productPhotoFilter').checked,
     favoritos: document.getElementById('productFavoritesFilter').checked,
+    incluirInativos: canManageProductActivity() && document.getElementById('productInactiveFilter')?.checked === true,
     listaGeral: options.listaGeral === true,
     silentEmpty: options.silentEmpty === true,
     limite: options.listaGeral ? 200 : 120
@@ -142,6 +149,8 @@ function getProductSearchParams(options = {}) {
 }
 
 function clearProductFilters() {
+  const inactive = document.getElementById('productInactiveFilter');
+  if (inactive) inactive.checked = false;
   document.getElementById('productTerm').value = '';
   document.getElementById('productLineFilter').value = '';
   document.getElementById('productGroupFilter').value = '';
@@ -272,6 +281,7 @@ function renderProductCard(product, index) {
       <div class="product-image">${renderProductPhoto(product, 'Sem foto', true)}</div>
       <div class="product-card-body">
         <div class="product-code">${escapeHtml(product.codigo)}</div>
+        ${product.ativo === false ? '<span class="status-pill">Inativo</span>' : ''}
         <h3>${escapeHtml(product.descricao || 'Produto sem descricao')}</h3>
         <p>${escapeHtml([product.marca, product.montadora, product.linha || product.categoria].filter(Boolean).join(' - '))}</p>
         <div class="product-tags">
@@ -321,10 +331,20 @@ async function openProductDetail(product) {
   const detail = document.getElementById('productDetail');
   detail.innerHTML = CrmUi.renderState('loading', 'Carregando ficha do produto', 'Consultando estoque, preços e histórico.');
   try {
+    const rows = await supabaseSearchProducts({ termo: product.codigo, limite: 10, incluirInativos: canManageProductActivity(),
+      regiao: document.getElementById('productRegion')?.value || 'SP' });
+    const current = rows.find((row) => row.codigo === product.codigo);
+    if (!current || (current.ativo === false && !canManageProductActivity())) {
+      throw new Error('Produto inativo ou indisponivel. Atualize a pesquisa.');
+    }
+    if (productState.selected?.codigo !== product.codigo) return;
+    product = current;
+    productState.selected = current;
     await supabaseRegisterProductView(product.codigo).catch(() => null);
     const history = await supabaseGetProductHistory(product.codigo).catch(() => ({ prices: [], stock: [] }));
     if (productState.selected?.codigo !== product.codigo || !document.getElementById('productDetailModal')) return;
     detail.innerHTML = renderProductDetail(product, history);
+    bindProductActivityForm(product, detail);
     bindYokomitsuProductImages(detail);
     await refreshProductSideData().catch(() => null);
   } catch (error) {
@@ -388,12 +408,64 @@ function renderProductDetail(product, history) {
         ${detailItem('Preco SP', money(product.preco_sp))}
         ${detailItem('Preco PR', money(product.preco_pr))}
       </dl>
+      ${renderProductActivityForm(product)}
       <div class="product-history-grid">
         ${renderHistoryBlock('Historico de precos', history.prices)}
         ${renderHistoryBlock('Historico de estoque', history.stock)}
       </div>
     </div>
   `;
+}
+
+function renderProductActivityForm(product) {
+  if (!canManageProductActivity()) return '';
+  return `<form id="productActivityForm" class="actions-row">
+    <label class="product-toggle"><input type="checkbox" id="productActivityStatus" ${product.ativo !== false ? 'checked' : ''}><span id="productActivityLabel">${product.ativo === false ? 'Item inativo' : 'Item ativo'}</span></label>
+    <button class="btn btn-primary" type="submit" id="productActivitySave">Salvar situacao</button>
+    <p class="form-message" id="productActivityMessage" role="status" aria-live="polite"></p>
+  </form>`;
+}
+
+function bindProductActivityForm(product, detail) {
+  const form = detail.querySelector('#productActivityForm');
+  if (!form) return;
+  let busy = false;
+  const control = form.querySelector('#productActivityStatus');
+  control.addEventListener('change', () => {
+    form.querySelector('#productActivityLabel').textContent = control.checked ? 'Item ativo' : 'Item inativo';
+    form.querySelector('#productActivityMessage').textContent = '';
+  });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy || !canManageProductActivity()) return;
+    const button = form.querySelector('#productActivitySave');
+    const message = form.querySelector('#productActivityMessage');
+    const isActive = control.checked;
+    if (typeof product.ativo !== 'boolean') {
+      message.textContent = 'Atualize o banco com a migration 105 e pesquise o item novamente.';
+      return;
+    }
+    busy = true;
+    control.disabled = button.disabled = true;
+    message.style.color = 'var(--muted)';
+    message.textContent = 'Salvando situacao...';
+    try {
+      const data = await supabaseSetProductActive(product.codigo, isActive, product.ativo);
+      product.ativo = data.ativo;
+      message.style.color = 'var(--success)';
+      message.textContent = 'Item ' + (data.ativo ? 'ativado' : 'inativado') + ' com sucesso.';
+      await Promise.all([runProductSearch({ listaGeral: true }), refreshProductSideData(), loadProductFilterOptions()]).catch(() => {
+        message.style.color = 'var(--muted)';
+        message.textContent = 'Situacao salva. Atualize a pesquisa para conferir os resultados.';
+      });
+    } catch (error) {
+      message.style.color = 'var(--accent)';
+      message.textContent = error.message || 'Nao foi possivel salvar a situacao.';
+    } finally {
+      busy = false;
+      control.disabled = button.disabled = false;
+    }
+  });
 }
 
 function detailItem(label, value) {

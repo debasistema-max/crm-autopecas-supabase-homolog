@@ -278,6 +278,7 @@ async function supabaseSearchProducts(params) {
       group: params.grupo || '',
       maker: params.montadora || '',
       brand: params.marca || '',
+      include_inactive: params.incluirInativos === true,
       only_available: params.disponiveis === true || params.disponibilidade === 'disponivel',
       with_oem: params.comOem === true,
       with_photo: params.comFoto === true,
@@ -391,7 +392,7 @@ function formatQuantity(value) {
 }
 
 async function supabaseListProductFilters() {
-  const cached = getStaticCache('productFiltersV3', 10 * 60 * 1000);
+  const cached = getStaticCache('productFiltersV4', 10 * 60 * 1000);
   if (cached && cached.marcas && cached.montadoras) return cached;
   const { data, error } = await supabaseClient.rpc('get_product_filters');
   if (error) throw error;
@@ -406,7 +407,7 @@ async function supabaseListProductFilters() {
       filters.montadoras = uniqueSorted((products || []).map((product) => product.montadora));
     }
   }
-  setStaticCache('productFiltersV3', filters);
+  setStaticCache('productFiltersV4', filters);
   return filters;
 }
 
@@ -416,9 +417,10 @@ async function supabaseListProducts(params = {}) {
   const offset = Math.max(Number(params.offset || 0), 0);
   let query = supabaseClient
     .from('products')
-    .select('codigo, descricao, marca, aplicacao, ano, ncm, cest, ipi, ipi_rate, ipi_defined, origin_code, origin_description, material_group, fiscal_group, preco_sem_imposto, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar')
+    .select('codigo, descricao, marca, aplicacao, ano, ncm, cest, ipi, ipi_rate, ipi_defined, origin_code, origin_description, material_group, fiscal_group, preco_sem_imposto, estoque, estoque_quantidade, preco_sp, preco_pr, status_estoque, status_cadastro, url_imagem, grupo, categoria, montadora, detalhes, oem, similar, ativo')
     .order('codigo', { ascending: true })
     .range(offset, offset + limit - 1);
+  if (!(params.incluirInativos === true && getStoredSession()?.perfil === 'ADMIN')) query = query.eq('ativo', true);
 
   const term = String(params.termo || params.q || '').trim();
   if (term) {
@@ -564,7 +566,8 @@ async function supabaseListRecentProducts(limitCount = 6) {
   try {
     const { data, error } = await supabaseClient
       .from('product_recent_views')
-      .select('codigo, viewed_at, view_count, products(codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr)')
+      .select('codigo, viewed_at, view_count, products!inner(codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr, ativo)')
+      .eq('products.ativo', true)
       .order('viewed_at', { ascending: false })
       .limit(Math.min(Math.max(Number(limitCount || 6), 1), 30));
     if (error) throw error;
@@ -587,7 +590,8 @@ async function supabaseProductsByCodes(codes) {
   if (!cleanCodes.length) return [];
   const { data, error } = await supabaseClient
     .from('products')
-    .select('codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr')
+    .select('codigo, descricao, marca, aplicacao, ncm, preco_sem_imposto, montadora, oem, similar, url_imagem, estoque, estoque_quantidade, preco_sp, preco_pr, ativo')
+    .eq('ativo', true)
     .in('codigo', cleanCodes);
   if (error) return [];
   const byCode = new Map((data || []).map((product) => [product.codigo, product]));
@@ -2260,7 +2264,62 @@ async function supabaseGetFiscalPending(filters = {}) {
 }
 
 async function supabaseGenerateCommercialList(route, filters = {}) {
-  const { data, error } = await supabaseClient.rpc('generate_commercial_list', { route, filters });
-  if (error) throw error;
-  return data || { rows: [] };
+  const rows = [];
+  const seen = new Set();
+  let offset = 0;
+  let total = null;
+  let revision = null;
+  for (;;) {
+    const { data, error } = await supabaseClient.rpc('generate_commercial_list', {
+      route, filters: Object.assign({}, filters, { limit: 200, offset }, revision === null ? {} : { expected_revision: revision })
+    });
+    if (error) {
+      if (String(error.message).includes('CATALOGO_ALTERADO_DURANTE_GERACAO')) {
+        throw new Error('O catalogo mudou durante a geracao. Gere a lista novamente.');
+      }
+      throw error;
+    }
+    if (!data || !Array.isArray(data.rows)) throw new Error('Resposta invalida ao gerar lista comercial.');
+    if (typeof data.catalog_revision !== 'string' || !/^\d+:\d{4}-\d{2}-\d{2}$/.test(data.catalog_revision)) {
+      throw new Error('Versao do catalogo ausente. Aplique a migration 105 antes de publicar o frontend.');
+    }
+    if (revision !== null && revision !== data.catalog_revision) throw new Error('O catalogo mudou durante a geracao. Gere novamente.');
+    revision = data.catalog_revision;
+    const count = Number(data.count);
+    if (!Number.isInteger(count) || count < 0) throw new Error('Total invalido na lista comercial.');
+    if (count > 50000) throw new Error('A lista excede 50.000 itens. Selecione uma linha ou outro filtro.');
+    if (total !== null && total !== count) throw new Error('Os produtos mudaram durante a geracao. Gere a lista novamente.');
+    total = count;
+    for (const row of data.rows) {
+      if (!row.product_code || seen.has(row.product_code)) throw new Error('Lista inconsistente. Gere novamente.');
+      seen.add(row.product_code);
+      rows.push(row);
+    }
+    if (!data.has_more) {
+      if (rows.length !== total) throw new Error('Lista incompleta. Aplique a migration 105 antes de publicar o frontend.');
+      return { route, rows, count: total };
+    }
+    const next = Number(data.next_offset);
+    if (!data.rows.length || !Number.isInteger(next) || next <= offset || next !== rows.length) {
+      throw new Error('Paginacao invalida na lista comercial.');
+    }
+    offset = next;
+  }
+}
+
+async function supabaseSetProductActive(productCode, isActive, expectedActive) {
+  const { data, error } = await supabaseClient.rpc('set_product_active', {
+    product_code: productCode, is_active: isActive, expected_active: expectedActive
+  });
+  if (error) {
+    const messages = {
+      SOMENTE_ADMIN_ALTERA_ATIVIDADE_PRODUTO: 'Somente ADMIN pode alterar a situacao do item.',
+      PRODUTO_ALTERADO_POR_OUTRO_USUARIO: 'O item foi alterado por outro usuario. Pesquise novamente.',
+      PRODUTO_NAO_ENCONTRADO: 'Produto nao encontrado.'
+    };
+    throw new Error(messages[error.message] || error.message || 'Nao foi possivel alterar o item.');
+  }
+  if (!data || data.codigo !== productCode || data.ativo !== isActive) throw new Error('Resposta invalida ao salvar a situacao do item.');
+  setStaticCache('productFiltersV4', null);
+  return data;
 }

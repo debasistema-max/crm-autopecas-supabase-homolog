@@ -814,3 +814,105 @@ test('one-time OneDrive formula repair is scoped and concurrency-safe', () => {
   assert.match(repair, /A10/);
   assert.match(repair, /INTERVALO_ESTOQUE_DESATUALIZADO/);
 });
+
+test('only ADMIN gets the product activity controls', () => {
+  let profile = 'VENDEDOR';
+  const context = vm.createContext({ getStoredSession: () => ({ perfil: profile }) });
+  vm.runInContext(read('js/products.js'), context);
+  assert.equal(context.renderProductActivityForm({ ativo: true }), '');
+  profile = 'SUPERVISOR';
+  assert.equal(context.renderProductActivityForm({ ativo: true }), '');
+  profile = 'ADMIN';
+  assert.match(context.renderProductActivityForm({ ativo: false }), /Item inativo/);
+  assert.doesNotMatch(context.renderProductActivityForm({ ativo: false }), /\bchecked\b/);
+  assert.match(context.renderProductActivityForm({ ativo: true }), /\bchecked\b/);
+});
+
+function commercialListHarness(responses) {
+  const calls = [];
+  const context = vm.createContext({ supabaseClient: { rpc: async (name, payload) => {
+    calls.push({ name, payload });
+    const response = responses.shift();
+    if (!response) throw new Error('Unexpected RPC');
+    if (response.data && !Object.hasOwn(response.data, 'catalog_revision')) response.data.catalog_revision = '1:2026-10-13';
+    return response;
+  } } });
+  vm.runInContext(read('js/supabase_store.js'), context);
+  return { context, calls };
+}
+
+test('commercial lists load every page and preserve line filters', async () => {
+  const { context, calls } = commercialListHarness([
+    { data: { count: 3, rows: [{ product_code: 'A' }, { product_code: 'B' }], has_more: true, next_offset: 2 } },
+    { data: { count: 3, rows: [{ product_code: 'C' }], has_more: false, next_offset: 3 } }
+  ]);
+  const result = await context.supabaseGenerateCommercialList('PR-PR', { line: 'DIRECAO' });
+  assert.equal(result.rows.length, 3);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].payload.filters.line, 'DIRECAO');
+  assert.equal(calls[1].payload.filters.offset, 2);
+  assert.equal(calls[1].payload.filters.expected_revision, '1:2026-10-13');
+  assert.equal(calls[0].payload.filters.limit, 200);
+});
+
+test('commercial list generation rejects partial, duplicated, oversized and changing results', async () => {
+  const cases = [
+    [{ data: { count: 2, rows: [{ product_code: 'A' }], has_more: false } }],
+    [{ data: { count: 2, rows: [{ product_code: 'A' }, { product_code: 'A' }], has_more: false } }],
+    [{ data: { count: 50001, rows: [], has_more: true } }],
+    [{ data: { count: 2, rows: [{ product_code: 'A' }], has_more: true, next_offset: 1 } },
+      { data: { count: 3, rows: [{ product_code: 'B' }], has_more: false } }],
+    [{ data: { count: 2, rows: [], has_more: true, next_offset: 0 } }],
+    [{ data: { count: 0, rows: [], has_more: false, catalog_revision: '' } }],
+    [{ data: { count: 2, rows: [{ product_code: 'A' }], has_more: true, next_offset: 1, catalog_revision: '1:2026-10-13' } },
+      { data: { count: 2, rows: [{ product_code: 'B' }], has_more: false, catalog_revision: '2:2026-10-13' } }],
+    [{ error: { message: 'Falha RPC' } }]
+  ];
+  for (const responses of cases) {
+    const { context } = commercialListHarness(responses);
+    await assert.rejects(() => context.supabaseGenerateCommercialList('SP-SP'));
+  }
+});
+
+test('product activity RPC carries optimistic state and invalidates static filters only after success', async () => {
+  const { context, calls } = commercialListHarness([{ data: { codigo: 'TEST', ativo: false } }]);
+  const cacheWrites = [];
+  context.setStaticCache = (key, value) => cacheWrites.push({ key, value });
+  const result = await context.supabaseSetProductActive('TEST', false, true);
+  assert.equal(result.ativo, false);
+  assert.equal(calls[0].name, 'set_product_active');
+  assert.equal(calls[0].payload.expected_active, true);
+  assert.equal(cacheWrites[0].key, 'productFiltersV4');
+  assert.equal(cacheWrites[0].value, null);
+});
+
+test('product activity RPC exposes friendly permission/conflict errors and rejects malformed success', async () => {
+  for (const response of [
+    { error: { message: 'SOMENTE_ADMIN_ALTERA_ATIVIDADE_PRODUTO' } },
+    { error: { message: 'PRODUTO_ALTERADO_POR_OUTRO_USUARIO' } },
+    { data: { codigo: 'OTHER', ativo: false } }
+  ]) {
+    const { context } = commercialListHarness([response]);
+    let invalidations = 0;
+    context.setStaticCache = () => { invalidations += 1; };
+    await assert.rejects(() => context.supabaseSetProductActive('TEST', false, true));
+    assert.equal(invalidations, 0);
+  }
+});
+
+test('activity migration protects administrative changes and filters before pagination', () => {
+  const migration = read('supabase/migrations/105_product_activity_and_commercial_lists.sql');
+  assert.match(migration, /ativo boolean not null default true/);
+  assert.match(migration, /before insert or update on public.products/);
+  assert.match(migration, /SOMENTE_ADMIN_ALTERA_ATIVIDADE_PRODUTO/);
+  assert.match(migration, /ALTERAR_ATIVIDADE_PRODUTO/);
+  assert.match(migration, /as restrictive/);
+  assert.match(migration, /from enriched e.*e\.ativo/s);
+  assert.match(migration, /where p\.ativo/);
+  assert.match(migration, /v_patch\.signature='public\.get_top_selling_products\(integer\)'/);
+  assert.match(migration, /oi\[\.\]codigo\[\[:space:\]\]\+group by/);
+  assert.match(migration, /v_old is null/);
+  assert.match(migration, /offset v_offset limit v_limit/);
+  assert.doesNotMatch(migration, /grant execute.* to anon/);
+  assert.doesNotMatch(migration, /^\s*delete from public\.(products|order_items|quotation_items)\b/m);
+});
