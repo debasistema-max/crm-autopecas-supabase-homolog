@@ -56,7 +56,7 @@ const SAP_HEADER_ALIASES = {
   other_expenses_rate: ['outras despesas'], notes: ['notas', 'observacoes']
 };
 
-const sapImportState = { workbook: null, sheet: null, headers: [], sourceRows: [], mapping: {}, bytes: null, filename: '', batchId: null, preview: null, listRows: [], ignoredRows: 0 };
+const sapImportState = { workbook: null, sheet: null, headers: [], sourceRows: [], mapping: {}, bytes: null, filename: '', batchId: null, preview: null, listRows: [], listBatch: null, listGenerating: false, listLoadingFilters: false, listRequestId: 0, ignoredRows: 0 };
 
 async function renderImportCenter(container) {
   container.innerHTML = `
@@ -414,49 +414,107 @@ async function renderFiscalPendingPanel() {
   } catch (error) { target.innerHTML = `<section class="panel fiscal-pending-panel">${CrmUi.renderState('error', 'Nao foi possivel analisar as pendencias', error.message)}</section>`; }
 }
 
-function renderCommercialListsPanel() {
+async function renderCommercialListsPanel() {
   const target = document.getElementById('importCenterContent');
+  const requestId = ++sapImportState.listRequestId;
+  sapImportState.listRows = [];
+  sapImportState.listBatch = null;
+  sapImportState.listGenerating = false;
+  sapImportState.listLoadingFilters = true;
   target.innerHTML = `<section class="panel commercial-list-filter-panel"><div class="section-heading"><div><h3>Listas comerciais por rota</h3><p>Geradas dinamicamente a partir de preco base, estoque da filial e motor fiscal.</p></div></div>
-    <div class="field-grid commercial-list-filters"><label class="span-4">Rota <select id="commercialListRoute"><option>PR-PR</option><option>SP-SP</option><option>PR-SC</option></select></label>
-      <label class="span-4">Marca <input id="commercialListBrand"></label><label class="span-4">Grupo <input id="commercialListGroup"></label></div>
-    <div class="actions-row commercial-list-actions"><button class="btn btn-primary" id="generateCommercialList" type="button">Gerar lista</button><button class="btn btn-secondary" id="exportCommercialCsv" type="button" disabled>Exportar CSV</button>
-      <button class="btn btn-secondary" id="exportCommercialXlsx" type="button" disabled>Exportar XLSX</button></div></section><section class="panel commercial-list-result" id="commercialListResult" aria-live="polite">${CrmUi.renderState('empty', 'Escolha uma rota', 'A lista sera calculada sob demanda, sem armazenar preco fiscal como verdade absoluta.')}</section>`;
+    <div class="field-grid commercial-list-filters"><label class="span-3">Rota <select id="commercialListRoute"><option>PR-PR</option><option>SP-SP</option><option>PR-SC</option></select></label>
+      <label class="span-3">Linha <select id="commercialListLine" disabled><option value="">Carregando linhas...</option></select></label>
+      <label class="span-3">Marca <input id="commercialListBrand"></label><label class="span-3">Grupo <input id="commercialListGroup"></label></div>
+    <div class="actions-row commercial-list-actions"><button class="btn btn-primary" id="generateCommercialList" type="button" disabled>Gerar lista</button>
+      <button class="btn btn-secondary" id="commercialGeneralListButton" type="button" disabled>Lista geral</button><button class="btn btn-secondary" id="exportCommercialCsv" type="button" disabled>Exportar CSV</button>
+      <button class="btn btn-secondary" id="exportCommercialXlsx" type="button" disabled>Exportar XLSX</button><p class="form-message" id="commercialListMessage" aria-live="polite"></p></div></section><section class="panel commercial-list-result" id="commercialListResult" aria-live="polite">${CrmUi.renderState('empty', 'Escolha uma rota', 'A lista sera calculada sob demanda, sem armazenar preco fiscal como verdade absoluta.')}</section>`;
+  const lineSelect = document.getElementById('commercialListLine');
   document.getElementById('generateCommercialList').addEventListener('click', generateCommercialListFromUi);
+  document.getElementById('commercialGeneralListButton').addEventListener('click', () => {
+    if (sapImportState.listGenerating || sapImportState.listLoadingFilters) return;
+    lineSelect.value = '';
+    document.getElementById('commercialListBrand').value = '';
+    document.getElementById('commercialListGroup').value = '';
+    return generateCommercialListFromUi();
+  });
   document.getElementById('exportCommercialCsv').addEventListener('click', () => exportCommercialList('csv'));
   document.getElementById('exportCommercialXlsx').addEventListener('click', () => exportCommercialList('xlsx'));
+  try {
+    const filters = await supabaseListProductFilters();
+    if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListLine') !== lineSelect) return;
+    lineSelect.innerHTML = '<option value="">Todas</option>' + (filters.linhas || []).map((line) =>
+      `<option value="${escapeHtml(line)}">${escapeHtml(line)}</option>`).join('');
+    lineSelect.disabled = false;
+  } catch (error) {
+    if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListLine') !== lineSelect) return;
+    lineSelect.innerHTML = '<option value="">Todas</option>';
+    document.getElementById('commercialListMessage').textContent = 'Nao foi possivel carregar as linhas. ' + (error.message || 'Tente novamente.');
+  } finally {
+    if (requestId === sapImportState.listRequestId && document.getElementById('commercialListLine') === lineSelect) {
+      sapImportState.listLoadingFilters = false;
+      document.getElementById('generateCommercialList').disabled = false;
+      document.getElementById('commercialGeneralListButton').disabled = false;
+    }
+  }
 }
 
 async function generateCommercialListFromUi() {
+  if (sapImportState.listGenerating || sapImportState.listLoadingFilters) return;
   const route = document.getElementById('commercialListRoute').value;
+  const filters = {
+    brand: document.getElementById('commercialListBrand').value.trim(),
+    group: document.getElementById('commercialListGroup').value.trim(),
+    line: document.getElementById('commercialListLine').value
+  };
+  const requestId = ++sapImportState.listRequestId;
   const target = document.getElementById('commercialListResult');
   const generateButton = document.getElementById('generateCommercialList');
+  const generalButton = document.getElementById('commercialGeneralListButton');
+  const csvButton = document.getElementById('exportCommercialCsv');
+  const xlsxButton = document.getElementById('exportCommercialXlsx');
+  sapImportState.listGenerating = true;
+  sapImportState.listRows = [];
+  sapImportState.listBatch = null;
   generateButton.disabled = true;
+  generalButton.disabled = true;
+  csvButton.disabled = true;
+  xlsxButton.disabled = true;
   target.innerHTML = CrmUi.renderState('loading', `Gerando lista ${route}`, 'Calculando preco e disponibilidade para a rota selecionada.');
   try {
-    const data = await supabaseGenerateCommercialList(route, { brand: document.getElementById('commercialListBrand').value.trim(), group: document.getElementById('commercialListGroup').value.trim() });
-    sapImportState.listRows = data.rows || [];
-    target.innerHTML = sapImportState.listRows.length ? `<div class="section-heading"><div><h3>Lista ${escapeHtml(route)}</h3><p>${data.count || sapImportState.listRows.length} produtos. A tela exibe no maximo 500 registros; a exportacao utiliza a lista completa.</p></div></div>
-      <div class="table-wrap commercial-list-table-wrap"><table class="commercial-list-table"><thead><tr><th>CODIGO IPS</th><th>DESCRICAO</th><th>MARCA</th><th>APLICACAO</th><th>ANO</th><th>PRECO S/IMP</th><th>TRIBUTOS</th><th>PRECO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
-      <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
+    const data = await supabaseGenerateCommercialList(route, { ...filters });
+    if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListResult') !== target) return;
+    sapImportState.listRows = Array.isArray(data.rows) ? data.rows : [];
+    sapImportState.listBatch = { route, filters: { ...filters } };
+    const count = Number.isFinite(Number(data.count)) ? Number(data.count) : sapImportState.listRows.length;
+    target.innerHTML = sapImportState.listRows.length ? `<div class="section-heading"><div><h3>Lista ${escapeHtml(route)}</h3><p>${escapeHtml(count)} produtos. A tela exibe no maximo 500 registros; a exportacao utiliza a lista completa.</p></div></div>
+      <div class="table-wrap commercial-list-table-wrap"><table class="commercial-list-table"><thead><tr><th>CODIGO IPS</th><th>DESCRICAO</th><th>MARCA</th><th>LINHA</th><th>APLICACAO</th><th>ANO</th><th>PRECO S/IMP</th><th>TRIBUTOS</th><th>PRECO C/IMPOSTOS</th><th>ESTOQUE</th><th>QUANTIDADE</th><th>STATUS FISCAL</th></tr></thead>
+      <tbody>${sapImportState.listRows.slice(0, 500).map((row) => `<tr><td>${escapeHtml(row.product_code)}</td><td>${escapeHtml(row.description)}</td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.line || '')}</td><td>${escapeHtml(row.application)}</td><td>${escapeHtml(row.year)}</td>
         <td>${money(row.base_price)}</td><td>${money(row.total_taxes)}</td><td>${money(row.final_price)}</td><td>${escapeHtml(row.availability)}</td><td>${escapeHtml(row.source_display_value || row.available_qty)}</td><td><span class="status-pill">${escapeHtml(row.status)}</span></td></tr>`).join('')}</tbody></table></div>` : CrmUi.renderState('empty', `Lista ${route} sem produtos`, 'Revise os filtros ou verifique preco, estoque e configuracao fiscal da rota.');
   } catch (error) {
+    if (requestId !== sapImportState.listRequestId || document.getElementById('commercialListResult') !== target) return;
     sapImportState.listRows = [];
+    sapImportState.listBatch = null;
     target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel gerar a lista', error.message);
   } finally {
-    generateButton.disabled = false;
-    document.getElementById('exportCommercialCsv').disabled = !sapImportState.listRows.length;
-    document.getElementById('exportCommercialXlsx').disabled = !sapImportState.listRows.length;
+    if (requestId === sapImportState.listRequestId && document.getElementById('commercialListResult') === target) {
+      sapImportState.listGenerating = false;
+      generateButton.disabled = false;
+      generalButton.disabled = false;
+      csvButton.disabled = !sapImportState.listRows.length;
+      xlsxButton.disabled = !sapImportState.listRows.length;
+    }
   }
 }
 
 function commercialExportRows() {
-  return sapImportState.listRows.map((row) => ({ 'CODIGO IPS': row.product_code, 'DESCRIÇÃO': row.description, 'MARCA': row.brand, 'APLICAÇÃO': row.application,
+  return sapImportState.listRows.map((row) => ({ 'CODIGO IPS': row.product_code, 'DESCRIÇÃO': row.description, 'MARCA': row.brand, 'LINHA': row.line || '', 'APLICAÇÃO': row.application,
     'ANO': row.year, 'PREÇO S/IMP': row.base_price, 'TRIBUTOS': row.total_taxes, 'PREÇO C/IMPOSTOS': row.final_price,
     'ESTOQUE': row.availability, 'QUANTIDADE': row.source_display_value || row.available_qty, 'STATUS FISCAL': row.status }));
 }
 
 function exportCommercialList(type) {
-  const route = document.getElementById('commercialListRoute').value; const rows = commercialExportRows();
+  if (sapImportState.listGenerating || !sapImportState.listBatch || !sapImportState.listRows.length) return;
+  const route = sapImportState.listBatch.route; const rows = commercialExportRows();
   if (type === 'csv') return downloadCsv(`lista-${route}.csv`, rows);
   const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), `LISTA ${route}`); XLSX.writeFile(workbook, `lista-${route}.xlsx`);
 }
