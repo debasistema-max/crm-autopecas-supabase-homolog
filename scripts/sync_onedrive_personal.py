@@ -7,6 +7,7 @@ subfolder. Tokens and pre-authenticated download URLs are never printed.
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import os
@@ -381,13 +382,13 @@ def process_batch(edge_url: str, secret: str, batch_id: str,
     raise SyncError("COMMIT_NAO_CONCLUIDO")
 
 
-def synchronize() -> dict[str, Any]:
+def synchronize(*, validate_only: bool = False) -> dict[str, Any]:
     client_id = required_env("MS_GRAPH_CLIENT_ID")
     refresh_token = required_env("MS_GRAPH_REFRESH_TOKEN")
     workbook_name = required_env("ONEDRIVE_WORKBOOK_NAME")
     folder_path = (os.environ.get("ONEDRIVE_FOLDER_PATH") or "IPS CRM Excel Sync").strip()
-    edge_url = required_env("DATA_SYNC_EDGE_URL")
-    sync_secret = required_env("DATA_SYNC_SCHEDULER_SECRET")
+    edge_url = required_env("DATA_SYNC_EDGE_URL") if not validate_only else ""
+    sync_secret = required_env("DATA_SYNC_SCHEDULER_SECRET") if not validate_only else ""
     token = access_token(client_id, refresh_token)
     before = locate_workbook(token, workbook_name, folder_path)
 
@@ -407,6 +408,18 @@ def synchronize() -> dict[str, Any]:
             raise SyncError(f"FORMULAS_INVALIDAS:{error}") from error
         print(json.dumps({"formula_audit": formula_audit}, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
         payload = excel_payload.build(source, str(before.get("lastModifiedDateTime") or ""))
+        if validate_only:
+            fiscal_bases = payload.get("fiscal_bases") or {"ncm_rules": [], "group_rules": []}
+            return {
+                "validated": True,
+                "source_version": payload["source_version"],
+                "source_updated_at": payload["source_updated_at"],
+                "summary": payload["summary"],
+                "fiscal_bases": {
+                    "ncm_rules": len(fiscal_bases.get("ncm_rules") or []),
+                    "group_rules": len(fiscal_bases.get("group_rules") or []),
+                },
+            }
         backup = create_version_backup(
             token,
             folder_path,
@@ -442,8 +455,12 @@ def synchronize() -> dict[str, Any]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--validate-only", action="store_true",
+                        help="Valida a planilha sem criar backup nem chamar o Supabase.")
+    args = parser.parse_args()
     try:
-        result = synchronize()
+        result = synchronize(validate_only=args.validate_only)
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
     except Exception as error:
         message = str(error) if isinstance(error, (SyncError, excel_payload.SyncPayloadError)) else f"FALHA_SINCRONIZACAO:{type(error).__name__}"

@@ -25,7 +25,9 @@
 
 ## Correcao local
 
-Branch codex/excel-sync-staging-reliability, baseada em producao 6684630.
+Correcao inicialmente preparada na branch codex/excel-sync-staging-reliability,
+baseada em producao 6684630, e portada para codex/excel-sync-staging-homolog,
+baseada na homologacao a42fb95. Publicacao autorizada somente em homologacao.
 
 - Consolida somente registros integralmente identicos com a mesma chave.
 - Registra quantidade e avisos de duplicatas identicas no resumo do payload.
@@ -36,12 +38,16 @@ Branch codex/excel-sync-staging-reliability, baseada em producao 6684630.
 - Numeracao e contagem sao calculadas depois da consolidacao, deterministicamente.
 - O bloqueio STAGING_INCOMPLETO continua intacto: falha impede validate/commit.
 - Runner mostra erros conhecidos de validacao sem expor traceback ou credenciais.
+- Modo --validate-only portado para o runner da homologacao: retorna antes de
+  backup, criacao de lote ou qualquer chamada ao Supabase; nao exige segredo
+  do agendador nem URL de escrita. Pasta/arquivo e agenda nao foram alterados.
 - Nenhuma migration, mudanca de preco, mudanca cadastral ou publicacao executada.
 
 ## Validacao
 
-npm test: 48 contratos estaticos, 16 testes de sessao e 37 testes Python aprovados.
-Sintaxe de 42 arquivos JavaScript e sequencia de migrations 001-105 aprovadas.
+npm test na base de homologacao: 53 contratos estaticos, 16 testes de sessao e
+34 testes Python aprovados (103 no total). Sintaxe de 38 arquivos JavaScript
+e sequencia de migrations 001-107 aprovadas.
 git diff --check aprovado.
 
 Cobertura nova: duplicata identica nao soma estoque, divergencia bloqueia,
