@@ -22,6 +22,27 @@ from typing import Any
 from openpyxl import load_workbook
 
 
+class SyncPayloadError(ValueError):
+    """Safe, actionable payload validation error for the external runner."""
+
+
+def unique_sync_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    unique: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    warnings: list[str] = []
+    for record in records:
+        identity = (record["area"], record["product_code"],
+                    record.get("branch_code") or "", record.get("route") or "")
+        previous = unique.get(identity)
+        if previous is None:
+            unique[identity] = record
+        elif previous == record:
+            warnings.append("REGISTRO_DUPLICADO_IDENTICO:" + ":".join(identity))
+        else:
+            # Never pick first/last or sum stock when the source is ambiguous.
+            raise SyncPayloadError("REGISTRO_DUPLICADO_DIVERGENTE:" + ":".join(identity))
+    return list(unique.values()), warnings
+
+
 def sha256_file(source: Path, chunk_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     if not hasattr(source, "open"):
@@ -415,6 +436,7 @@ def build(source: Path, source_updated_at_override: str | None = None) -> dict[s
         fiscal_bases = read_fiscal_bases(workbook)
     finally:
         workbook.close()
+    records, duplicate_warnings = unique_sync_records(records)
     # OneDrive may replace the workbook while it is being read. Never publish a
     # payload whose records came from one version but hash/mtime from another.
     final_digest = sha256_file(source)
@@ -437,6 +459,8 @@ def build(source: Path, source_updated_at_override: str | None = None) -> dict[s
         "fiscal_bases": fiscal_bases,
         "summary": {
             "records": len(records),
+            "duplicates_ignored": len(duplicate_warnings),
+            "warnings": duplicate_warnings,
             "products": sum(r["area"] == "PRODUCT" for r in records),
             "stocks": sum(r["area"] == "STOCK" for r in records),
             "base_prices": sum(r["area"] == "BASE_PRICE" for r in records),

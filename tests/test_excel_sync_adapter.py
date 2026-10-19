@@ -14,6 +14,55 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ExcelSyncAdapterTest(unittest.TestCase):
+    def test_identical_stock_duplicates_are_counted_not_summed(self):
+        record = {"area": "STOCK", "product_code": "ABC-01", "branch_code": "PR",
+                  "fields": {"stock_qty": 5}, "field_mask": ["stock_qty"]}
+        records, warnings = MODULE.unique_sync_records([record, dict(record)])
+        self.assertEqual(records, [record])
+        self.assertEqual(records[0]["fields"]["stock_qty"], 5)
+        self.assertEqual(warnings, ["REGISTRO_DUPLICADO_IDENTICO:STOCK:ABC-01:PR:"])
+
+    def test_conflicting_stock_duplicates_block_with_product_and_branch(self):
+        first = {"area": "STOCK", "product_code": "ABC-01", "branch_code": "SP",
+                 "fields": {"stock_qty": 5}}
+        second = {**first, "fields": {"stock_qty": 6}}
+        with self.assertRaisesRegex(MODULE.SyncPayloadError, "REGISTRO_DUPLICADO_DIVERGENTE:STOCK:ABC-01:SP:"):
+            MODULE.unique_sync_records([first, second])
+
+    def test_distinct_branches_routes_and_areas_remain_separate(self):
+        records = [
+            {"area": "STOCK", "product_code": "ABC", "branch_code": "PR", "fields": {"stock_qty": 0}},
+            {"area": "STOCK", "product_code": "ABC", "branch_code": "SP", "fields": {"stock_qty": 5}},
+            {"area": "BASE_PRICE", "product_code": "ABC", "branch_code": "PR", "fields": {"base_price": 10}},
+            {"area": "ROUTE_PRICE", "product_code": "ABC", "route": "PR-PR", "fields": {"final_price": 12}},
+            {"area": "ROUTE_PRICE", "product_code": "ABC", "route": "PR-SC", "fields": {"final_price": 13}},
+        ]
+        self.assertEqual(MODULE.unique_sync_records(records), (records, []))
+
+    def test_partial_duplicate_never_erases_or_merges_existing_fields(self):
+        first = {"area": "STOCK", "product_code": "ABC", "branch_code": "PR", "fields": {"stock_qty": 0}}
+        second = {**first, "fields": {}}
+        with self.assertRaises(MODULE.SyncPayloadError):
+            MODULE.unique_sync_records([first, second])
+
+    def test_build_deduplicates_before_assigning_stable_row_numbers(self):
+        source = SimpleNamespace(
+            name="master.xlsx", stat=lambda: SimpleNamespace(st_mtime=1, st_mtime_ns=1, st_size=3),
+            read_bytes=lambda: b"one")
+        workbook = SimpleNamespace(close=MagicMock())
+        record = {"area": "STOCK", "product_code": "ABC", "branch_code": "PR", "fields": {"stock_qty": 0}}
+        def stock(_workbook, records):
+            records.extend([dict(record), dict(record), {**record, "branch_code": "SP"}])
+        with patch.object(MODULE, "load_workbook", return_value=workbook), \
+                patch.object(MODULE, "read_products"), patch.object(MODULE, "read_stock", side_effect=stock), \
+                patch.object(MODULE, "read_prices"), \
+                patch.object(MODULE, "read_fiscal_bases", return_value={"ncm_rules": [], "group_rules": []}):
+            first, second = MODULE.build(source), MODULE.build(source)
+        self.assertEqual(first, second)
+        self.assertEqual([r["row_number"] for r in first["records"]], [1, 2])
+        self.assertEqual(first["summary"]["records"], 2)
+        self.assertEqual(first["summary"]["duplicates_ignored"], 1)
+
     def test_product_codes_from_excel(self):
         self.assertEqual(MODULE.product_code(6111032201), "6111032201")
         self.assertEqual(MODULE.product_code(" 6111032201.0 "), "6111032201")

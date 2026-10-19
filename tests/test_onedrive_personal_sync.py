@@ -67,6 +67,24 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
         self.assertEqual(result["state"], "COMMITTED")
         self.assertEqual(edge.call_count, 1)
 
+    def test_incomplete_staging_never_validates_or_commits(self):
+        with patch.object(MODULE, "edge_call", side_effect=[
+                {"batch": {"state": "DRAFT"}}, {"staged_rows": 1}]) as edge:
+            with self.assertRaisesRegex(MODULE.SyncError, "STAGING_INCOMPLETO:1:2"):
+                MODULE.process_batch("https://example.test", "secret", "batch",
+                                     [{"row_number": 1}, {"row_number": 2}])
+        self.assertEqual([c.args[2]["operation"] for c in edge.call_args_list], ["prepare", "stage"])
+
+    def test_main_shows_safe_duplicate_error_without_traceback(self):
+        with patch.object(MODULE.sys, "argv", ["sync"]), \
+                patch.object(MODULE, "synchronize", side_effect=MODULE.excel_payload.SyncPayloadError(
+                    "REGISTRO_DUPLICADO_DIVERGENTE:STOCK:ABC:PR:")), \
+                patch("builtins.print") as output:
+            with self.assertRaises(SystemExit) as error:
+                MODULE.main()
+        self.assertEqual(error.exception.code, 1)
+        self.assertIn("REGISTRO_DUPLICADO_DIVERGENTE:STOCK:ABC:PR:", output.call_args.args[0])
+
     def test_backup_filename_is_versioned_by_timestamp_and_full_hash(self):
         filename = MODULE.backup_filename(
             "master.xlsx", "2026-09-25T14:08:53+00:00", "a" * 64

@@ -446,7 +446,7 @@ def main() -> None:
         result = synchronize()
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
     except Exception as error:
-        message = str(error) if isinstance(error, SyncError) else f"FALHA_SINCRONIZACAO:{type(error).__name__}"
+        message = str(error) if isinstance(error, (SyncError, excel_payload.SyncPayloadError)) else f"FALHA_SINCRONIZACAO:{type(error).__name__}"
         print(json.dumps({"ok": False, "error": message}, ensure_ascii=False, separators=(",", ":")))
         raise SystemExit(1) from error
 
