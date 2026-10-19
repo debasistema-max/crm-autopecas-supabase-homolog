@@ -67,6 +67,56 @@ class OneDrivePersonalSyncTest(unittest.TestCase):
         self.assertEqual(result["state"], "COMMITTED")
         self.assertEqual(edge.call_count, 1)
 
+    def test_incomplete_staging_never_validates_or_commits(self):
+        with patch.object(MODULE, "edge_call", side_effect=[
+                {"batch": {"state": "DRAFT"}}, {"staged_rows": 1}]) as edge:
+            with self.assertRaisesRegex(MODULE.SyncError, "STAGING_INCOMPLETO:1:2"):
+                MODULE.process_batch("https://example.test", "secret", "batch",
+                                     [{"row_number": 1}, {"row_number": 2}])
+        self.assertEqual([c.args[2]["operation"] for c in edge.call_args_list], ["prepare", "stage"])
+
+    def test_main_shows_safe_duplicate_error_without_traceback(self):
+        with patch.object(MODULE.sys, "argv", ["sync"]), \
+                patch.object(MODULE, "synchronize", side_effect=MODULE.excel_payload.SyncPayloadError(
+                    "REGISTRO_DUPLICADO_DIVERGENTE:STOCK:ABC:PR:")), \
+                patch("builtins.print") as output:
+            with self.assertRaises(SystemExit) as error:
+                MODULE.main()
+        self.assertEqual(error.exception.code, 1)
+        self.assertIn("REGISTRO_DUPLICADO_DIVERGENTE:STOCK:ABC:PR:", output.call_args.args[0])
+
+    def test_main_passes_validate_only_to_synchronize(self):
+        with patch.object(MODULE.sys, "argv", ["sync", "--validate-only"]), \
+                patch.object(MODULE, "synchronize", return_value={"validated": True}) as sync, \
+                patch("builtins.print"):
+            MODULE.main()
+        sync.assert_called_once_with(validate_only=True)
+
+    def test_validate_only_never_writes_backup_or_calls_supabase(self):
+        with patch.dict(os.environ, {
+            "MS_GRAPH_CLIENT_ID": "client", "MS_GRAPH_REFRESH_TOKEN": "refresh",
+            "ONEDRIVE_FOLDER_PATH": "IPS CRM Excel Sync", "ONEDRIVE_WORKBOOK_NAME": "master.xlsx",
+        }, clear=True), patch.object(MODULE, "access_token", return_value="access"), \
+                patch.object(MODULE, "locate_workbook", return_value={
+                    "id": "item", "name": "master.xlsx", "size": 4, "eTag": "etag",
+                    "lastModifiedDateTime": "2026-10-19T10:00:00Z", "file": {},
+                }), patch.object(MODULE.tempfile, "TemporaryDirectory", return_value=nullcontext(str(Path.cwd()))), \
+                patch.object(MODULE, "download_workbook"), \
+                patch.object(MODULE, "graph_json", return_value={
+                    "id": "item", "size": 4, "eTag": "etag", "lastModifiedDateTime": "2026-10-19T10:00:00Z",
+                }), patch.object(MODULE.excel_formula_audit, "audit", return_value={"status": "OK"}), \
+                patch.object(MODULE.excel_payload, "build", return_value={
+                    "source_version": "hash", "source_updated_at": "2026-10-19T10:00:00Z",
+                    "summary": {"records": 3},
+                    "fiscal_bases": {"ncm_rules": [{"id": 1}], "group_rules": [{"id": 1}, {"id": 2}]},
+                }), patch.object(MODULE, "create_version_backup") as backup, \
+                patch.object(MODULE, "edge_call") as edge:
+            result = MODULE.synchronize(validate_only=True)
+        self.assertTrue(result["validated"])
+        self.assertEqual(result["summary"]["records"], 3)
+        backup.assert_not_called()
+        edge.assert_not_called()
+
     def test_backup_filename_is_versioned_by_timestamp_and_full_hash(self):
         filename = MODULE.backup_filename(
             "master.xlsx", "2026-09-25T14:08:53+00:00", "a" * 64
