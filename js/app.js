@@ -79,6 +79,7 @@ function bootstrapAppShell() {
 
   setupNavigation();
   setupMobileNavigation();
+  setupSellerNavigation();
   CrmUi.observeResponsiveTables(document.getElementById('content'));
   const initialHash = location.hash.replace('#', '') || 'dashboard';
   const initial = getModuleRoute(initialHash);
@@ -105,6 +106,30 @@ function setupMobileNavigation() {
     button.addEventListener('click', () => openModule(button.dataset.mobileModule));
   });
   applyMobileNavigationVisibility();
+}
+
+function setupSellerNavigation() {
+  const nav = document.getElementById('sellerNav');
+  const brand = document.querySelector('.seller-brand');
+  const seller = isCurrentUserSeller();
+  if (brand) brand.hidden = !seller;
+  if (!nav) return;
+  nav.hidden = !seller;
+  nav.replaceChildren();
+  if (!seller) return;
+  const allowed = getCurrentSessionModules();
+  const primary = ['dashboard', 'products', 'partners', 'quoteReports', 'ordersReport'];
+  const names = [...primary, ...Object.keys(MODULES).filter((name) => !primary.includes(name))];
+  names.forEach((name) => {
+    const module = MODULES[name];
+    if ((module.adminOnly && !isCurrentUserAdmin()) || isModuleBlockedForCurrentRole(module) || !hasModuleAccess(module, allowed)) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.sellerModule = name;
+    button.textContent = name === 'partners' ? 'Clientes' : module.title;
+    button.addEventListener('click', () => openModule(name));
+    nav.append(button);
+  });
 }
 
 function applyNavigationVisibility() {
@@ -178,10 +203,10 @@ function toggleMobileMenu(force) {
 function setCommercialFocusMode(enabled) {
   const active = Boolean(enabled);
   document.body.classList.toggle('commercial-focus-mode', active);
-  ['sidebar', 'sidebarBackdrop', 'mobileNav'].forEach((id) => {
+  ['sidebar', 'sidebarBackdrop', 'mobileNav', 'sellerNav'].forEach((id) => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.hidden = active;
+    element.hidden = active || (id === 'sellerNav' && !isCurrentUserSeller());
     if (active) element.setAttribute('aria-hidden', 'true');
     else element.removeAttribute('aria-hidden');
   });
@@ -231,6 +256,12 @@ async function openModule(name) {
     else item.removeAttribute('aria-current');
   });
   document.querySelectorAll('[data-mobile-module]').forEach((item) => item.classList.toggle('is-active', item.dataset.mobileModule === moduleName));
+  document.querySelectorAll('[data-seller-module]').forEach((item) => {
+    const active = item.dataset.sellerModule === moduleName;
+    item.classList.toggle('is-active', active);
+    if (active) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
   document.getElementById('pageTitle').textContent = module.title;
   const context = document.getElementById('pageContext');
   if (context) context.textContent = isCurrentUserSeller() ? 'Portal do vendedor' : (module.section || 'Portal Comercial');

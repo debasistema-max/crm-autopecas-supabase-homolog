@@ -14,13 +14,25 @@ function canManageProductActivity() {
   return getStoredSession()?.perfil === 'ADMIN';
 }
 
+function isSellerProductCatalog() {
+  return String(getStoredSession()?.perfil || '').toUpperCase() === 'VENDEDOR';
+}
+
+function renderSellerCatalogActions() {
+  const modules = getStoredSession()?.modules || [];
+  return `${modules.includes('nova_cotacao') ? '<button class="btn btn-secondary" type="button" data-seller-create="quoteCreate">Nova cotação</button>' : ''}
+    ${modules.includes('novo_pedido') ? '<button class="btn btn-primary" type="button" data-seller-create="orderCreate">Novo pedido</button>' : ''}`;
+}
+
 async function renderProducts(container) {
+  productState.results = [];
+  productState.selected = null;
   container.innerHTML = `
     <section class="module-page product-shell">
       ${CrmUi.renderPageHeader(
-        'Catalogo de produtos',
-        'Localize itens, confira disponibilidade, preco por filial e dados comerciais.',
-        '',
+        isSellerProductCatalog() ? 'Produtos' : 'Catalogo de produtos',
+        isSellerProductCatalog() ? '' : 'Localize itens, confira disponibilidade, preco por filial e dados comerciais.',
+        isSellerProductCatalog() ? renderSellerCatalogActions() : '',
         'Catalogo'
       )}
       <section class="panel product-search-panel">
@@ -92,6 +104,7 @@ async function renderProducts(container) {
     </section>
   `;
 
+  if (isSellerProductCatalog()) arrangeSellerCatalog(container);
   bindProductDetailModal();
   await Promise.all([
     loadProductFilterOptions(),
@@ -99,6 +112,42 @@ async function renderProducts(container) {
   ]);
 
   bindProductSearch();
+}
+
+function arrangeSellerCatalog(container) {
+  const form = container.querySelector('#productSearchForm');
+  const details = document.createElement('details');
+  details.className = 'seller-extra-filters';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Mais filtros';
+  const fields = document.createElement('div');
+  fields.className = 'seller-extra-filter-grid';
+  ['productLineFilter', 'productMakerFilter', 'productVehicleTypeFilter', 'productOemFilter', 'productPhotoFilter', 'productFavoritesFilter'].forEach((id) => {
+    fields.append(container.querySelector(`#${id}`).closest('label'));
+  });
+  details.append(summary, fields);
+  form.append(details);
+  form.classList.add('seller-catalog-search');
+  container.querySelector('.product-search-main').firstChild.textContent = 'Buscar produto';
+  const region = container.querySelector('#productRegion');
+  region.previousSibling.textContent = 'Filial de consulta';
+  // Preserve the branch values used by the existing product queries.
+  region.options[0].value = 'SP';
+  region.options[0].textContent = 'Filial SP';
+  region.options[1].value = 'PR';
+  region.options[1].textContent = 'Matriz PR';
+  container.querySelector('.product-search-panel .section-heading').remove();
+  const insights = container.querySelector('.product-insights-grid');
+  const history = document.createElement('details');
+  history.className = 'seller-catalog-history';
+  const historyTitle = document.createElement('summary');
+  historyTitle.textContent = 'Recentemente consultados e mais vendidos';
+  insights.before(history);
+  history.append(historyTitle, insights);
+  container.querySelector('.product-layout').after(history);
+  container.querySelectorAll('[data-seller-create]').forEach((button) => {
+    button.addEventListener('click', () => openModule(button.dataset.sellerCreate));
+  });
 }
 
 function bindProductSearch() {
@@ -123,7 +172,10 @@ function bindProductSearch() {
     'productFavoritesFilter',
     'productVehicleTypeFilter'
   ].forEach((id) => {
-    document.getElementById(id).addEventListener('change', () => runProductSearch({ silentEmpty: true }));
+    document.getElementById(id).addEventListener('change', () => runProductSearch({
+      silentEmpty: true,
+      listaGeral: id === 'productRegion' && productState.results.length > 0
+    }));
   });
   document.getElementById('productGeneralListButton').addEventListener('click', () => runProductSearch({ listaGeral: true }));
   document.getElementById('productInactiveFilter')?.addEventListener('change', () => runProductSearch({ listaGeral: true }));
@@ -236,11 +288,11 @@ function renderProductCatalog(products, params) {
   const filters = renderProductFilterSummary(params);
   return `
     <div class="panel-header product-results-header">
-      <div><h2>${products.length} produtos</h2><p>${escapeHtml(filters || 'Resultado da pesquisa')}</p></div>
+      <div><h2>${products.length} ${products.length === 1 ? 'produto' : 'produtos'}</h2><p>${escapeHtml(filters || 'Resultado da pesquisa')}</p></div>
       <button class="btn btn-secondary" type="button" data-export-products>Baixar CSV</button>
     </div>
     <div class="product-card-grid">
-      ${products.map((product, index) => renderProductCard(product, index)).join('')}
+      ${products.map((product, index) => isSellerProductCatalog() ? renderSellerProductCard(product, index) : renderProductCard(product, index)).join('')}
     </div>
   `;
 }
@@ -304,10 +356,30 @@ function renderProductCard(product, index) {
   `;
 }
 
+function renderSellerProductCard(product, index) {
+  const favorite = productState.favorites.has(product.codigo);
+  return `
+    <article class="product-card seller-product-row">
+      <div class="product-image">${renderProductPhoto(product, 'Sem foto', true)}</div>
+      <div class="product-card-body">
+        <div class="product-code">${escapeHtml(product.codigo)}${product.linha || product.categoria ? ` · ${escapeHtml(product.linha || product.categoria)}` : ''}</div>
+        <h3>${escapeHtml(product.descricao || 'Produto sem descrição')}</h3>
+        <p>${escapeHtml([product.marca, product.montadora, product.aplicacao].filter(Boolean).join(' · '))}</p>
+        <span class="seller-product-stock">Estoque: ${escapeHtml(product.estoque ?? 'não informado')}</span>
+      </div>
+      <div class="seller-product-buy">
+        <strong>${money(product.preco)}</strong>
+        <button class="btn btn-secondary" type="button" data-open-product="${index}">Ver detalhes</button>
+      </div>
+      <button class="product-favorite ${favorite ? 'is-active' : ''}" type="button" data-favorite-product="${index}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '*' : '+'}</button>
+    </article>`;
+}
+
 function bindProductCatalog(products, params) {
   bindYokomitsuProductImages(document.getElementById('productResults'));
   document.querySelectorAll('[data-open-product]').forEach((card) => {
     card.addEventListener('click', () => openProductDetail(products[Number(card.dataset.openProduct)], params));
+    if (card.tagName === 'BUTTON') return;
     card.addEventListener('keydown', (event) => {
       if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
       event.preventDefault();
@@ -323,6 +395,8 @@ function bindProductCatalog(products, params) {
       productState.favorites = new Set(favorites);
       button.classList.toggle('is-active', next);
       button.textContent = next ? '*' : '+';
+      button.setAttribute('aria-pressed', String(next));
+      button.setAttribute('aria-label', next ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
       await refreshProductSideData();
     });
   });
