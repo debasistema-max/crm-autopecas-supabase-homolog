@@ -892,6 +892,13 @@ body.commercial-focus-mode .content {
 }
 
 .data-sync-table-wrap { max-height: 620px; }
+.product-selectable-entry { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.product-selectable-entry > .product-card { flex: 1; }
+.product-selectable-entry .product-card-body { grid-template-columns: minmax(0, 1fr); }
+.product-selectable-entry .product-code { padding-right: 28px; overflow-wrap: anywhere; }
+.product-selectable-entry .product-card-footer { flex-wrap: wrap; }
+.product-select-label { min-height: 44px; align-self: flex-start; padding: 0 4px; }
+.product-select-label input { width: 18px; height: 18px; }
 .data-sync-table-wrap table { min-width: 980px; }
 
 .data-sync-json {

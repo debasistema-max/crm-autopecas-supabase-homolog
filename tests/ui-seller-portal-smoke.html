@@ -54,6 +54,7 @@
       modules: ['dashboard', 'produtos', 'parceiros', 'cotacoes', 'nova_cotacao', 'pedidos', 'novo_pedido']
     };
     const sellerSmokeParams = new URLSearchParams(location.search);
+    if (sellerSmokeParams.has('bulk')) window.confirm = () => true;
     if (sellerSmokeParams.get('role') === 'admin') sellerSession.perfil = 'ADMIN';
     if (sellerSmokeParams.get('permission')) sellerSession.modules = [sellerSmokeParams.get('permission')];
     function getStoredSession() { return sellerSession; }
@@ -87,16 +88,30 @@
       { codigo: 'DEMO-RETROVISOR', descricao: 'RETROVISOR EXTERNO ESQUERDO', linha: 'RETROVISORES', grupo: 'AUTOPECAS', aplicacao: 'UTILITÁRIOS · MANUAL', estoque: 0, preco: 189.50, preco_sp: 189.50, preco_pr: 182.80, ativo: true }
     ];
     if (sellerSmokeParams.has('photo')) sellerSampleProducts[0].url_imagem = '../assets/logo-ips-yokomitsu.png';
+    if (sellerSmokeParams.has('inactive')) sellerSampleProducts[2].ativo = false;
     if (sellerSmokeParams.has('ips')) sellerSampleProducts[0].detalhes = 'Observacao original preservada\n\n[CATALOGO_IPS_INSTALADO]\nOrigem: Catalogo IPS instalado\nMarca: IPS\nEAN/GTIN: 7898778850018\nDimensoes informadas no catalogo: Altura: 32 | Largura: 14.5\nVeiculos / anos informados no catalogo:\nTOYOTA | HILUX 2005-2015\n[/CATALOGO_IPS_INSTALADO]';
     async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['TOYOTA'] }; }
     async function supabaseListProductFavorites() { return []; }
     async function supabaseListRecentProducts() { return sellerSampleProducts.slice(0, 1); }
     async function supabaseGetTopSellingProducts() { return sellerSampleProducts.slice(0, 1); }
     async function supabaseSearchProducts(params = {}) {
-      return sellerSampleProducts.filter((p) => (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0))
+      return sellerSampleProducts.filter((p) => (params.incluirInativos || p.ativo !== false) && (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0))
         .map((p) => ({ ...p, preco: params.regiao === 'PR' ? p.preco_pr : p.preco_sp }));
     }
     async function supabaseToggleProductFavorite(code, enabled) { return enabled ? [code] : []; }
+    async function supabaseDeactivateProducts(items) {
+      const rows = items.map((item) => {
+        const product = sellerSampleProducts.find((p) => p.codigo === item.codigo);
+        if (!product || product.ativo !== item.expected_active) throw new Error('Fixture alterada.');
+        product.ativo = false;
+        return { codigo: item.codigo, ativo: false, changed: true };
+      });
+      return { rows, count: rows.length, changed: rows.length };
+    }
+    async function supabaseSetProductActive(code, active) {
+      sellerSampleProducts.find((p) => p.codigo === code).ativo = active;
+      return { codigo: code, ativo: active };
+    }
     async function supabaseRegisterProductView() {}
     async function supabaseGetProductHistory() { return { prices: [], stock: [] }; }
     async function renderStockTransfers() {}
@@ -118,6 +133,20 @@
   <script>
     window.addEventListener('load', () => {
       setTimeout(async () => {
+        if (sellerSmokeParams.has('bulk') && sellerSession.perfil === 'ADMIN') {
+          document.getElementById('productInactiveFilter').checked = true;
+          await runProductSearch({ listaGeral: true });
+          const select = document.getElementById('productSelectDisplayed');
+          select.checked = true;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          await deactivateSelectedProducts();
+          const passed = sellerSampleProducts.every((product) => !product.ativo)
+            && document.getElementById('productSelectionCount').textContent === '0 selecionados'
+            && document.getElementById('productMessage').textContent.includes('2 itens inativados');
+          document.documentElement.dataset.bulk = passed ? 'pass' : 'fail';
+          document.getElementById('productResults').scrollIntoView({ block: 'start' });
+          return;
+        }
         const mobileItems = Array.from(document.querySelectorAll('[data-mobile-module]')).filter((item) => !item.hidden);
         const dashboardPassed = document.body.classList.contains('seller-portal-mode')
           && mobileItems.length === 5
