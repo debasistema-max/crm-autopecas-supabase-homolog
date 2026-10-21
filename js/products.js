@@ -101,6 +101,19 @@ async function renderProducts(container) {
           </div>
         </section>
       </div>
+      <dialog class="product-photo-dialog" id="productPhotoDialog" aria-labelledby="productPhotoTitle">
+        <header class="product-photo-header">
+          <strong id="productPhotoTitle">Foto do produto</strong>
+          <button class="btn btn-secondary" id="productPhotoClose" type="button">Fechar foto</button>
+        </header>
+        <label class="product-photo-zoom">Zoom <output id="productPhotoZoomValue">100%</output>
+          <input id="productPhotoZoom" type="range" min="100" max="300" step="25" value="100" aria-label="Zoom da foto">
+        </label>
+        <div class="product-photo-viewport" id="productPhotoViewport">
+          <div class="product-photo-canvas"><img id="productPhotoImage" alt="" referrerpolicy="no-referrer"></div>
+        </div>
+        <p id="productPhotoError" role="status" hidden>Não foi possível carregar a foto ampliada.</p>
+      </dialog>
     </section>
   `;
 
@@ -315,7 +328,12 @@ function renderProductPhoto(product, emptyLabel, lazy = false) {
 function bindYokomitsuProductImages(target) {
   if (!target) return;
   target.querySelectorAll('[data-yokomitsu-image]').forEach((image) => {
+    const trigger = image.closest('[data-expand-product-photo]');
+    const updateTrigger = () => {
+      if (trigger) trigger.disabled = image.hidden || image.naturalWidth === 0;
+    };
     const handleError = () => {
+      if (trigger) trigger.disabled = true;
       const fallback = image.dataset.fallbackSrc || '';
       if (fallback) {
         image.dataset.fallbackSrc = '';
@@ -327,7 +345,9 @@ function bindYokomitsuProductImages(target) {
       if (placeholder) placeholder.hidden = false;
     };
     image.addEventListener('error', handleError);
+    image.addEventListener('load', updateTrigger);
     if (image.complete && image.naturalWidth === 0) handleError();
+    else updateTrigger();
   });
 }
 
@@ -436,12 +456,59 @@ function bindProductDetailModal() {
   const modal = document.getElementById('productDetailModal');
   const closeButton = document.getElementById('productDetailClose');
   if (!modal || !closeButton) return;
+  bindProductPhotoViewer();
   closeButton.addEventListener('click', () => closeProductDetail());
   modal.addEventListener('click', (event) => {
     if (event.target === modal) closeProductDetail();
   });
   modal.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeProductDetail();
+  });
+}
+
+function bindProductPhotoViewer() {
+  const dialog = document.getElementById('productPhotoDialog');
+  if (!dialog) return;
+  const photo = document.getElementById('productPhotoImage');
+  const viewport = document.getElementById('productPhotoViewport');
+  const zoom = document.getElementById('productPhotoZoom');
+  const error = document.getElementById('productPhotoError');
+  document.getElementById('productDetail').addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-expand-product-photo]');
+    const source = trigger?.querySelector('img');
+    if (!source || source.hidden || source.naturalWidth === 0 || dialog.open) return;
+    photo.alt = source.alt;
+    photo.src = source.currentSrc || source.src;
+    photo.hidden = false;
+    error.hidden = true;
+    zoom.value = '100';
+    document.getElementById('productPhotoZoomValue').textContent = '100%';
+    viewport.style.setProperty('--photo-scale', '1');
+    document.getElementById('productPhotoTitle').textContent = `Foto · ${productState.selected?.codigo || 'Produto'}`;
+    dialog.showModal();
+    viewport.scrollTop = viewport.scrollLeft = 0;
+  });
+  document.getElementById('productPhotoClose').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener('close', () => {
+    photo.removeAttribute('src');
+    photo.alt = '';
+  });
+  photo.addEventListener('error', () => {
+    photo.hidden = true;
+    error.hidden = false;
+  });
+  zoom.addEventListener('input', () => {
+    const previous = Number(viewport.style.getPropertyValue('--photo-scale')) || 1;
+    const next = Number(zoom.value) / 100;
+    const left = (viewport.scrollLeft + viewport.clientWidth / 2) * next / previous - viewport.clientWidth / 2;
+    const top = (viewport.scrollTop + viewport.clientHeight / 2) * next / previous - viewport.clientHeight / 2;
+    viewport.style.setProperty('--photo-scale', String(next));
+    viewport.scrollLeft = left;
+    viewport.scrollTop = top;
+    document.getElementById('productPhotoZoomValue').textContent = `${zoom.value}%`;
   });
 }
 
@@ -457,6 +524,8 @@ function showProductDetailModal(product) {
 }
 
 function closeProductDetail(options = {}) {
+  const photoDialog = document.getElementById('productPhotoDialog');
+  if (photoDialog?.open) photoDialog.close();
   const modal = document.getElementById('productDetailModal');
   if (modal) modal.hidden = true;
   document.body.classList.remove('product-detail-open');
@@ -468,7 +537,10 @@ function closeProductDetail(options = {}) {
 function renderProductDetail(product, history) {
   return `
     <div class="product-detail">
-      <div class="product-detail-image">${renderProductPhoto(product, 'Sem foto cadastrada')}</div>
+      <button class="product-detail-image product-photo-trigger" type="button" data-expand-product-photo disabled aria-label="Ampliar foto do produto">
+        ${renderProductPhoto(product, 'Sem foto cadastrada')}
+        <span class="product-photo-caption" aria-hidden="true">Ampliar foto</span>
+      </button>
       <div class="product-detail-title">
         <span>${escapeHtml(product.codigo)}</span>
         <h2>${escapeHtml(product.descricao || 'Produto sem descricao')}</h2>
