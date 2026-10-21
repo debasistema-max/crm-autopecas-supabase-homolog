@@ -2161,6 +2161,14 @@ async function supabaseGetDataSyncStatus(filters = {}) {
     || { source: null, last_batch: null, connected: false };
 }
 
+async function supabaseRequestInstalledCatalogSync() {
+  return supabaseDataSyncRpc('request_installed_catalog_sync', {});
+}
+
+async function supabaseListInstalledCatalogSync() {
+  return (await supabaseDataSyncRpc('list_installed_catalog_sync', {})) || { rows: [] };
+}
+
 async function supabaseListDataSyncBatches(filters = {}) {
   return (await supabaseDataSyncRpc('list_data_sync_batches', { filters })) || { rows: [], count: 0 };
 }

@@ -33,6 +33,12 @@
       product_code: '6111032201', area: 'BASE_PRICE', field_name: 'base_price', old_value: 580,
       new_value: 595, branch_code: 'SP', source: 'EXCEL_API', created_by: 'SYSTEM' }], count: 1 }; }
     async function supabaseTriggerDataSync() { return { duplicate: true, batch: smokeBatch }; }
+    function isCurrentUserAdmin() { return true; }
+    let catalogRequested = false;
+    async function supabaseRequestInstalledCatalogSync() { catalogRequested = true; return { id: 'catalog-local-test', status: 'queued' }; }
+    async function supabaseListInstalledCatalogSync() {
+      return { rows: catalogRequested ? [{ id: 'catalog-local-test', status: 'queued', requested_at: new Date().toISOString(), usuario: 'ADMIN teste' }] : [] };
+    }
   </script>
   <script src="../js/data_sync.js"></script>
   <script>renderDataSyncCenter(document.getElementById('content'));</script>
