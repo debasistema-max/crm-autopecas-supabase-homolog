@@ -4,7 +4,9 @@ const productState = {
   favorites: new Set(),
   recent: [],
   topSelling: [],
-  selected: null
+  selected: null,
+  activitySelection: new Map(),
+  activityBusy: false
 };
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
@@ -27,6 +29,7 @@ function renderSellerCatalogActions() {
 async function renderProducts(container) {
   productState.results = [];
   productState.selected = null;
+  productState.activitySelection.clear();
   container.innerHTML = `
     <section class="module-page product-shell">
       ${CrmUi.renderPageHeader(
@@ -196,6 +199,7 @@ function bindProductSearch() {
 }
 
 async function runProductSearch(options = {}) {
+  if (productState.activityBusy) return;
   await searchProductsInto(document.getElementById('productResults'), getProductSearchParams(options));
 }
 
@@ -219,6 +223,8 @@ function getProductSearchParams(options = {}) {
 }
 
 function clearProductFilters() {
+  if (productState.activityBusy) return;
+  productState.activitySelection.clear();
   const inactive = document.getElementById('productInactiveFilter');
   if (inactive) inactive.checked = false;
   document.getElementById('productTerm').value = '';
@@ -238,6 +244,10 @@ function clearProductFilters() {
 }
 
 async function searchProductsInto(target, params, onAdd) {
+  if (!onAdd && target.id === 'productResults') {
+    productState.activitySelection.clear();
+    productState.results = [];
+  }
   const requestId = ++productSearchRequestSequence;
   productSearchRequests.set(target, requestId);
   const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.tipoVeiculo || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
@@ -302,10 +312,20 @@ function renderProductCatalog(products, params) {
   return `
     <div class="panel-header product-results-header">
       <div><h2>${products.length} ${products.length === 1 ? 'produto' : 'produtos'}</h2><p>${escapeHtml(filters || 'Resultado da pesquisa')}</p></div>
-      <button class="btn btn-secondary" type="button" data-export-products>Baixar CSV</button>
+      <div class="actions-row">
+        ${canManageProductActivity() ? `<label class="product-toggle"><input type="checkbox" id="productSelectDisplayed"> Selecionar exibidos</label>
+          <span id="productSelectionCount" role="status">0 selecionados</span>
+          <button class="btn btn-secondary" id="productDeactivateSelected" type="button" disabled>Inativar selecionados</button>` : ''}
+        <button class="btn btn-secondary" type="button" data-export-products>Baixar CSV</button>
+      </div>
     </div>
+    ${canManageProductActivity() ? '<p class="form-message" id="productBulkMessage" role="status" aria-live="polite"></p>' : ''}
     <div class="product-card-grid">
-      ${products.map((product, index) => isSellerProductCatalog() ? renderSellerProductCard(product, index) : renderProductCard(product, index)).join('')}
+      ${products.map((product, index) => {
+        const card = isSellerProductCatalog() ? renderSellerProductCard(product, index) : renderProductCard(product, index);
+        return canManageProductActivity() ? `<div class="product-selectable-entry">
+          <label class="product-toggle product-select-label"><input type="checkbox" data-product-select="${index}" aria-label="Selecionar produto ${escapeHtml(product.codigo)}" ${product.ativo === true ? '' : 'disabled'}>Selecionar</label>${card}</div>` : card;
+      }).join('')}
     </div>
   `;
 }
@@ -396,12 +416,15 @@ function renderSellerProductCard(product, index) {
 }
 
 function bindProductCatalog(products, params) {
+  bindProductActivitySelection();
   bindYokomitsuProductImages(document.getElementById('productResults'));
   document.querySelectorAll('[data-open-product]').forEach((card) => {
-    card.addEventListener('click', () => openProductDetail(products[Number(card.dataset.openProduct)], params));
+    card.addEventListener('click', () => {
+      if (!productState.activityBusy) openProductDetail(products[Number(card.dataset.openProduct)], params);
+    });
     if (card.tagName === 'BUTTON') return;
     card.addEventListener('keydown', (event) => {
-      if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+      if (productState.activityBusy || event.target !== card || !['Enter', ' '].includes(event.key)) return;
       event.preventDefault();
       openProductDetail(products[Number(card.dataset.openProduct)], params);
     });
@@ -422,6 +445,93 @@ function bindProductCatalog(products, params) {
   });
   const exportButton = document.querySelector('[data-export-products]');
   if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params));
+}
+
+function getProductActivitySelection() {
+  if (!canManageProductActivity()) return [];
+  return productState.results.filter((product) => product.ativo === true && productState.activitySelection.has(product.codigo))
+    .map((product) => ({ codigo: product.codigo, expected_active: productState.activitySelection.get(product.codigo) }));
+}
+
+function updateProductActivitySelectionControls() {
+  const selected = getProductActivitySelection();
+  const eligible = productState.results.filter((product) => product.ativo === true);
+  const count = document.getElementById('productSelectionCount');
+  const all = document.getElementById('productSelectDisplayed');
+  const button = document.getElementById('productDeactivateSelected');
+  if (!count || !all || !button) return;
+  count.textContent = `${selected.length} ${selected.length === 1 ? 'selecionado' : 'selecionados'}`;
+  all.disabled = productState.activityBusy || !eligible.length;
+  all.checked = eligible.length > 0 && selected.length === eligible.length;
+  all.indeterminate = selected.length > 0 && selected.length < eligible.length;
+  button.disabled = productState.activityBusy || !selected.length || selected.length > 200;
+  document.querySelectorAll('[data-product-select]').forEach((control) => {
+    const product = productState.results[Number(control.dataset.productSelect)];
+    control.disabled = productState.activityBusy || product?.ativo !== true;
+    control.checked = Boolean(product && productState.activitySelection.has(product.codigo));
+  });
+}
+
+function bindProductActivitySelection() {
+  if (!canManageProductActivity()) return;
+  document.querySelectorAll('[data-product-select]').forEach((control) => {
+    control.addEventListener('change', () => {
+      const product = productState.results[Number(control.dataset.productSelect)];
+      if (!productState.activityBusy && product?.ativo === true) {
+        if (control.checked) productState.activitySelection.set(product.codigo, product.ativo);
+        else productState.activitySelection.delete(product.codigo);
+      }
+      updateProductActivitySelectionControls();
+    });
+  });
+  document.getElementById('productSelectDisplayed')?.addEventListener('change', (event) => {
+    if (productState.activityBusy) return;
+    productState.activitySelection.clear();
+    if (event.target.checked) productState.results.filter((product) => product.ativo === true)
+      .forEach((product) => productState.activitySelection.set(product.codigo, product.ativo));
+    updateProductActivitySelectionControls();
+  });
+  document.getElementById('productDeactivateSelected')?.addEventListener('click', deactivateSelectedProducts);
+  updateProductActivitySelectionControls();
+}
+
+async function deactivateSelectedProducts() {
+  const items = getProductActivitySelection();
+  if (productState.activityBusy || !items.length || items.length > 200) return;
+  if (!window.confirm(`Inativar ${items.length} itens selecionados?`)) return;
+  const target = document.getElementById('productResults');
+  const message = document.getElementById('productBulkMessage');
+  const form = document.getElementById('productSearchForm');
+  if (!target || !message) return;
+  const controls = Array.from(form?.elements || []).map((control) => ({ control, disabled: control.disabled }));
+  productState.activityBusy = true;
+  controls.forEach(({ control }) => { control.disabled = true; });
+  updateProductActivitySelectionControls();
+  message.textContent = 'Inativando itens selecionados...';
+  let result;
+  try {
+    result = await supabaseDeactivateProducts(items);
+    productState.activitySelection.clear();
+  } catch (error) {
+    message.textContent = error.message || 'Não foi possível confirmar a inativação. Atualize a pesquisa.';
+  } finally {
+    productState.activityBusy = false;
+    controls.forEach(({ control, disabled }) => { control.disabled = disabled; });
+    updateProductActivitySelectionControls();
+  }
+  if (result && document.getElementById('productResults') === target) {
+    const notice = document.getElementById('productMessage');
+    if (notice) {
+      notice.style.color = 'var(--success)';
+      notice.textContent = `${result.changed} ${result.changed === 1 ? 'item inativado' : 'itens inativados'} com sucesso.`;
+    }
+    await Promise.all([runProductSearch({ listaGeral: true }), refreshProductSideData(), loadProductFilterOptions()]).catch(() => {
+      if (notice && document.getElementById('productMessage') === notice) {
+        notice.style.color = 'var(--muted)';
+        notice.textContent = 'Itens inativados. Atualize a pesquisa para conferir.';
+      }
+    });
+  }
 }
 
 async function openProductDetail(product) {

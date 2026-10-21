@@ -65,7 +65,7 @@ test('seller styling is isolated and commercial focus hides the seller navigatio
   assert.match(app, /isModuleBlockedForCurrentRole\(module\) \|\| !hasModuleAccess\(module, allowed\)/);
   const page = read('app.html');
   assert.match(page, /css\/seller.css\?v=20261021-1/);
-  assert.match(page, /js\/products.js\?v=20261021-ips-catalog-1/);
+  assert.match(page, /js\/products.js\?v=20261021-product-activity-2/);
 });
 
 test('horizontal navigation respects report-only, create-only and additional module permissions', () => {

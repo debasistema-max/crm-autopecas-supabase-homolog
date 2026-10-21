@@ -2344,3 +2344,28 @@ async function supabaseSetProductActive(productCode, isActive, expectedActive) {
   setStaticCache('productFiltersV4', null);
   return data;
 }
+
+async function supabaseDeactivateProducts(items) {
+  if (!Array.isArray(items) || !items.length || items.length > 200
+    || items.some((item) => !item || typeof item.codigo !== 'string' || !item.codigo.trim() || item.codigo !== item.codigo.trim()
+      || item.codigo.length > 80 || typeof item.expected_active !== 'boolean')
+    || new Set(items.map((item) => item.codigo)).size !== items.length) throw new Error('Seleção de itens inválida. Pesquise novamente.');
+  const { data, error } = await supabaseClient.rpc('deactivate_products', { items });
+  if (error) {
+    const messages = {
+      SOMENTE_ADMIN_ALTERA_ATIVIDADE_PRODUTO: 'Somente ADMIN pode inativar itens.',
+      PRODUTO_ALTERADO_POR_OUTRO_USUARIO: 'Um item foi alterado por outro usuário. Nenhum item foi inativado; pesquise novamente.',
+      PRODUTO_NAO_ENCONTRADO: 'Um item não está mais disponível. Nenhum item foi inativado; pesquise novamente.',
+      LOTE_ATIVIDADE_LIMITE: 'Selecione entre 1 e 200 itens.'
+    };
+    throw new Error(messages[error.message] || 'Não foi possível confirmar a inativação. Atualize a pesquisa.');
+  }
+  const expected = new Set(items.map((item) => item.codigo));
+  if (!data || data.count !== items.length || !Array.isArray(data.rows) || data.rows.length !== items.length
+    || !Number.isInteger(data.changed) || data.changed < 0 || data.changed > items.length
+    || data.rows.some((row) => !row || row.ativo !== false || !expected.delete(row.codigo)) || expected.size) {
+    throw new Error('Não foi possível confirmar o resultado. Atualize a pesquisa antes de tentar novamente.');
+  }
+  setStaticCache('productFiltersV4', null);
+  return data;
+}
