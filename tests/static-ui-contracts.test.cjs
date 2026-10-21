@@ -409,8 +409,12 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(store, /favorite_codes: favoriteCodes/);
   assert.doesNotMatch(store.slice(store.indexOf('async function supabaseSearchProducts'), store.indexOf('async function enrichProductsWithBranchAvailability')), /return supabaseListProducts/);
   assert.match(products, /PRODUCT_GENERAL_PAGE_SIZE = 200/);
+  assert.match(products, /PRODUCT_CSV_BATCH_SIZE = 500/);
   assert.match(products, /data-product-page="next"/);
   assert.match(products, /runProductGeneralListPage/);
+  assert.match(products, /loadAllProductsForCsv/);
+  assert.match(products, /offset = Math\.min\(offset \+ PRODUCT_CSV_BATCH_SIZE, PRODUCT_CSV_MAX_OFFSET\)/);
+  assert.match(products, /CSV gerado com \$\{exportRows\.length\}/);
   assert.match(store, /offset: Math\.max\(Number\(params\.offset \|\| 0\), 0\)/);
   assert.match(products, /productSearchRequests\.get\(target\) !== requestId/);
   assert.match(migration, /product_branch_stock/);
@@ -422,6 +426,27 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(paginationMigration, /offset v_offset/);
   assert.match(paginationMigration, /CONTRATO_BUSCA_110_PAGINACAO_DIVERGENTE/);
   assert.match(regression, /caixa hilux/);
+});
+
+test('general product CSV loads every result page before downloading', async () => {
+  const context = vm.createContext({ console });
+  vm.runInContext(read('js/products.js'), context);
+  const calls = [];
+  context.supabaseSearchProducts = async (params) => {
+    calls.push({ offset: params.offset, limit: params.limite });
+    const length = Math.max(Math.min(1230 - params.offset, params.limite), 0);
+    return Array.from({ length }, (_, index) => ({ codigo: String(params.offset + index + 1) }));
+  };
+  context.csvParams = { listaGeral: true, regiao: 'PR' };
+  context.csvProgress = [];
+  const rows = await vm.runInContext('loadAllProductsForCsv(csvParams, (count) => csvProgress.push(count))', context);
+  assert.equal(rows.length, 1230);
+  assert.deepEqual(calls, [
+    { offset: 0, limit: 500 },
+    { offset: 500, limit: 500 },
+    { offset: 1000, limit: 500 }
+  ]);
+  assert.deepEqual(Array.from(context.csvProgress), [500, 1000, 1230]);
 });
 
 test('mobile CRM keeps document scrolling available on iOS', () => {
