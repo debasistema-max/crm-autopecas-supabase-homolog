@@ -409,12 +409,19 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(store, /favorite_codes: favoriteCodes/);
   assert.doesNotMatch(store.slice(store.indexOf('async function supabaseSearchProducts'), store.indexOf('async function enrichProductsWithBranchAvailability')), /return supabaseListProducts/);
   assert.match(products, /PRODUCT_GENERAL_PAGE_SIZE = 200/);
-  assert.match(products, /PRODUCT_CSV_BATCH_SIZE = 500/);
+  assert.match(products, /PRODUCT_XLSX_BATCH_SIZE = 500/);
   assert.match(products, /data-product-page="next"/);
   assert.match(products, /runProductGeneralListPage/);
-  assert.match(products, /loadAllProductsForCsv/);
-  assert.match(products, /offset = Math\.min\(offset \+ PRODUCT_CSV_BATCH_SIZE, PRODUCT_CSV_MAX_OFFSET\)/);
-  assert.match(products, /CSV gerado com \$\{exportRows\.length\}/);
+  assert.match(products, /loadAllProductsForXlsx/);
+  assert.match(products, /offset = Math\.min\(offset \+ PRODUCT_XLSX_BATCH_SIZE, PRODUCT_XLSX_MAX_OFFSET\)/);
+  assert.match(products, /Baixar XLSX/);
+  assert.match(products, /buildProductXlsxRows/);
+  assert.match(products, /product\.grupo \|\| product\.material_group \|\| product\.fiscal_group/);
+  assert.match(products, /product\.vehicle_makers\.join\('\ \/ '\)/);
+  assert.match(products, /\[\$R\$-pt-BR\] #,##0\.00/);
+  assert.match(products, /lista-produtos-.+\.xlsx/);
+  assert.doesNotMatch(products.slice(products.indexOf('function buildProductXlsxRows'), products.indexOf('async function exportProductsXlsx')), /similares|product\.similar/);
+  assert.match(products, /XLSX gerado com \$\{exportRows\.length\}/);
   assert.match(store, /offset: Math\.max\(Number\(params\.offset \|\| 0\), 0\)/);
   assert.match(products, /productSearchRequests\.get\(target\) !== requestId/);
   assert.match(migration, /product_branch_stock/);
@@ -425,10 +432,14 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(paginationMigration, /pg_get_functiondef\('public\.search_products_v2\(jsonb\)'::regprocedure\)/);
   assert.match(paginationMigration, /offset v_offset/);
   assert.match(paginationMigration, /CONTRATO_BUSCA_110_PAGINACAO_DIVERGENTE/);
+  const productExportMigration = read('supabase/migrations/111_product_export_vehicle_makers.sql');
+  assert.match(productExportMigration, /product_vehicle_makers/);
+  assert.match(productExportMigration, /Veiculos \/ anos informados no catalogo/);
+  assert.match(productExportMigration, /current_catalog_details/);
   assert.match(regression, /caixa hilux/);
 });
 
-test('general product CSV loads every result page before downloading', async () => {
+test('general product XLSX loads every result page before downloading', async () => {
   const context = vm.createContext({ console });
   vm.runInContext(read('js/products.js'), context);
   const calls = [];
@@ -437,16 +448,33 @@ test('general product CSV loads every result page before downloading', async () 
     const length = Math.max(Math.min(1230 - params.offset, params.limite), 0);
     return Array.from({ length }, (_, index) => ({ codigo: String(params.offset + index + 1) }));
   };
-  context.csvParams = { listaGeral: true, regiao: 'PR' };
-  context.csvProgress = [];
-  const rows = await vm.runInContext('loadAllProductsForCsv(csvParams, (count) => csvProgress.push(count))', context);
+  context.xlsxParams = { listaGeral: true, regiao: 'PR' };
+  context.xlsxProgress = [];
+  const rows = await vm.runInContext('loadAllProductsForXlsx(xlsxParams, (count) => xlsxProgress.push(count))', context);
   assert.equal(rows.length, 1230);
   assert.deepEqual(calls, [
     { offset: 0, limit: 500 },
     { offset: 500, limit: 500 },
     { offset: 1000, limit: 500 }
   ]);
-  assert.deepEqual(Array.from(context.csvProgress), [500, 1000, 1230]);
+  assert.deepEqual(Array.from(context.xlsxProgress), [500, 1000, 1230]);
+});
+
+test('product XLSX rows use material group, vehicle makers and numeric currency without similars', () => {
+  const context = vm.createContext({
+    console,
+    formatVehicleTypes: (types) => ({ LEVE: 'Leve', UTILITARIO: 'Utilitario', PESADO: 'Pesado' })[types?.[0]] || 'Nao classificado'
+  });
+  vm.runInContext(read('js/products.js'), context);
+  context.xlsxProducts = [{
+    codigo: '00123', linha: 'DIRECAO', grupo: '', material_group: '34',
+    vehicle_types: ['LEVE'], vehicle_makers: ['FIAT', 'FORD'], oem: 'ABC', similar: 'REMOVER',
+    aplicacao: 'PALIO / FIESTA', estoque: '12', preco: '123.45'
+  }];
+  const rows = JSON.parse(JSON.stringify(vm.runInContext('buildProductXlsxRows(xlsxProducts)', context)));
+  assert.deepEqual(rows[0], ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Preço']);
+  assert.deepEqual(rows[1], ['00123', 'DIRECAO', '34', 'Leve', 'FIAT / FORD', 'ABC', 'PALIO / FIESTA', '12', 123.45]);
+  assert.equal(rows.flat().includes('REMOVER'), false);
 });
 
 test('mobile CRM keeps document scrolling available on iOS', () => {

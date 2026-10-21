@@ -9,8 +9,8 @@ const productState = {
   activityBusy: false
 };
 const PRODUCT_GENERAL_PAGE_SIZE = 200;
-const PRODUCT_CSV_BATCH_SIZE = 500;
-const PRODUCT_CSV_MAX_OFFSET = 50000;
+const PRODUCT_XLSX_BATCH_SIZE = 500;
+const PRODUCT_XLSX_MAX_OFFSET = 50000;
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
 let productDetailReturnFocus = null;
@@ -333,7 +333,7 @@ function renderProductCatalog(products, params) {
         ${canManageProductActivity() ? `<label class="product-toggle"><input type="checkbox" id="productSelectDisplayed"> Selecionar exibidos</label>
           <span id="productSelectionCount" role="status">0 selecionados</span>
           <button class="btn btn-secondary" id="productDeactivateSelected" type="button" disabled>Inativar selecionados</button>` : ''}
-        <button class="btn btn-secondary" type="button" data-export-products>Baixar CSV</button>
+        <button class="btn btn-secondary" type="button" data-export-products>Baixar XLSX</button>
       </div>
     </div>
     ${params.listaGeral ? `<div class="actions-row product-results-pagination" aria-label="Paginação da lista geral">
@@ -466,7 +466,7 @@ function bindProductCatalog(products, params) {
     });
   });
   const exportButton = document.querySelector('[data-export-products]');
-  if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params, exportButton));
+  if (exportButton) exportButton.addEventListener('click', () => exportProductsXlsx(products, params, exportButton));
   document.querySelector('[data-product-page="previous"]')?.addEventListener('click', () => {
     runProductGeneralListPage(params, Math.max(Number(params.offset || 0) - Number(params.pageSize || PRODUCT_GENERAL_PAGE_SIZE), 0));
   });
@@ -994,68 +994,81 @@ function formatProductDate(value) {
   return date.toLocaleString(APP_CONFIG.locale || 'pt-BR');
 }
 
-async function loadAllProductsForCsv(params, onProgress) {
+async function loadAllProductsForXlsx(params, onProgress) {
   const products = [];
   let offset = 0;
-  while (offset <= PRODUCT_CSV_MAX_OFFSET) {
+  while (offset <= PRODUCT_XLSX_MAX_OFFSET) {
     const page = await supabaseSearchProducts(Object.assign({}, params, {
       offset,
-      limite: PRODUCT_CSV_BATCH_SIZE,
-      pageSize: PRODUCT_CSV_BATCH_SIZE,
+      limite: PRODUCT_XLSX_BATCH_SIZE,
+      pageSize: PRODUCT_XLSX_BATCH_SIZE,
       context: 'produtos'
     }));
     if (!page.length) break;
     products.push(...page);
     if (typeof onProgress === 'function') onProgress(products.length);
-    if (page.length < PRODUCT_CSV_BATCH_SIZE) break;
-    if (offset === PRODUCT_CSV_MAX_OFFSET) {
+    if (page.length < PRODUCT_XLSX_BATCH_SIZE) break;
+    if (offset === PRODUCT_XLSX_MAX_OFFSET) {
       throw new Error('A lista ultrapassa o limite de 50.500 produtos por arquivo. Refine os filtros e tente novamente.');
     }
-    offset = Math.min(offset + PRODUCT_CSV_BATCH_SIZE, PRODUCT_CSV_MAX_OFFSET);
+    offset = Math.min(offset + PRODUCT_XLSX_BATCH_SIZE, PRODUCT_XLSX_MAX_OFFSET);
   }
   return products;
 }
 
-function downloadProductsCsv(products, params) {
-  const headers = ['codigo', 'linha', 'grupo', 'tipo_veiculo', 'montadora', 'oem', 'similares', 'aplicacoes', 'estoque', 'preco'];
-  const lines = [
-    headers.join(';'),
-    ...products.map((product) => headers.map((field) => {
-      if (field === 'preco') return csvCell(product.preco);
-      if (field === 'linha') return csvCell(product.linha || product.categoria);
-      if (field === 'tipo_veiculo') return csvCell(formatVehicleTypes(product.vehicle_types));
-      if (field === 'similares') return csvCell(product.similar);
-      if (field === 'aplicacoes') return csvCell(product.aplicacao);
-      return csvCell(product[field]);
-    }).join(';'))
+function buildProductXlsxRows(products) {
+  return [
+    ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Preço'],
+    ...products.map((product) => [
+      String(product.codigo || ''),
+      product.linha || product.categoria || '',
+      product.grupo || product.material_group || product.fiscal_group || '',
+      formatVehicleTypes(product.vehicle_types),
+      Array.isArray(product.vehicle_makers) ? product.vehicle_makers.join(' / ') : '',
+      product.oem || '',
+      product.aplicacao || '',
+      product.estoque ?? '',
+      product.preco === null || product.preco === undefined || product.preco === '' ? '' : Number(product.preco)
+    ])
   ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'lista-produtos-' + (params.regiao || 'SP').toLowerCase() + '.csv';
-  link.click();
-  URL.revokeObjectURL(link.href);
 }
 
-async function exportProductsCsv(products, params, button) {
+function downloadProductsXlsx(products, params) {
+  if (typeof XLSX === 'undefined') throw new Error('Gerador XLSX não carregado. Atualize a página e tente novamente.');
+  const rows = buildProductXlsxRows(products);
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet['!cols'] = [
+    { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 22 }, { wch: 28 },
+    { wch: 28 }, { wch: 55 }, { wch: 18 }, { wch: 16 }
+  ];
+  for (let row = 1; row < rows.length; row += 1) {
+    const priceCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 8 })];
+    if (priceCell && priceCell.t === 'n') priceCell.z = '[$R$-pt-BR] #,##0.00';
+  }
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
+  XLSX.writeFile(workbook, 'lista-produtos-' + (params.regiao || 'SP').toLowerCase() + '.xlsx', { compression: true });
+}
+
+async function exportProductsXlsx(products, params, button) {
   if (!button || button.disabled) return;
   const originalLabel = button.textContent;
   const notice = document.getElementById('productMessage');
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = params.listaGeral ? 'Preparando CSV...' : 'Gerando CSV...';
-  if (notice) notice.textContent = params.listaGeral ? 'Buscando todos os produtos para o CSV...' : '';
+  button.textContent = params.listaGeral ? 'Preparando XLSX...' : 'Gerando XLSX...';
+  if (notice) notice.textContent = params.listaGeral ? 'Buscando todos os produtos para o XLSX...' : '';
   try {
     const exportRows = params.listaGeral
-      ? await loadAllProductsForCsv(params, (count) => {
-        button.textContent = `Preparando CSV (${count})`;
+      ? await loadAllProductsForXlsx(params, (count) => {
+        button.textContent = `Preparando XLSX (${count})`;
         if (notice) notice.textContent = `${count} produtos preparados para exportacao...`;
       })
       : products;
-    downloadProductsCsv(exportRows, params);
-    if (notice) notice.textContent = `CSV gerado com ${exportRows.length} ${exportRows.length === 1 ? 'produto' : 'produtos'}.`;
+    downloadProductsXlsx(exportRows, params);
+    if (notice) notice.textContent = `XLSX gerado com ${exportRows.length} ${exportRows.length === 1 ? 'produto' : 'produtos'}.`;
   } catch (error) {
-    if (notice) notice.textContent = error.message || 'Nao foi possivel gerar o CSV.';
+    if (notice) notice.textContent = error.message || 'Nao foi possivel gerar o XLSX.';
   } finally {
     button.disabled = false;
     button.removeAttribute('aria-busy');
