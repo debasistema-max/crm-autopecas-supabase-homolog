@@ -32,6 +32,8 @@ jobs:
           cache-dependency-path: scripts/requirements-data-sync.txt
       - name: Install Python requirements
         run: python -m pip install -r scripts/requirements-data-sync.txt
+      - name: Install locked worker dependency for regression tests
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Full regression suite including single-session frontend
         run: npm test
 
