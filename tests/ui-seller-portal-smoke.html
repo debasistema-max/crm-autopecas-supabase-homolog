@@ -86,6 +86,7 @@
       { codigo: 'DEMO-FAROL', descricao: 'FAROL DIANTEIRO DIREITO', linha: 'ILUMINACAO', grupo: 'AUTOPECAS', aplicacao: 'LINHA LEVE · REPOSIÇÃO', estoque: 32, preco: 348.90, preco_sp: 348.90, preco_pr: 337.50, ativo: true },
       { codigo: 'DEMO-RETROVISOR', descricao: 'RETROVISOR EXTERNO ESQUERDO', linha: 'RETROVISORES', grupo: 'AUTOPECAS', aplicacao: 'UTILITÁRIOS · MANUAL', estoque: 0, preco: 189.50, preco_sp: 189.50, preco_pr: 182.80, ativo: true }
     ];
+    if (sellerSmokeParams.has('photo')) sellerSampleProducts[0].url_imagem = '../assets/logo-ips-yokomitsu.png';
     async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['TOYOTA'] }; }
     async function supabaseListProductFavorites() { return []; }
     async function supabaseListRecentProducts() { return sellerSampleProducts.slice(0, 1); }

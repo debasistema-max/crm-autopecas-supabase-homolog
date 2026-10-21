@@ -1954,6 +1954,77 @@ body.product-detail-open {
   grid-row: span 2;
 }
 
+.product-photo-trigger {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.product-photo-trigger:disabled { cursor: default; }
+.product-photo-trigger:disabled .product-photo-caption { display: none; }
+
+.product-photo-caption {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--primary-strong);
+  font-size: 12px;
+}
+
+.product-photo-dialog {
+  width: min(1200px, calc(100% - 32px));
+  max-width: calc(100% - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+
+.product-photo-dialog::backdrop { background: rgba(10, 23, 35, 0.8); }
+.product-photo-dialog[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+
+.product-photo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.product-photo-header strong { min-width: 0; overflow-wrap: anywhere; }
+.product-photo-header button { flex-shrink: 0; min-height: 44px; }
+
+.product-photo-zoom {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  width: min(300px, 100%);
+  padding: 8px 16px;
+}
+
+.product-photo-zoom input { grid-column: 1 / -1; width: 100%; min-height: 32px; padding: 0; }
+.product-photo-zoom output { font-variant-numeric: tabular-nums; }
+.product-photo-viewport { min-height: 0; height: min(70dvh, 760px); overflow: auto; background: #f8fafb; }
+.product-photo-canvas { width: calc(100% * var(--photo-scale, 1)); height: calc(100% * var(--photo-scale, 1)); }
+.product-photo-canvas img { display: block; width: 100%; height: 100%; object-fit: contain; }
+#productPhotoError { margin: 0; padding: 12px 16px; color: var(--danger); }
+
+@media (max-width: 600px) {
+  .product-photo-dialog { width: calc(100% - 16px); max-width: calc(100% - 16px); max-height: calc(100dvh - 16px); }
+  .product-photo-header { padding: 8px 12px; }
+  .product-photo-viewport { height: calc(100dvh - 180px); }
+}
+
 .product-detail-title span {
   color: var(--primary-strong);
   font-weight: 900;

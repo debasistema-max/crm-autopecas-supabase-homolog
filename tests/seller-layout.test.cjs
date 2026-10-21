@@ -65,7 +65,7 @@ test('seller styling is isolated and commercial focus hides the seller navigatio
   assert.match(app, /isModuleBlockedForCurrentRole\(module\) \|\| !hasModuleAccess\(module, allowed\)/);
   const page = read('app.html');
   assert.match(page, /css\/seller.css\?v=20261021-1/);
-  assert.match(page, /js\/products.js\?v=20261021-seller-1/);
+  assert.match(page, /js\/products.js\?v=20261021-photo-1/);
 });
 
 test('horizontal navigation respects report-only, create-only and additional module permissions', () => {
@@ -91,4 +91,47 @@ test('horizontal navigation respects report-only, create-only and additional mod
     assert.equal(brand.hidden, true);
     assert.equal(nav.children.length, 0);
   }
+});
+
+test('photo enlargement uses the loaded source only and skips missing or failed images', () => {
+  const context = catalogHarness('VENDEDOR');
+  const listeners = new Map();
+  const nodes = new Map();
+  let opens = 0;
+  const style = { setProperty() {}, getPropertyValue: () => '1' };
+  const node = (id) => {
+    if (!nodes.has(id)) nodes.set(id, { style, clientWidth: 500, clientHeight: 300, scrollTop: 0, scrollLeft: 0,
+      addEventListener: (name, callback) => listeners.set(`${id}:${name}`, callback),
+      showModal() { this.open = true; opens += 1; }, close() { this.open = false; }, removeAttribute() {}
+    });
+    return nodes.get(id);
+  };
+  context.document.getElementById = node;
+  context.bindProductPhotoViewer();
+  const click = listeners.get('productDetail:click');
+  const eventFor = (source) => ({ target: { closest: () => ({ querySelector: () => source }) } });
+  click(eventFor(null));
+  click(eventFor({ hidden: true, naturalWidth: 800 }));
+  click(eventFor({ hidden: false, naturalWidth: 0 }));
+  assert.equal(opens, 0);
+  click(eventFor({ hidden: false, naturalWidth: 800, alt: 'Foto', currentSrc: 'https://example.test/fallback.webp', src: 'https://example.test/original.webp' }));
+  assert.equal(opens, 1);
+  assert.equal(node('productPhotoImage').src, 'https://example.test/fallback.webp');
+  assert.equal(node('productPhotoZoom').value, '100');
+  assert.equal(node('productPhotoError').hidden, true);
+  listeners.get('productPhotoClose:click')();
+  assert.equal(node('productPhotoDialog').open, false);
+});
+
+test('photo viewer closes with the product sheet and uses a native modal with accessible zoom', () => {
+  const source = read('js/products.js');
+  assert.match(source, /<dialog class="product-photo-dialog"[^>]*aria-labelledby="productPhotoTitle"/);
+  assert.match(source, /type="range"[^>]*aria-label="Zoom da foto"/);
+  const context = catalogHarness('VENDEDOR');
+  let closed = false;
+  const dialog = { open: true, close: () => { closed = true; } };
+  context.document.getElementById = (id) => id === 'productPhotoDialog' ? dialog : { hidden: false };
+  context.document.body = { classList: { remove() {} } };
+  context.closeProductDetail({ restoreFocus: false });
+  assert.equal(closed, true);
 });
