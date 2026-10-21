@@ -534,7 +534,23 @@ function closeProductDetail(options = {}) {
   productDetailReturnFocus = null;
 }
 
+function extractInstalledCatalogNotes(value) {
+  const original = String(value || '');
+  const start = '[CATALOGO_IPS_INSTALADO]';
+  const end = '[/CATALOGO_IPS_INSTALADO]';
+  const first = original.indexOf(start);
+  const last = original.indexOf(end);
+  if (first < 0 || last < first || original.indexOf(start, first + start.length) >= 0 || original.indexOf(end, last + end.length) >= 0) {
+    return { manual: original, catalog: '' };
+  }
+  return {
+    manual: [original.slice(0, first).trim(), original.slice(last + end.length).trim()].filter(Boolean).join('\n'),
+    catalog: original.slice(first + start.length, last).trim()
+  };
+}
+
 function renderProductDetail(product, history) {
+  const notes = extractInstalledCatalogNotes(product.detalhes);
   return `
     <div class="product-detail">
       <button class="product-detail-image product-photo-trigger" type="button" data-expand-product-photo disabled aria-label="Ampliar foto do produto">
@@ -555,13 +571,14 @@ function renderProductDetail(product, history) {
         ${detailItem('OEM', product.oem)}
         ${detailItem('Similares', product.similar)}
         ${detailItem('Aplicacoes', product.aplicacao)}
-        ${detailItem('Detalhes consulta', product.detalhes)}
+        ${detailItem('Detalhes consulta', notes.manual)}
         ${detailItem('Estoque', product.estoque)}
         ${detailItem('Qtd. estoque', product.estoque_quantidade)}
         ${detailItem('Preco SP', money(product.preco_sp))}
         ${detailItem('Preco PR', money(product.preco_pr))}
       </dl>
       ${renderProductActivityForm(product)}
+      ${notes.catalog ? `<details class="product-catalog-notes"><summary>Informações do catálogo IPS</summary><p>${escapeHtml(notes.catalog)}</p></details>` : ''}
       <div class="product-history-grid">
         ${renderHistoryBlock('Historico de precos', history.prices)}
         ${renderHistoryBlock('Historico de estoque', history.stock)}

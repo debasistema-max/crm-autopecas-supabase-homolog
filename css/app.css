@@ -1954,6 +1954,24 @@ body.product-detail-open {
   grid-row: span 2;
 }
 
+.product-catalog-notes {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.product-catalog-notes summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--primary-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+.product-catalog-notes p {
+  margin: 10px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .product-photo-trigger {
   position: relative;
   width: 100%;

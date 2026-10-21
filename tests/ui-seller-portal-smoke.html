@@ -87,6 +87,7 @@
       { codigo: 'DEMO-RETROVISOR', descricao: 'RETROVISOR EXTERNO ESQUERDO', linha: 'RETROVISORES', grupo: 'AUTOPECAS', aplicacao: 'UTILITÁRIOS · MANUAL', estoque: 0, preco: 189.50, preco_sp: 189.50, preco_pr: 182.80, ativo: true }
     ];
     if (sellerSmokeParams.has('photo')) sellerSampleProducts[0].url_imagem = '../assets/logo-ips-yokomitsu.png';
+    if (sellerSmokeParams.has('ips')) sellerSampleProducts[0].detalhes = 'Observacao original preservada\n\n[CATALOGO_IPS_INSTALADO]\nOrigem: Catalogo IPS instalado\nMarca: IPS\nEAN/GTIN: 7898778850018\nDimensoes informadas no catalogo: Altura: 32 | Largura: 14.5\nVeiculos / anos informados no catalogo:\nTOYOTA | HILUX 2005-2015\n[/CATALOGO_IPS_INSTALADO]';
     async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['TOYOTA'] }; }
     async function supabaseListProductFavorites() { return []; }
     async function supabaseListRecentProducts() { return sellerSampleProducts.slice(0, 1); }
