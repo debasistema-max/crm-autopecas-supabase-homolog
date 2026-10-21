@@ -34,13 +34,14 @@ async function renderDataSyncCenter(container) {
       <section class="panel data-sync-actions-panel" aria-labelledby="dataSyncActionsTitle">
         <div class="section-heading"><div><h3 id="dataSyncActionsTitle">Ações</h3><p>A execução ocorre no backend; nenhuma credencial é enviada ao navegador.</p></div></div>
         <div class="actions-row data-sync-actions">
-          <button class="btn btn-primary" id="dataSyncNow" type="button">Sincronizar agora</button>
+          <button class="btn btn-primary" id="dataSyncNow" type="button">Sincronizar Excel</button>
           <button class="btn btn-secondary" id="dataSyncDetails" type="button">Relatório de alterações</button>
           <button class="btn btn-secondary" id="dataSyncErrors" type="button">Visualizar erros</button>
           <button class="btn btn-secondary" id="dataSyncHistory" type="button">Visualizar histórico</button>
         </div>
         <div class="data-sync-notice" id="dataSyncMessage" role="status" aria-live="polite"></div>
       </section>
+      ${isCurrentUserAdmin() ? renderInstalledCatalogSyncSection() : ''}
       <section class="panel data-sync-result-panel" id="dataSyncResult" aria-live="polite">
         ${CrmUi.renderState('loading', 'Carregando histórico', 'Consultando os lotes mais recentes.')}
       </section>
@@ -50,7 +51,100 @@ async function renderDataSyncCenter(container) {
   document.getElementById('dataSyncDetails').addEventListener('click', () => renderDataSyncPanel('details'));
   document.getElementById('dataSyncErrors').addEventListener('click', () => renderDataSyncPanel('errors'));
   document.getElementById('dataSyncHistory').addEventListener('click', () => renderDataSyncPanel('history'));
+  initInstalledCatalogSync();
   await loadDataSyncOverview();
+}
+
+let installedCatalogPollTimer = null;
+let installedCatalogRequestBusy = false;
+
+function renderInstalledCatalogSyncSection() {
+  return `<section class="panel" aria-labelledby="installedCatalogTitle">
+    <div class="section-heading"><h3 id="installedCatalogTitle">Catálogo IPS instalado</h3>
+      <div class="actions-row">
+        <button class="btn btn-primary" id="installedCatalogSyncNow" type="button" disabled>Sincronizar Catálogo IPS</button>
+        <button class="btn btn-ghost" id="installedCatalogRefresh" type="button">Atualizar catálogo</button>
+      </div>
+    </div>
+    <p id="installedCatalogMessage" role="status" aria-live="polite">Consultando executor local...</p>
+    <div id="installedCatalogHistory"></div>
+  </section>`;
+}
+
+function initInstalledCatalogSync() {
+  clearTimeout(installedCatalogPollTimer);
+  const button = document.getElementById('installedCatalogSyncNow');
+  if (!button) return;
+  button.addEventListener('click', triggerInstalledCatalogSync);
+  document.getElementById('installedCatalogRefresh').addEventListener('click', () => loadInstalledCatalogSync());
+  loadInstalledCatalogSync();
+}
+
+function installedCatalogRequestPending(row, now = Date.now()) {
+  if (!row) return false;
+  return row.status === 'queued' ? now - Date.parse(row.requested_at) < 86400000
+    : row.status === 'running' && Date.parse(row.lease_until) > now;
+}
+
+function installedCatalogStatusLabel(row) {
+  const labels = { queued: 'Aguardando computador', running: 'Lendo catálogo local', completed: 'Concluído', failed: 'Falhou' };
+  if (['queued', 'running'].includes(row.status) && !installedCatalogRequestPending(row)) return 'Tempo esgotado';
+  return labels[row.status] || 'Indisponível';
+}
+
+async function loadInstalledCatalogSync() {
+  clearTimeout(installedCatalogPollTimer);
+  const target = document.getElementById('installedCatalogHistory');
+  if (!target) return;
+  const button = document.getElementById('installedCatalogSyncNow');
+  const message = document.getElementById('installedCatalogMessage');
+  try {
+    const result = await supabaseListInstalledCatalogSync();
+    if (document.getElementById('installedCatalogHistory') !== target) return;
+    const rows = result.rows || [];
+    const active = rows.some((row) => installedCatalogRequestPending(row));
+    button.disabled = installedCatalogRequestBusy || active;
+    const latest = rows[0];
+    message.textContent = active ? 'Solicitação em andamento. O executor precisa estar ativo nesta máquina.'
+      : latest?.status === 'failed' ? 'Não foi possível sincronizar. Consulte o log do executor local e tente novamente.'
+      : latest && ['queued', 'running'].includes(latest.status) ? 'O executor não respondeu a tempo. Você pode solicitar novamente.'
+      : latest ? 'Última execução: ' + installedCatalogStatusLabel(latest) + '.' : 'Nenhuma sincronização solicitada.';
+    target.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr>
+      <th>Solicitado em</th><th>Usuário</th><th>Status</th><th>Itens alterados</th><th>Sem alteração</th><th>Não encontrados</th>
+      </tr></thead><tbody>${rows.map((row) => `<tr>
+        <td data-label="Solicitado em">${escapeHtml(formatDataSyncDateTime(row.requested_at))}</td><td data-label="Usuário">${escapeHtml(row.usuario || '')}</td>
+        <td data-label="Status">${escapeHtml(installedCatalogStatusLabel(row))}</td>
+        <td data-label="Itens alterados">${row.status === 'completed' ? Number(row.summary?.updated || 0).toLocaleString('pt-BR') : '—'}</td>
+        <td data-label="Sem alteração">${row.status === 'completed' ? Number(row.summary?.unchanged || 0).toLocaleString('pt-BR') : '—'}</td>
+        <td data-label="Não encontrados">${row.status === 'completed' ? Number(row.summary?.unmatched || 0).toLocaleString('pt-BR') : '—'}</td>
+      </tr>`).join('')}</tbody></table></div>` : '';
+    if (active) installedCatalogPollTimer = setTimeout(loadInstalledCatalogSync, 10000);
+  } catch (_) {
+    if (document.getElementById('installedCatalogHistory') !== target) return;
+    button.disabled = true;
+    message.textContent = 'Catálogo local indisponível. Atualize para tentar novamente. O sincronismo do Excel permanece independente.';
+  }
+}
+
+async function triggerInstalledCatalogSync() {
+  const button = document.getElementById('installedCatalogSyncNow');
+  if (!button || button.disabled || installedCatalogRequestBusy) return;
+  installedCatalogRequestBusy = true;
+  button.disabled = true;
+  const message = document.getElementById('installedCatalogMessage');
+  message.textContent = 'Solicitando sincronização do catálogo instalado...';
+  try {
+    await supabaseRequestInstalledCatalogSync();
+    installedCatalogRequestBusy = false;
+    await loadInstalledCatalogSync();
+  } catch (_) {
+    if (document.getElementById('installedCatalogMessage') === message) {
+      message.textContent = 'Não foi possível confirmar a solicitação. Atualize o histórico antes de tentar novamente.';
+      button.disabled = false;
+    }
+  } finally {
+    installedCatalogRequestBusy = false;
+  }
 }
 
 async function loadDataSyncOverview(options = {}) {

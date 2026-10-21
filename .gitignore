@@ -4,3 +4,4 @@ __pycache__/
 supabase/.temp/
 .tmp-*.json
 .tmp-ui/
+node_modules/
