@@ -153,5 +153,5 @@ test('installed catalog information is escaped and does not replace commercial d
   assert.match(html, /Descricao SAP/);
   assert.match(html, /Informações do catálogo IPS/);
   assert.match(html, /&lt;script&gt;nao executar&lt;\/script&gt;/);
-  assert.doesNotMatch(html, /<script>/);
+  assert.doesNotMatch(html, /<script\b/i);
 });
