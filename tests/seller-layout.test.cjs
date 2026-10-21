@@ -65,7 +65,7 @@ test('seller styling is isolated and commercial focus hides the seller navigatio
   assert.match(app, /isModuleBlockedForCurrentRole\(module\) \|\| !hasModuleAccess\(module, allowed\)/);
   const page = read('app.html');
   assert.match(page, /css\/seller.css\?v=20261021-1/);
-  assert.match(page, /js\/products.js\?v=20261021-photo-1/);
+  assert.match(page, /js\/products.js\?v=20261021-ips-catalog-1/);
 });
 
 test('horizontal navigation respects report-only, create-only and additional module permissions', () => {
@@ -134,4 +134,24 @@ test('photo viewer closes with the product sheet and uses a native modal with ac
   context.document.body = { classList: { remove() {} } };
   context.closeProductDetail({ restoreFocus: false });
   assert.equal(closed, true);
+});
+
+test('installed catalog notes preserve manual details and keep malformed markers visible', () => {
+  const context = catalogHarness('VENDEDOR');
+  const notes = context.extractInstalledCatalogNotes('OEM manual\n[CATALOGO_IPS_INSTALADO]\nEAN: 123\n[/CATALOGO_IPS_INSTALADO]\nOutro detalhe');
+  assert.equal(notes.manual, 'OEM manual\nOutro detalhe');
+  assert.equal(notes.catalog, 'EAN: 123');
+  const malformed = '[CATALOGO_IPS_INSTALADO] sem fechamento';
+  assert.equal(context.extractInstalledCatalogNotes(malformed).manual, malformed);
+  assert.equal(context.extractInstalledCatalogNotes(malformed).catalog, '');
+});
+
+test('installed catalog information is escaped and does not replace commercial description', () => {
+  const context = catalogHarness('VENDEDOR');
+  context.formatVehicleTypes = () => 'Leve';
+  const html = context.renderProductDetail({ codigo: 'TEST', descricao: 'Descricao SAP', detalhes: '[CATALOGO_IPS_INSTALADO]\n<script>nao executar</script>\n[/CATALOGO_IPS_INSTALADO]' }, { prices: [], stock: [] });
+  assert.match(html, /Descricao SAP/);
+  assert.match(html, /Informações do catálogo IPS/);
+  assert.match(html, /&lt;script&gt;nao executar&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
 });
