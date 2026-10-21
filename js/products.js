@@ -8,6 +8,7 @@ const productState = {
   activitySelection: new Map(),
   activityBusy: false
 };
+const PRODUCT_GENERAL_PAGE_SIZE = 200;
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
 let productDetailReturnFocus = null;
@@ -204,6 +205,8 @@ async function runProductSearch(options = {}) {
 }
 
 function getProductSearchParams(options = {}) {
+  const generalList = options.listaGeral === true;
+  const offset = generalList ? Math.max(Number(options.offset || 0), 0) : 0;
   return {
     termo: document.getElementById('productTerm').value,
     regiao: document.getElementById('productRegion').value,
@@ -216,9 +219,11 @@ function getProductSearchParams(options = {}) {
     comFoto: document.getElementById('productPhotoFilter').checked,
     favoritos: document.getElementById('productFavoritesFilter').checked,
     incluirInativos: canManageProductActivity() && document.getElementById('productInactiveFilter')?.checked === true,
-    listaGeral: options.listaGeral === true,
+    listaGeral: generalList,
     silentEmpty: options.silentEmpty === true,
-    limite: options.listaGeral ? 200 : 120
+    offset,
+    pageSize: generalList ? PRODUCT_GENERAL_PAGE_SIZE : 120,
+    limite: generalList ? PRODUCT_GENERAL_PAGE_SIZE + 1 : 120
   };
 }
 
@@ -259,17 +264,21 @@ async function searchProductsInto(target, params, onAdd) {
   try {
     const products = await supabaseSearchProducts(Object.assign({}, params, { context: onAdd ? 'pedido' : 'produtos' }));
     if (productSearchRequests.get(target) !== requestId) return;
-    if (!products.length) {
+    const pageSize = Math.max(Number(params.pageSize || params.limite || 1), 1);
+    const hasMore = params.listaGeral === true && products.length > pageSize;
+    const visibleProducts = hasMore ? products.slice(0, pageSize) : products;
+    if (!visibleProducts.length) {
       target.innerHTML = CrmUi.renderState('empty', 'Nenhum produto encontrado', 'Revise o termo ou remova alguns filtros.');
       return;
     }
     if (onAdd) {
-      renderProductPickerResults(target, products, onAdd, params);
+      renderProductPickerResults(target, visibleProducts, onAdd, params);
       return;
     }
-    productState.results = products;
-    target.innerHTML = renderProductCatalog(products, params);
-    bindProductCatalog(products, params);
+    const renderedParams = Object.assign({}, params, { hasMore });
+    productState.results = visibleProducts;
+    target.innerHTML = renderProductCatalog(visibleProducts, renderedParams);
+    bindProductCatalog(visibleProducts, renderedParams);
   } catch (error) {
     if (productSearchRequests.get(target) !== requestId) return;
     target.innerHTML = CrmUi.renderState('error', 'Nao foi possivel pesquisar os produtos', error.message);
@@ -309,9 +318,15 @@ function renderProductPickerResults(target, products, onAdd, params = {}) {
 
 function renderProductCatalog(products, params) {
   const filters = renderProductFilterSummary(params);
+  const offset = Math.max(Number(params.offset || 0), 0);
+  const pageSize = Math.max(Number(params.pageSize || products.length || 1), 1);
+  const pageNumber = Math.floor(offset / pageSize) + 1;
+  const rangeLabel = params.listaGeral
+    ? `${offset + 1}-${offset + products.length} produtos`
+    : `${products.length} ${products.length === 1 ? 'produto' : 'produtos'}`;
   return `
     <div class="panel-header product-results-header">
-      <div><h2>${products.length} ${products.length === 1 ? 'produto' : 'produtos'}</h2><p>${escapeHtml(filters || 'Resultado da pesquisa')}</p></div>
+      <div><h2>${rangeLabel}</h2><p>${escapeHtml(filters || 'Resultado da pesquisa')}${params.listaGeral && params.hasMore ? ' · há mais produtos' : ''}</p></div>
       <div class="actions-row">
         ${canManageProductActivity() ? `<label class="product-toggle"><input type="checkbox" id="productSelectDisplayed"> Selecionar exibidos</label>
           <span id="productSelectionCount" role="status">0 selecionados</span>
@@ -319,6 +334,11 @@ function renderProductCatalog(products, params) {
         <button class="btn btn-secondary" type="button" data-export-products>Baixar CSV</button>
       </div>
     </div>
+    ${params.listaGeral ? `<div class="actions-row product-results-pagination" aria-label="Paginação da lista geral">
+      <button class="btn btn-secondary" type="button" data-product-page="previous" ${offset === 0 ? 'disabled' : ''}>Anterior</button>
+      <span>Página ${pageNumber}</span>
+      <button class="btn btn-secondary" type="button" data-product-page="next" ${params.hasMore ? '' : 'disabled'}>Próxima</button>
+    </div>` : ''}
     ${canManageProductActivity() ? '<p class="form-message" id="productBulkMessage" role="status" aria-live="polite"></p>' : ''}
     <div class="product-card-grid">
       ${products.map((product, index) => {
@@ -445,6 +465,24 @@ function bindProductCatalog(products, params) {
   });
   const exportButton = document.querySelector('[data-export-products]');
   if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params));
+  document.querySelector('[data-product-page="previous"]')?.addEventListener('click', () => {
+    runProductGeneralListPage(params, Math.max(Number(params.offset || 0) - Number(params.pageSize || PRODUCT_GENERAL_PAGE_SIZE), 0));
+  });
+  document.querySelector('[data-product-page="next"]')?.addEventListener('click', () => {
+    runProductGeneralListPage(params, Number(params.offset || 0) + Number(params.pageSize || PRODUCT_GENERAL_PAGE_SIZE));
+  });
+}
+
+async function runProductGeneralListPage(params, offset) {
+  if (productState.activityBusy) return;
+  const target = document.getElementById('productResults');
+  await searchProductsInto(target, Object.assign({}, params, {
+    listaGeral: true,
+    offset: Math.max(Number(offset || 0), 0),
+    limite: PRODUCT_GENERAL_PAGE_SIZE + 1,
+    pageSize: PRODUCT_GENERAL_PAGE_SIZE
+  }));
+  target.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 function getProductActivitySelection() {

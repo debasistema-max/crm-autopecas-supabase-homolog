@@ -284,7 +284,8 @@ async function supabaseSearchProducts(params) {
       with_oem: params.comOem === true,
       with_photo: params.comFoto === true,
       favorite_codes: favoriteCodes,
-      limit: Number(params.limite || 60)
+      limit: Number(params.limite || 60),
+      offset: Math.max(Number(params.offset || 0), 0)
     }
   });
   if (error) throw error;
