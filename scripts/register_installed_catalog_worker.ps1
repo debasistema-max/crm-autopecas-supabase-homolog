@@ -13,6 +13,9 @@ $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $configFolder = Split-Path $config -Parent
 $expectedFolder = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'IPSCRM\InstalledCatalogWorkerHomolog'))
 if (![string]::Equals($configFolder, $expectedFolder, [StringComparison]::OrdinalIgnoreCase)) { throw 'Use somente a pasta privada IPSCRM\InstalledCatalogWorkerHomolog em LOCALAPPDATA.' }
+$config = & $node (Join-Path $PSScriptRoot 'prepare_installed_catalog_worker.cjs') $config
+if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel resolver a configuracao fisica do executor.' }
+$configFolder = Split-Path $config -Parent
 $acl = New-Object Security.AccessControl.DirectorySecurity
 $acl.SetAccessRuleProtection($true, $false)
 $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($identity, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
@@ -26,7 +29,7 @@ if ($PSVersionTable.PSEdition -eq 'Core') {
 & $node $script $config --check
 if ($LASTEXITCODE -ne 0) { throw 'O teste do executor falhou. A tarefa nao foi registrada.' }
 $wrapper = Join-Path $PSScriptRoot 'run_installed_catalog_worker.ps1'
-$powershell = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
+$powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $action = New-ScheduledTaskAction -Execute $powershell -Argument "-NoProfile -ExecutionPolicy RemoteSigned -WindowStyle Hidden -File `"$wrapper`" -ConfigPath `"$config`" -NodePath `"$node`"" -WorkingDirectory $repo
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 2)
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 25) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

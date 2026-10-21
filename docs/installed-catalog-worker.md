@@ -70,6 +70,10 @@ argumentos, com instancias sobrepostas bloqueadas. Verificar ACL tambem em
 arquivos existentes com permissoes explicitas; nao compartilhar esta pasta.
 O wrapper usa RemoteSigned somente naquele processo, sem alterar a politica
 global do Windows; nao utiliza ExecutionPolicy Bypass. A janela fica oculta.
+O registro resolve os caminhos fisicos da configuracao, leitor, banco, manifesto
+e certificado. Isso evita diferencas de visibilidade entre aplicativos Windows
+empacotados e o Agendador. As evidencias ficam junto da configuracao fisica,
+na mesma pasta privada; nenhuma credencial e impressa pelo preparador.
 
 ## Teste e operacao
 

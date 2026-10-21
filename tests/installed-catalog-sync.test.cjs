@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const worker = require('../scripts/installed_catalog_worker.cjs');
+const { prepare } = require('../scripts/prepare_installed_catalog_worker.cjs');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
 function harness() {
@@ -76,6 +77,34 @@ test('worker snapshot pages through a restricted RPC instead of direct table acc
   } };
   assert.deepEqual(await worker.snapshot(client, { id: 'job', claim_token: 'secret' }), [{ codigo: '001' }]);
   assert.equal(calls, 2);
+});
+
+test('setup preserves credentials and uses physical paths for the scheduler', () => {
+  const os = require('node:os');
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ips-config-unit-'));
+  try {
+    const files = { database: 'catalog.db', manifest: 'manifest.json', python: 'python.exe', ca: 'ca.crt' };
+    for (const name of Object.keys(files)) {
+      files[name] = path.join(folder, files[name]);
+      fs.writeFileSync(files[name], 'fixture');
+    }
+    const config = { project: worker.PROJECT, user: 'ips_catalog_worker.' + worker.PROJECT,
+      host: 'aws-1-us-east-2.pooler.supabase.com', port: 5432, password: 'unit-test-not-a-real-secret',
+      ...files, evidence: path.join(folder, 'old-evidence') };
+    const file = path.join(folder, 'config.json');
+    fs.writeFileSync(file, JSON.stringify(config));
+    const physical = prepare(file);
+    const prepared = JSON.parse(fs.readFileSync(physical, 'utf8'));
+    assert.equal(physical, fs.realpathSync.native(file));
+    assert.equal(prepared.password, config.password);
+    assert.equal(prepared.evidence, path.join(path.dirname(physical), 'evidence'));
+    for (const name of Object.keys(files)) assert.equal(prepared[name], fs.realpathSync.native(files[name]));
+    assert.match(read('scripts/register_installed_catalog_worker.ps1'), /prepare_installed_catalog_worker/);
+  } finally {
+    assert.ok(path.resolve(folder).startsWith(path.resolve(os.tmpdir()) + path.sep));
+    assert.ok(path.basename(folder).startsWith('ips-config-unit-'));
+    fs.rmSync(folder, { recursive: true });
+  }
 });
 
 test('SQL queue fails closed, has no direct client grants and updates only technical fields', () => {
