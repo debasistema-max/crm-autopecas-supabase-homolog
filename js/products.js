@@ -572,6 +572,93 @@ async function deactivateSelectedProducts() {
   }
 }
 
+function getProductActivitySelection() {
+  if (!canManageProductActivity()) return [];
+  return productState.results.filter((product) => product.ativo === true && productState.activitySelection.has(product.codigo))
+    .map((product) => ({ codigo: product.codigo, expected_active: productState.activitySelection.get(product.codigo) }));
+}
+
+function updateProductActivitySelectionControls() {
+  const selected = getProductActivitySelection();
+  const eligible = productState.results.filter((product) => product.ativo === true);
+  const count = document.getElementById('productSelectionCount');
+  const all = document.getElementById('productSelectDisplayed');
+  const button = document.getElementById('productDeactivateSelected');
+  if (!count || !all || !button) return;
+  count.textContent = `${selected.length} ${selected.length === 1 ? 'selecionado' : 'selecionados'}`;
+  all.disabled = productState.activityBusy || !eligible.length;
+  all.checked = eligible.length > 0 && selected.length === eligible.length;
+  all.indeterminate = selected.length > 0 && selected.length < eligible.length;
+  button.disabled = productState.activityBusy || !selected.length || selected.length > 200;
+  document.querySelectorAll('[data-product-select]').forEach((control) => {
+    const product = productState.results[Number(control.dataset.productSelect)];
+    control.disabled = productState.activityBusy || product?.ativo !== true;
+    control.checked = Boolean(product && productState.activitySelection.has(product.codigo));
+  });
+}
+
+function bindProductActivitySelection() {
+  if (!canManageProductActivity()) return;
+  document.querySelectorAll('[data-product-select]').forEach((control) => {
+    control.addEventListener('change', () => {
+      const product = productState.results[Number(control.dataset.productSelect)];
+      if (!productState.activityBusy && product?.ativo === true) {
+        if (control.checked) productState.activitySelection.set(product.codigo, product.ativo);
+        else productState.activitySelection.delete(product.codigo);
+      }
+      updateProductActivitySelectionControls();
+    });
+  });
+  document.getElementById('productSelectDisplayed')?.addEventListener('change', (event) => {
+    if (productState.activityBusy) return;
+    productState.activitySelection.clear();
+    if (event.target.checked) productState.results.filter((product) => product.ativo === true)
+      .forEach((product) => productState.activitySelection.set(product.codigo, product.ativo));
+    updateProductActivitySelectionControls();
+  });
+  document.getElementById('productDeactivateSelected')?.addEventListener('click', deactivateSelectedProducts);
+  updateProductActivitySelectionControls();
+}
+
+async function deactivateSelectedProducts() {
+  const items = getProductActivitySelection();
+  if (productState.activityBusy || !items.length || items.length > 200) return;
+  if (!window.confirm(`Inativar ${items.length} itens selecionados?`)) return;
+  const target = document.getElementById('productResults');
+  const message = document.getElementById('productBulkMessage');
+  const form = document.getElementById('productSearchForm');
+  if (!target || !message) return;
+  const controls = Array.from(form?.elements || []).map((control) => ({ control, disabled: control.disabled }));
+  productState.activityBusy = true;
+  controls.forEach(({ control }) => { control.disabled = true; });
+  updateProductActivitySelectionControls();
+  message.textContent = 'Inativando itens selecionados...';
+  let result;
+  try {
+    result = await supabaseDeactivateProducts(items);
+    productState.activitySelection.clear();
+  } catch (error) {
+    message.textContent = error.message || 'Não foi possível confirmar a inativação. Atualize a pesquisa.';
+  } finally {
+    productState.activityBusy = false;
+    controls.forEach(({ control, disabled }) => { control.disabled = disabled; });
+    updateProductActivitySelectionControls();
+  }
+  if (result && document.getElementById('productResults') === target) {
+    const notice = document.getElementById('productMessage');
+    if (notice) {
+      notice.style.color = 'var(--success)';
+      notice.textContent = `${result.changed} ${result.changed === 1 ? 'item inativado' : 'itens inativados'} com sucesso.`;
+    }
+    await Promise.all([runProductSearch({ listaGeral: true }), refreshProductSideData(), loadProductFilterOptions()]).catch(() => {
+      if (notice && document.getElementById('productMessage') === notice) {
+        notice.style.color = 'var(--muted)';
+        notice.textContent = 'Itens inativados. Atualize a pesquisa para conferir.';
+      }
+    });
+  }
+}
+
 async function openProductDetail(product) {
   if (!product) return;
   productState.selected = product;
