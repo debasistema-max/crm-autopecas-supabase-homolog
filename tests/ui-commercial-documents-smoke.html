@@ -6,6 +6,7 @@
   <title>Smoke UI — Cotacao e pedido</title>
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/app.css">
+  <link rel="stylesheet" href="../css/seller.css">
 </head>
 <body class="app-page">
   <output id="smokeResult" hidden>Executando</output>
@@ -19,6 +20,7 @@
   <script src="../js/supabase_store.js"></script>
   <script>
     const commercialSmokeParams = new URLSearchParams(location.search);
+    if (commercialSmokeParams.has('seller')) document.body.classList.add('seller-portal-mode');
     async function loadCompanySettings() { return {}; }
     function formatCompanyBranchLabel() { return 'International Parts Service do Brasil Ltda'; }
     function getStoredSession() { return { nome: 'Administrador Homologacao' }; }

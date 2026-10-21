@@ -6,6 +6,7 @@
   <title>Smoke UI — Portal do vendedor</title>
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/app.css">
+  <link rel="stylesheet" href="../css/seller.css">
 </head>
 <body class="app-page">
   <output id="smokeResult" hidden>Executando</output>
@@ -28,9 +29,11 @@
     <section class="workspace">
       <header class="topbar">
         <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button>
+        <a class="seller-brand" href="#dashboard" hidden aria-label="Portal do vendedor"><img src="../assets/logo-ips-yokomitsu.png" alt="IPS do Brasil"><span><strong>Portal do vendedor</strong><small>IPS do Brasil · Yokomitsu</small></span></a>
         <div class="topbar-title"><p class="topbar-kicker" id="pageContext">Comercial</p><h1 id="pageTitle">Inicio</h1></div>
         <div class="topbar-user"><span class="topbar-user-copy"><strong id="userName">Vendedor</strong><small id="userRole">VENDEDOR</small></span><button class="btn btn-ghost" id="logoutButton" type="button">Sair</button></div>
       </header>
+      <nav class="seller-nav" id="sellerNav" aria-label="Navegação do vendedor" hidden></nav>
       <main class="content" id="content" tabindex="-1"></main>
     </section>
   </div>
@@ -42,15 +45,30 @@
     <button type="button" data-mobile-module="quoteReports"><span class="mobile-nav-icon" aria-hidden="true">CT</span><span>Cotacoes</span></button>
   </nav>
   <script src="../js/config.js"></script>
+  <script src="../js/utils/format.js"></script>
   <script src="../js/components/ui.js"></script>
+  <script src="../js/supabase_store.js"></script>
   <script>
     const sellerSession = {
       nome: 'Marina Vendas', usuario: 'marina', perfil: 'VENDEDOR',
       modules: ['dashboard', 'produtos', 'parceiros', 'cotacoes', 'nova_cotacao', 'pedidos', 'novo_pedido']
     };
+    const sellerSmokeParams = new URLSearchParams(location.search);
+    if (sellerSmokeParams.get('role') === 'admin') sellerSession.perfil = 'ADMIN';
+    if (sellerSmokeParams.get('permission')) sellerSession.modules = [sellerSmokeParams.get('permission')];
     function getStoredSession() { return sellerSession; }
     async function validateCurrentSession() { return sellerSession; }
     async function loadCompanySettings() { return {}; }
+    function formatCompanyBranchLabel() { return 'IPS do Brasil'; }
+    function formatCnpj(value) { return String(value || ''); }
+    function formatDateInput(value) { return new Date(value).toISOString().slice(0, 10); }
+    function dateInputToIsoStart(value) { return value ? new Date(`${value}T00:00:00`).toISOString() : ''; }
+    function dateInputToIsoEnd(value) { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + 1); return value ? date.toISOString() : ''; }
+    function isSupabaseReady() { return false; }
+    async function supabaseListOrdersReport() { return []; }
+    async function supabaseListQuotationsReport() { return []; }
+    async function supabaseCreateOrder() { throw new Error('Teste visual: gravação desativada.'); }
+    async function supabaseCreateQuotation() { throw new Error('Teste visual: gravação desativada.'); }
     async function supabaseLogout() {}
     function clearStoredSession() {}
     async function supabaseGetCommercialDashboardSummary() {
@@ -63,10 +81,23 @@
         rankings: { sellers: [], products: [], clients: [] }, abc_curve: [], series: [], sellers: []
       };
     }
-    async function renderProducts(container) { container.innerHTML = '<section class="panel" data-smoke-module="products"><h2>Catalogo de produtos</h2></section>'; }
-    async function renderOrdersReport(container) { container.innerHTML = '<section class="panel"><h2>Pedidos</h2></section>'; }
+    const sellerSampleProducts = [
+      { codigo: 'DEMO-DIRECAO', descricao: 'CAIXA DE DIREÇÃO HIDRÁULICA', linha: 'DIRECAO', grupo: 'AUTOPECAS', aplicacao: 'TOYOTA HILUX 2005–2015', estoque: 18, preco: 580, preco_sp: 580, preco_pr: 564, ativo: true },
+      { codigo: 'DEMO-FAROL', descricao: 'FAROL DIANTEIRO DIREITO', linha: 'ILUMINACAO', grupo: 'AUTOPECAS', aplicacao: 'LINHA LEVE · REPOSIÇÃO', estoque: 32, preco: 348.90, preco_sp: 348.90, preco_pr: 337.50, ativo: true },
+      { codigo: 'DEMO-RETROVISOR', descricao: 'RETROVISOR EXTERNO ESQUERDO', linha: 'RETROVISORES', grupo: 'AUTOPECAS', aplicacao: 'UTILITÁRIOS · MANUAL', estoque: 0, preco: 189.50, preco_sp: 189.50, preco_pr: 182.80, ativo: true }
+    ];
+    async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['TOYOTA'] }; }
+    async function supabaseListProductFavorites() { return []; }
+    async function supabaseListRecentProducts() { return sellerSampleProducts.slice(0, 1); }
+    async function supabaseGetTopSellingProducts() { return sellerSampleProducts.slice(0, 1); }
+    async function supabaseSearchProducts(params = {}) {
+      return sellerSampleProducts.filter((p) => (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0))
+        .map((p) => ({ ...p, preco: params.regiao === 'PR' ? p.preco_pr : p.preco_sp }));
+    }
+    async function supabaseToggleProductFavorite(code, enabled) { return enabled ? [code] : []; }
+    async function supabaseRegisterProductView() {}
+    async function supabaseGetProductHistory() { return { prices: [], stock: [] }; }
     async function renderStockTransfers() {}
-    async function renderQuotationsReport(container) { container.innerHTML = '<section class="panel"><h2>Cotacoes</h2></section>'; }
     async function renderBusinessPartners(container) { container.innerHTML = '<section class="panel"><h2>Clientes</h2></section>'; }
     async function renderDataSyncCenter() {}
     async function renderImportCenter() {}
@@ -78,6 +109,9 @@
     async function renderLogs() {}
   </script>
   <script src="../js/dashboard.js"></script>
+  <script src="../js/products.js"></script>
+  <script src="../js/orders.js"></script>
+  <script src="../js/quotes.js"></script>
   <script src="../js/app.js"></script>
   <script>
     window.addEventListener('load', () => {
@@ -94,7 +128,7 @@
         document.querySelector('[data-mobile-module="products"]').click();
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const passed = dashboardPassed
-          && document.querySelector('[data-smoke-module="products"]')
+          && document.querySelector('.product-shell')
           && location.hash === '#products';
         document.documentElement.dataset.smoke = passed ? 'pass' : 'fail';
         document.getElementById('smokeResult').value = passed ? 'PASS' : 'FAIL';

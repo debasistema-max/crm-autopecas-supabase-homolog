@@ -12,6 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest?v=20261009-1">
   <link rel="stylesheet" href="css/theme.css?v=20261009-2">
   <link rel="stylesheet" href="css/app.css?v=20261013-multiline-1">
+  <link rel="stylesheet" href="css/seller.css?v=20261021-1">
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -64,6 +65,10 @@
     <section class="workspace">
       <header class="topbar">
         <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menu"></button>
+        <a class="seller-brand" href="#dashboard" hidden aria-label="Portal do vendedor">
+          <img src="assets/logo-neutral.svg" alt="" data-company-logo>
+          <span><strong>Portal do vendedor</strong><small data-company-name>Portal Comercial</small></span>
+        </a>
         <div class="topbar-title">
           <p class="topbar-kicker" id="pageContext">Comercial</p>
           <h1 id="pageTitle">Inicio</h1>
@@ -73,6 +78,8 @@
           <button class="btn btn-ghost" id="logoutButton" type="button">Sair</button>
         </div>
       </header>
+
+      <nav class="seller-nav" id="sellerNav" aria-label="Navegação do vendedor" hidden></nav>
 
       <main class="content" id="content" tabindex="-1"></main>
     </section>
@@ -97,7 +104,7 @@
   <script src="js/auth.js?v=20261012-security-1"></script>
   <script src="js/components/ui.js?v=20260826-2"></script>
   <script src="js/dashboard.js?v=20261005-2"></script>
-  <script src="js/products.js?v=20261013-vehicle-types-1"></script>
+  <script src="js/products.js?v=20261021-seller-1"></script>
   <script src="js/partners.js?v=20260921-1"></script>
   <script src="js/orders.js?v=20260921-1"></script>
   <script src="js/imports.js?v=20261013-vehicle-types-1"></script>
@@ -107,6 +114,6 @@
   <script src="js/quotes.js?v=20261012-status-actions-1"></script>
   <script src="js/tax_rules.js?v=20260828-1"></script>
   <script src="js/users.js?v=20260828-1"></script>
-  <script src="js/app.js?v=20261009-1"></script>
+  <script src="js/app.js?v=20261021-seller-1"></script>
 </body>
 </html>
