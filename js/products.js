@@ -9,6 +9,8 @@ const productState = {
   activityBusy: false
 };
 const PRODUCT_GENERAL_PAGE_SIZE = 200;
+const PRODUCT_CSV_BATCH_SIZE = 500;
+const PRODUCT_CSV_MAX_OFFSET = 50000;
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
 let productDetailReturnFocus = null;
@@ -464,7 +466,7 @@ function bindProductCatalog(products, params) {
     });
   });
   const exportButton = document.querySelector('[data-export-products]');
-  if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params));
+  if (exportButton) exportButton.addEventListener('click', () => exportProductsCsv(products, params, exportButton));
   document.querySelector('[data-product-page="previous"]')?.addEventListener('click', () => {
     runProductGeneralListPage(params, Math.max(Number(params.offset || 0) - Number(params.pageSize || PRODUCT_GENERAL_PAGE_SIZE), 0));
   });
@@ -992,7 +994,29 @@ function formatProductDate(value) {
   return date.toLocaleString(APP_CONFIG.locale || 'pt-BR');
 }
 
-function exportProductsCsv(products, params) {
+async function loadAllProductsForCsv(params, onProgress) {
+  const products = [];
+  let offset = 0;
+  while (offset <= PRODUCT_CSV_MAX_OFFSET) {
+    const page = await supabaseSearchProducts(Object.assign({}, params, {
+      offset,
+      limite: PRODUCT_CSV_BATCH_SIZE,
+      pageSize: PRODUCT_CSV_BATCH_SIZE,
+      context: 'produtos'
+    }));
+    if (!page.length) break;
+    products.push(...page);
+    if (typeof onProgress === 'function') onProgress(products.length);
+    if (page.length < PRODUCT_CSV_BATCH_SIZE) break;
+    if (offset === PRODUCT_CSV_MAX_OFFSET) {
+      throw new Error('A lista ultrapassa o limite de 50.500 produtos por arquivo. Refine os filtros e tente novamente.');
+    }
+    offset = Math.min(offset + PRODUCT_CSV_BATCH_SIZE, PRODUCT_CSV_MAX_OFFSET);
+  }
+  return products;
+}
+
+function downloadProductsCsv(products, params) {
   const headers = ['codigo', 'linha', 'grupo', 'tipo_veiculo', 'montadora', 'oem', 'similares', 'aplicacoes', 'estoque', 'preco'];
   const lines = [
     headers.join(';'),
@@ -1011,4 +1035,30 @@ function exportProductsCsv(products, params) {
   link.download = 'lista-produtos-' + (params.regiao || 'SP').toLowerCase() + '.csv';
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+async function exportProductsCsv(products, params, button) {
+  if (!button || button.disabled) return;
+  const originalLabel = button.textContent;
+  const notice = document.getElementById('productMessage');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = params.listaGeral ? 'Preparando CSV...' : 'Gerando CSV...';
+  if (notice) notice.textContent = params.listaGeral ? 'Buscando todos os produtos para o CSV...' : '';
+  try {
+    const exportRows = params.listaGeral
+      ? await loadAllProductsForCsv(params, (count) => {
+        button.textContent = `Preparando CSV (${count})`;
+        if (notice) notice.textContent = `${count} produtos preparados para exportacao...`;
+      })
+      : products;
+    downloadProductsCsv(exportRows, params);
+    if (notice) notice.textContent = `CSV gerado com ${exportRows.length} ${exportRows.length === 1 ? 'produto' : 'produtos'}.`;
+  } catch (error) {
+    if (notice) notice.textContent = error.message || 'Nao foi possivel gerar o CSV.';
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = originalLabel;
+  }
 }
