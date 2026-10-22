@@ -9,6 +9,12 @@ function harness() {
   vm.runInContext(read('js/utils/format.js'), c);
   return c;
 }
+
+test('catalog removes the group control without removing product group data', () => {
+  const source = read('js/products.js');
+  assert.doesNotMatch(source, /productGroupFilter/);
+  assert.match(source, /detailItem\('Grupo', product\.grupo\)/);
+});
 test('maker labels distinguish unknown and universal without showing supplier codes', () => {
   const c = harness();
   assert.equal(c.vehicleMakerLabel('__SEM_MONTADORA__'), 'Não informada');
