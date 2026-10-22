@@ -47,8 +47,11 @@ async function renderProducts(container) {
           <label class="product-search-main">Pesquisa inteligente
             <input id="productTerm" type="search" placeholder="Codigo, OEM, similar, veiculo, marca ou aplicacao" autocomplete="off">
           </label>
-          <label>Estado
-            <select id="productRegion"><option>SP</option><option>PR</option></select>
+          <label>Filial de origem
+            <select id="productRegion"><option value="SP">Filial SP</option><option value="PR">Matriz PR</option></select>
+          </label>
+          <label>Estado de destino
+            <select id="productDestination">${['SP','PR','AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PE','PI','RJ','RN','RS','RO','RR','SC','SE','TO'].map((uf) => `<option value="${uf}">${uf}</option>`).join('')}</select>
           </label>
           <label>Linha
             <select id="productLineFilter"><option value="">Todas</option></select>
@@ -149,7 +152,7 @@ function arrangeSellerCatalog(container) {
   form.classList.add('seller-catalog-search');
   container.querySelector('.product-search-main').firstChild.textContent = 'Buscar produto';
   const region = container.querySelector('#productRegion');
-  region.previousSibling.textContent = 'Filial de consulta';
+  region.previousSibling.textContent = 'Filial de origem';
   // Preserve the branch values used by the existing product queries.
   region.options[0].value = 'SP';
   region.options[0].textContent = 'Filial SP';
@@ -182,6 +185,7 @@ function bindProductSearch() {
   });
   [
     'productRegion',
+    'productDestination',
     'productLineFilter',
     'productGroupFilter',
     'productMakerFilter',
@@ -193,7 +197,7 @@ function bindProductSearch() {
   ].forEach((id) => {
     document.getElementById(id).addEventListener('change', () => runProductSearch({
       silentEmpty: true,
-      listaGeral: id === 'productRegion' && productState.results.length > 0
+      listaGeral: ['productRegion', 'productDestination'].includes(id) && productState.results.length > 0
     }));
   });
   document.getElementById('productGeneralListButton').addEventListener('click', () => runProductSearch({ listaGeral: true }));
@@ -212,6 +216,8 @@ function getProductSearchParams(options = {}) {
   return {
     termo: document.getElementById('productTerm').value,
     regiao: document.getElementById('productRegion').value,
+    destinoUf: document.getElementById('productDestination').value,
+    catalogPricing: true,
     linha: document.getElementById('productLineFilter').value,
     grupo: document.getElementById('productGroupFilter').value,
     montadora: document.getElementById('productMakerFilter').value,
@@ -393,6 +399,35 @@ function bindYokomitsuProductImages(target) {
   });
 }
 
+function productPriceNumber(value) {
+  if (!['string', 'number'].includes(typeof value) || (typeof value === 'string' && !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function getProductRoutePrice(product) {
+  const fiscal = product.fiscal;
+  if (!fiscal) return { base: productPriceNumber(product.preco), taxes: null, final: null, status: 'SEM_CONTEXTO_FISCAL', origin: '', destination: '' };
+  const base = productPriceNumber(fiscal.base_price);
+  const taxes = productPriceNumber(fiscal.total_taxes);
+  const final = productPriceNumber(fiscal.final_price);
+  const valid = /^OK/.test(String(fiscal.status)) && base > 0 && taxes !== null && final > 0;
+  return { base, taxes: valid ? taxes : null, final: valid ? final : null,
+    status: valid ? fiscal.status : fiscal.status || 'PRECO_FISCAL_INDISPONIVEL', origin: fiscal.origin, destination: fiscal.destination };
+}
+
+function renderProductRoutePrice(product) {
+  const price = getProductRoutePrice(product);
+  const display = (value) => value === null ? 'Indisponível' : money(value);
+  return `<div class="product-route-price">
+    ${price.origin && price.destination ? `<small>${escapeHtml(price.origin)} → ${escapeHtml(price.destination)}</small>` : ''}
+    <dl><div><dt>Base sem impostos</dt><dd>${display(price.base)}</dd></div>
+    <div><dt>Impostos</dt><dd>${display(price.taxes)}</dd></div>
+    <div><dt>Final com impostos</dt><dd><strong>${display(price.final)}</strong></dd></div></dl>
+    ${price.final === null ? '<small>Preço fiscal pendente</small>' : ''}
+  </div>`;
+}
+
 function renderProductCard(product, index) {
   const favorite = productState.favorites.has(product.codigo);
   return `
@@ -410,8 +445,8 @@ function renderProductCard(product, index) {
           ${renderTag('Aplicacao', product.aplicacao)}
         </div>
         <div class="product-card-footer">
-          <span>${escapeHtml(product.estoque || 'Estoque nao informado')}</span>
-          <strong>${money(product.preco)}</strong>
+          <span>${escapeHtml(product.estoque ?? 'Estoque nao informado')}</span>
+          ${renderProductRoutePrice(product)}
         </div>
       </div>
     </article>
@@ -430,7 +465,7 @@ function renderSellerProductCard(product, index) {
         <span class="seller-product-stock">Estoque: ${escapeHtml(product.estoque ?? 'não informado')}</span>
       </div>
       <div class="seller-product-buy">
-        <strong>${money(product.preco)}</strong>
+        ${renderProductRoutePrice(product)}
         <button class="btn btn-secondary" type="button" data-open-product="${index}">Ver detalhes</button>
       </div>
       <button class="product-favorite ${favorite ? 'is-active' : ''}" type="button" data-favorite-product="${index}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '*' : '+'}</button>
@@ -669,7 +704,8 @@ async function openProductDetail(product) {
   detail.innerHTML = CrmUi.renderState('loading', 'Carregando ficha do produto', 'Consultando estoque, preços e histórico.');
   try {
     const rows = await supabaseSearchProducts({ termo: product.codigo, limite: 10, incluirInativos: canManageProductActivity(),
-      regiao: document.getElementById('productRegion')?.value || 'SP' });
+      regiao: document.getElementById('productRegion')?.value || 'SP',
+      destinoUf: document.getElementById('productDestination')?.value || 'SP', catalogPricing: true });
     const current = rows.find((row) => row.codigo === product.codigo);
     if (!current || (current.ativo === false && !canManageProductActivity())) {
       throw new Error('Produto inativo ou indisponivel. Atualize a pesquisa.');
@@ -797,7 +833,7 @@ function renderProductDetail(product, history) {
       <div class="product-detail-title">
         <span>${escapeHtml(product.codigo)}</span>
         <h2>${escapeHtml(product.descricao || 'Produto sem descricao')}</h2>
-        <strong>${money(product.preco)}</strong>
+        ${renderProductRoutePrice(product)}
       </div>
       <dl class="product-detail-grid">
         ${detailItem('Marca', product.marca)}
@@ -811,8 +847,6 @@ function renderProductDetail(product, history) {
         ${detailItem('Detalhes consulta', notes.manual)}
         ${detailItem('Estoque', product.estoque)}
         ${detailItem('Qtd. estoque', product.estoque_quantidade)}
-        ${detailItem('Preco SP', money(product.preco_sp))}
-        ${detailItem('Preco PR', money(product.preco_pr))}
       </dl>
       ${renderProductActivityForm(product)}
       ${notes.catalog ? `<details class="product-catalog-notes"><summary>Informações do catálogo IPS</summary><p>${escapeHtml(notes.catalog)}</p></details>` : ''}
@@ -938,9 +972,7 @@ function renderProductSideLists() {
       const product = productState.results.find((item) => item.codigo === code)
         || productState.recent.find((item) => item.codigo === code)
         || productState.topSelling.find((item) => item.codigo === code);
-      await openProductDetail(Object.assign({ preco: product && product.preco_sp }, product), {
-        regiao: document.getElementById('productRegion') ? document.getElementById('productRegion').value : 'SP'
-      });
+      await openProductDetail(product);
     });
   });
 }
@@ -968,6 +1000,7 @@ function renderTag(label, value) {
 
 function renderProductFilterSummary(params) {
   return [
+    `${params.regiao || 'SP'} → ${params.destinoUf || params.regiao || 'SP'}`,
     params.listaGeral ? 'lista geral' : '',
     params.linha ? 'linha: ' + params.linha : '',
     params.grupo ? 'grupo: ' + params.grupo : '',
@@ -1018,8 +1051,10 @@ async function loadAllProductsForXlsx(params, onProgress) {
 
 function buildProductXlsxRows(products) {
   return [
-    ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Preço'],
-    ...products.map((product) => [
+    ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Origem', 'Destino', 'Base sem impostos', 'Impostos', 'Final com impostos', 'Status fiscal'],
+    ...products.map((product) => {
+      const price = getProductRoutePrice(product);
+      return [
       String(product.codigo || ''),
       product.linha || product.categoria || '',
       product.grupo || product.material_group || product.fiscal_group || '',
@@ -1028,8 +1063,8 @@ function buildProductXlsxRows(products) {
       product.oem || '',
       product.aplicacao || '',
       product.estoque ?? '',
-      product.preco === null || product.preco === undefined || product.preco === '' ? '' : Number(product.preco)
-    ])
+      price.origin, price.destination, price.base ?? '', price.taxes ?? '', price.final ?? '', price.status
+    ]; })
   ];
 }
 
@@ -1039,15 +1074,18 @@ function downloadProductsXlsx(products, params) {
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
   worksheet['!cols'] = [
     { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 22 }, { wch: 28 },
-    { wch: 28 }, { wch: 55 }, { wch: 18 }, { wch: 16 }
+    { wch: 28 }, { wch: 55 }, { wch: 18 }, { wch: 10 }, { wch: 10 },
+    { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 34 }
   ];
   for (let row = 1; row < rows.length; row += 1) {
-    const priceCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 8 })];
-    if (priceCell && priceCell.t === 'n') priceCell.z = '[$R$-pt-BR] #,##0.00';
+    for (const column of [10, 11, 12]) {
+      const priceCell = worksheet[XLSX.utils.encode_cell({ r: row, c: column })];
+      if (priceCell && priceCell.t === 'n') priceCell.z = '[$R$-pt-BR] #,##0.00';
+    }
   }
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
-  XLSX.writeFile(workbook, 'lista-produtos-' + (params.regiao || 'SP').toLowerCase() + '.xlsx', { compression: true });
+  XLSX.writeFile(workbook, 'lista-produtos-' + (params.regiao || 'SP').toLowerCase() + '-' + (params.destinoUf || params.regiao || 'SP').toLowerCase() + '.xlsx', { compression: true });
 }
 
 async function exportProductsXlsx(products, params, button) {

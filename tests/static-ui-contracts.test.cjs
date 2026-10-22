@@ -405,7 +405,7 @@ test('CRM product search uses the current unified branch catalog', () => {
   const migration = read('supabase/migrations/082_current_crm_product_search.sql');
   const paginationMigration = read('supabase/migrations/110_paginate_crm_product_catalog.sql');
   const regression = read('supabase/tests/082_current_crm_product_search_regression.sql');
-  assert.match(store, /rpc\('search_products_v2'/);
+  assert.match(store, /'search_product_catalog_pricing' : 'search_products_v2'/);
   assert.match(store, /favorite_codes: favoriteCodes/);
   assert.doesNotMatch(store.slice(store.indexOf('async function supabaseSearchProducts'), store.indexOf('async function enrichProductsWithBranchAvailability')), /return supabaseListProducts/);
   assert.match(products, /PRODUCT_GENERAL_PAGE_SIZE = 200/);
@@ -472,8 +472,8 @@ test('product XLSX rows use material group, vehicle makers and numeric currency 
     aplicacao: 'PALIO / FIESTA', estoque: '12', preco: '123.45'
   }];
   const rows = JSON.parse(JSON.stringify(vm.runInContext('buildProductXlsxRows(xlsxProducts)', context)));
-  assert.deepEqual(rows[0], ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Preço']);
-  assert.deepEqual(rows[1], ['00123', 'DIRECAO', '34', 'Leve', 'FIAT / FORD', 'ABC', 'PALIO / FIESTA', '12', 123.45]);
+  assert.deepEqual(rows[0], ['Código', 'Linha', 'Grupo', 'Tipo de veículo', 'Montadora', 'OEM', 'Aplicações', 'Estoque', 'Origem', 'Destino', 'Base sem impostos', 'Impostos', 'Final com impostos', 'Status fiscal']);
+  assert.deepEqual(rows[1], ['00123', 'DIRECAO', '34', 'Leve', 'FIAT / FORD', 'ABC', 'PALIO / FIESTA', '12', '', '', 123.45, '', '', 'SEM_CONTEXTO_FISCAL']);
   assert.equal(rows.flat().includes('REMOVER'), false);
 });
 
@@ -523,9 +523,10 @@ test('product detail opens in an isolated full-screen sheet without moving the c
   assert.match(css, /\.product-detail-modal \{\s*position: fixed;\s*inset: 0;/);
   assert.match(css, /height: 100dvh;/);
   assert.match(css, /\.product-detail-dialog-body \{[\s\S]*?overflow-y: auto;/);
-  for (const commercialField of ['Marca', 'Linha', 'Grupo', 'Montadora', 'OEM', 'Similares', 'Aplicacoes', 'Estoque', 'Preco SP', 'Preco PR']) {
+  for (const commercialField of ['Marca', 'Linha', 'Grupo', 'Montadora', 'OEM', 'Similares', 'Aplicacoes', 'Estoque']) {
     assert.ok(detail.includes(`detailItem('${commercialField}'`), commercialField);
   }
+  assert.match(detail, /renderProductRoutePrice\(product\)/);
   assert.doesNotMatch(detail, /NCM|CEST|IPI|Origem|Preço por rota|Tributos|motor fiscal/);
   assert.doesNotMatch(products, /supabaseGetProductRoutePrices\(product\.codigo\)/);
 });

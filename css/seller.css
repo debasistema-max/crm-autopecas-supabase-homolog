@@ -158,7 +158,7 @@ body.seller-portal-mode {
 }
 
 .seller-portal-mode .seller-catalog-search {
-  grid-template-columns: minmax(240px, 1fr) 150px 180px;
+  grid-template-columns: minmax(240px, 1fr) 150px 150px 180px;
   gap: 14px;
 }
 
@@ -257,10 +257,13 @@ body.seller-portal-mode {
 }
 
 .seller-portal-mode .seller-product-buy {
+  gap: 12px;
   display: grid;
   gap: 10px;
   justify-items: end;
 }
+.seller-product-buy .product-route-price { width: auto; flex: 1; }
+.seller-product-buy > button { flex-shrink: 0; }
 
 .seller-portal-mode .seller-product-buy strong {
   font-size: 19px;

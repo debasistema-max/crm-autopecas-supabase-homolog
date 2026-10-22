@@ -270,10 +270,11 @@ async function supabaseSearchProducts(params) {
     : [];
   if (params.favoritos === true && !favoriteCodes.length) return [];
 
-  const { data, error } = await supabaseClient.rpc('search_products_v2', {
+  const { data, error } = await supabaseClient.rpc(params.catalogPricing === true ? 'search_product_catalog_pricing' : 'search_products_v2', {
     filters: {
       term: params.termo || params.q || '',
       region: params.regiao || 'SP',
+      ...(params.catalogPricing === true ? { destination_uf: params.destinoUf || params.regiao || 'SP' } : {}),
       line: params.linha || '',
       group: params.grupo || '',
       maker: params.montadora || '',
@@ -288,7 +289,16 @@ async function supabaseSearchProducts(params) {
       offset: Math.max(Number(params.offset || 0), 0)
     }
   });
-  if (error) throw error;
+  if (error) {
+    if (params.catalogPricing === true && (error.code === 'PGRST202' || error.message?.includes('Could not find the function'))) {
+      throw new Error('Precificação por estado indisponível. A migration 113 precisa ser aplicada antes de usar esta versão.');
+    }
+    throw error;
+  }
+  if (params.catalogPricing === true && (!Array.isArray(data) || data.some((row) => !row?.fiscal
+    || row.fiscal.origin !== (params.regiao || 'SP') || row.fiscal.destination !== (params.destinoUf || params.regiao || 'SP')))) {
+    throw new Error('Resposta de preços incompatível com a origem e o destino selecionados. Pesquise novamente.');
+  }
   return Array.isArray(data) ? data : [];
 }
 
