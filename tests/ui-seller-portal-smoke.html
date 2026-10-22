@@ -96,7 +96,10 @@
     async function supabaseGetTopSellingProducts() { return sellerSampleProducts.slice(0, 1); }
     async function supabaseSearchProducts(params = {}) {
       return sellerSampleProducts.filter((p) => (params.incluirInativos || p.ativo !== false) && (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0))
-        .map((p) => ({ ...p, preco: params.regiao === 'PR' ? p.preco_pr : p.preco_sp }));
+        .map((p) => ({ ...p, preco: params.regiao === 'PR' ? p.preco_pr : p.preco_sp,
+          ...(params.catalogPricing ? { fiscal: { origin: params.regiao || 'SP', destination: params.destinoUf || 'SP',
+            base_price: params.regiao === 'PR' ? p.preco_pr : p.preco_sp, total_taxes: 20,
+            final_price: (params.regiao === 'PR' ? p.preco_pr : p.preco_sp) + 20, status: 'OK' } } : {}) }));
     }
     async function supabaseToggleProductFavorite(code, enabled) { return enabled ? [code] : []; }
     async function supabaseDeactivateProducts(items) {
