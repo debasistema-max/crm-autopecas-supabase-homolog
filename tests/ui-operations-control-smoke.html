@@ -21,6 +21,7 @@
     let stagedRows = [];
     let createdBatchPayload = null;
     async function supabaseListCommercialLines() { return ['DIRECAO', 'FAROL', 'LANTERNA', 'RETROVISOR']; }
+    async function supabaseListProductFilters() { return { linhas: [], grupos: [], marcas: [], montadoras: ['GM', 'TOYOTA', 'VOLKSWAGEN', '__SEM_MONTADORA__'] }; }
 
     function formatDateInput(value) { return new Date(value).toISOString().slice(0, 10); }
     function formatDateTime() { return '27/08/2026 10:30'; }
@@ -65,8 +66,9 @@
     async function supabaseGetFiscalPending() {
       return { summary: { products_without_ncm: 1, products_without_stock_sp: 1 }, rows: [{ codigo: '6111032201', descricao: 'FAROL AUXILIAR', ncm: '', cest: '', route: 'PR-PR', status: 'NCM_AUSENTE' }] };
     }
-    async function supabaseGenerateCommercialList(route) {
-      return { count: 1, rows: [{ product_code: '6111032201', description: 'FAROL AUXILIAR', brand: 'IPS', application: 'HILUX', year: '2016+', base_price: 232, total_taxes: 115.85446, final_price: 347.85446, availability: 'DISPONIVEL', source_display_value: '50+', available_qty: 50, status: 'OK', route }] };
+    async function supabaseGenerateCommercialList(route, filters = {}) {
+      if (filters.vehicle_maker && filters.vehicle_maker !== 'TOYOTA') return { count: 0, rows: [] };
+      return { count: 1, rows: [{ product_code: '6111032201', description: 'FAROL AUXILIAR', brand: 'IPS', vehicle_makers: ['TOYOTA'], application: 'HILUX', year: '2016+', base_price: 232, total_taxes: 115.85446, final_price: 347.85446, availability: 'DISPONIVEL', source_display_value: '50+', available_qty: 50, status: 'OK', route }] };
     }
   </script>
   <script src="../js/transfers.js"></script>

@@ -417,7 +417,7 @@ test('CRM product search uses the current unified branch catalog', () => {
   assert.match(products, /Baixar XLSX/);
   assert.match(products, /buildProductXlsxRows/);
   assert.match(products, /product\.grupo \|\| product\.material_group \|\| product\.fiscal_group/);
-  assert.match(products, /product\.vehicle_makers\.join\('\ \/ '\)/);
+  assert.match(products, /formatVehicleMakers\(product.vehicle_makers\)/);
   assert.match(products, /\[\$R\$-pt-BR\] #,##0\.00/);
   assert.match(products, /lista-produtos-.+\.xlsx/);
   assert.doesNotMatch(products.slice(products.indexOf('function buildProductXlsxRows'), products.indexOf('async function exportProductsXlsx')), /similares|product\.similar/);
@@ -465,6 +465,7 @@ test('product XLSX rows use material group, vehicle makers and numeric currency 
     console,
     formatVehicleTypes: (types) => ({ LEVE: 'Leve', UTILITARIO: 'Utilitario', PESADO: 'Pesado' })[types?.[0]] || 'Nao classificado'
   });
+  vm.runInContext(read('js/utils/format.js'), context);
   vm.runInContext(read('js/products.js'), context);
   context.xlsxProducts = [{
     codigo: '00123', linha: 'DIRECAO', grupo: '', material_group: '34',
@@ -987,7 +988,7 @@ test('product activity RPC carries optimistic state and invalidates static filte
   assert.equal(result.ativo, false);
   assert.equal(calls[0].name, 'set_product_active');
   assert.equal(calls[0].payload.expected_active, true);
-  assert.equal(cacheWrites[0].key, 'productFiltersV4');
+  assert.equal(cacheWrites[0].key, 'productFiltersV5');
   assert.equal(cacheWrites[0].value, null);
 });
 
