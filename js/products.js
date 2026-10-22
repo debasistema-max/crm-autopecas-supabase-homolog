@@ -59,9 +59,6 @@ async function renderProducts(container) {
           <label>Linha
             <select id="productLineFilter"><option value="">Todas</option></select>
           </label>
-          <label>Grupo
-            <select id="productGroupFilter"><option value="">Todos</option></select>
-          </label>
           <label>Montadora
             <select id="productMakerFilter"><option value="">Todas</option></select>
           </label>
@@ -190,7 +187,6 @@ function bindProductSearch() {
     'productRegion',
     'productDestination',
     'productLineFilter',
-    'productGroupFilter',
     'productMakerFilter',
     'productAvailableFilter',
     'productOemFilter',
@@ -223,7 +219,6 @@ function getProductSearchParams(options = {}) {
     destinoUf: document.getElementById('productDestination').value,
     catalogPricing: true,
     linha: document.getElementById('productLineFilter').value,
-    grupo: document.getElementById('productGroupFilter').value,
     vehicleMaker: document.getElementById('productMakerFilter').value,
     tipoVeiculo: document.getElementById('productVehicleTypeFilter').value,
     disponiveis: document.getElementById('productAvailableFilter').checked,
@@ -247,7 +242,6 @@ function clearProductFilters() {
   if (inactive) inactive.checked = false;
   document.getElementById('productTerm').value = '';
   document.getElementById('productLineFilter').value = '';
-  document.getElementById('productGroupFilter').value = '';
   document.getElementById('productMakerFilter').value = '';
   document.getElementById('productVehicleTypeFilter').value = '';
   document.getElementById('productAvailableFilter').checked = false;
@@ -946,7 +940,6 @@ async function loadProductFilterOptions() {
   try {
     const filters = await supabaseListProductFilters();
     fillProductSelect(document.getElementById('productLineFilter'), filters.linhas, 'Todas');
-    fillProductSelect(document.getElementById('productGroupFilter'), filters.grupos, 'Todos');
     fillProductSelect(document.getElementById('productMakerFilter'), filters.montadoras, 'Todas');
     document.querySelectorAll('#productMakerFilter option').forEach((option) => {
       if (option.value) option.textContent = vehicleMakerLabel(option.value);
