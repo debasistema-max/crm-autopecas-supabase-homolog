@@ -87,15 +87,20 @@
       { codigo: 'DEMO-FAROL', descricao: 'FAROL DIANTEIRO DIREITO', linha: 'ILUMINACAO', grupo: 'AUTOPECAS', aplicacao: 'LINHA LEVE · REPOSIÇÃO', estoque: 32, preco: 348.90, preco_sp: 348.90, preco_pr: 337.50, ativo: true },
       { codigo: 'DEMO-RETROVISOR', descricao: 'RETROVISOR EXTERNO ESQUERDO', linha: 'RETROVISORES', grupo: 'AUTOPECAS', aplicacao: 'UTILITÁRIOS · MANUAL', estoque: 0, preco: 189.50, preco_sp: 189.50, preco_pr: 182.80, ativo: true }
     ];
+    sellerSampleProducts[0].vehicle_makers = ['TOYOTA'];
+    sellerSampleProducts[1].vehicle_makers = ['GM', 'VOLKSWAGEN'];
+    sellerSampleProducts[2].vehicle_makers = [];
+    sellerSampleProducts.forEach((p) => { p.montadora = '01 FT'; });
     if (sellerSmokeParams.has('photo')) sellerSampleProducts[0].url_imagem = '../assets/logo-ips-yokomitsu.png';
     if (sellerSmokeParams.has('inactive')) sellerSampleProducts[2].ativo = false;
     if (sellerSmokeParams.has('ips')) sellerSampleProducts[0].detalhes = 'Observacao original preservada\n\n[CATALOGO_IPS_INSTALADO]\nOrigem: Catalogo IPS instalado\nMarca: IPS\nEAN/GTIN: 7898778850018\nDimensoes informadas no catalogo: Altura: 32 | Largura: 14.5\nVeiculos / anos informados no catalogo:\nTOYOTA | HILUX 2005-2015\n[/CATALOGO_IPS_INSTALADO]';
-    async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['TOYOTA'] }; }
+    async function supabaseListProductFilters() { return { linhas: ['DIRECAO', 'ILUMINACAO', 'RETROVISORES'], grupos: ['AUTOPECAS'], montadoras: ['GM', 'TOYOTA', 'VOLKSWAGEN', '__SEM_MONTADORA__'] }; }
     async function supabaseListProductFavorites() { return []; }
     async function supabaseListRecentProducts() { return sellerSampleProducts.slice(0, 1); }
     async function supabaseGetTopSellingProducts() { return sellerSampleProducts.slice(0, 1); }
     async function supabaseSearchProducts(params = {}) {
-      return sellerSampleProducts.filter((p) => (params.incluirInativos || p.ativo !== false) && (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0))
+      return sellerSampleProducts.filter((p) => (params.incluirInativos || p.ativo !== false) && (!params.termo || p.descricao.toLowerCase().includes(params.termo.toLowerCase()) || p.codigo.toLowerCase().includes(params.termo.toLowerCase())) && (!params.linha || p.linha === params.linha) && (!params.disponiveis || p.estoque > 0)
+        && (!params.vehicleMaker || (params.vehicleMaker === '__SEM_MONTADORA__' ? !p.vehicle_makers.length : p.vehicle_makers.includes(params.vehicleMaker))))
         .map((p) => ({ ...p, preco: params.regiao === 'PR' ? p.preco_pr : p.preco_sp,
           ...(params.catalogPricing ? { fiscal: { origin: params.regiao || 'SP', destination: params.destinoUf || 'SP',
             base_price: params.regiao === 'PR' ? p.preco_pr : p.preco_sp, total_taxes: 20,

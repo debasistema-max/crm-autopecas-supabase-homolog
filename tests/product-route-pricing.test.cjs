@@ -6,7 +6,8 @@ const path = require('node:path');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 function harness() {
   const c = vm.createContext({ APP_CONFIG: {}, document: {}, window: {}, getStoredSession: () => ({ perfil: 'ADMIN' }),
-    money: (n) => `R$ ${Number(n).toFixed(2)}`, escapeHtml: (s) => String(s).replaceAll('<', '&lt;'), formatVehicleTypes: () => '' });
+    money: (n) => `R$ ${Number(n).toFixed(2)}`, escapeHtml: (s) => String(s).replaceAll('<', '&lt;'), formatVehicleTypes: () => '',
+    formatVehicleMakers: (values) => values?.join(' / ') || 'Não informada' });
   vm.runInContext(read('js/products.js'), c);
   return c;
 }

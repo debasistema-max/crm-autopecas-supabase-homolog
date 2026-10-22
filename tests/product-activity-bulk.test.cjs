@@ -10,6 +10,7 @@ function harness(role = 'ADMIN') {
     productSelectDisplayed: {}, productDeactivateSelected: {}, productSearchForm: { elements: [] }, productMessage: { style: {} } };
   const context = vm.createContext({ document: { getElementById: (id) => nodes[id], querySelectorAll: () => [] },
     getStoredSession: () => ({ perfil: role }), window: { confirm: () => true }, money: (value) => String(value || 0),
+    formatVehicleMakers: (values) => values?.join(' / ') || 'Não informada',
     escapeHtml: (value) => String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;') });
   vm.runInContext(read('js/products.js'), context);
   context.runProductSearch = context.refreshProductSideData = context.loadProductFilterOptions = async () => {};

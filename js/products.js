@@ -5,6 +5,7 @@ const productState = {
   recent: [],
   topSelling: [],
   selected: null,
+  generalList: false,
   activitySelection: new Map(),
   activityBusy: false
 };
@@ -33,6 +34,7 @@ function renderSellerCatalogActions() {
 async function renderProducts(container) {
   productState.results = [];
   productState.selected = null;
+  productState.generalList = false;
   productState.activitySelection.clear();
   container.innerHTML = `
     <section class="module-page product-shell">
@@ -198,7 +200,7 @@ function bindProductSearch() {
   ].forEach((id) => {
     document.getElementById(id).addEventListener('change', () => runProductSearch({
       silentEmpty: true,
-      listaGeral: ['productRegion', 'productDestination'].includes(id) && productState.results.length > 0
+      listaGeral: productState.generalList || (['productRegion', 'productDestination'].includes(id) && productState.results.length > 0)
     }));
   });
   document.getElementById('productGeneralListButton').addEventListener('click', () => runProductSearch({ listaGeral: true }));
@@ -208,6 +210,7 @@ function bindProductSearch() {
 
 async function runProductSearch(options = {}) {
   if (productState.activityBusy) return;
+  productState.generalList = options.listaGeral === true;
   await searchProductsInto(document.getElementById('productResults'), getProductSearchParams(options));
 }
 
@@ -221,7 +224,7 @@ function getProductSearchParams(options = {}) {
     catalogPricing: true,
     linha: document.getElementById('productLineFilter').value,
     grupo: document.getElementById('productGroupFilter').value,
-    montadora: document.getElementById('productMakerFilter').value,
+    vehicleMaker: document.getElementById('productMakerFilter').value,
     tipoVeiculo: document.getElementById('productVehicleTypeFilter').value,
     disponiveis: document.getElementById('productAvailableFilter').checked,
     comOem: document.getElementById('productOemFilter').checked,
@@ -238,6 +241,7 @@ function getProductSearchParams(options = {}) {
 
 function clearProductFilters() {
   if (productState.activityBusy) return;
+  productState.generalList = false;
   productState.activitySelection.clear();
   const inactive = document.getElementById('productInactiveFilter');
   if (inactive) inactive.checked = false;
@@ -264,7 +268,7 @@ async function searchProductsInto(target, params, onAdd) {
   }
   const requestId = ++productSearchRequestSequence;
   productSearchRequests.set(target, requestId);
-  const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.tipoVeiculo || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
+  const hasQuery = String(params.termo || '').trim() || params.listaGeral || params.linha || params.grupo || params.montadora || params.vehicleMaker || params.tipoVeiculo || params.disponiveis || params.comOem || params.comFoto || params.favoritos;
   if (!hasQuery) {
     if (!params.silentEmpty) target.innerHTML = CrmUi.renderState('empty', 'Informe o que deseja localizar', 'Pesquise por codigo, OEM, marca, veiculo ou aplicacao.');
     return;
@@ -439,7 +443,7 @@ function renderProductCard(product, index) {
         <div class="product-code">${escapeHtml(product.codigo)}</div>
         ${product.ativo === false ? '<span class="status-pill">Inativo</span>' : ''}
         <h3>${escapeHtml(product.descricao || 'Produto sem descricao')}</h3>
-        <p>${escapeHtml([product.marca, product.montadora, product.linha || product.categoria].filter(Boolean).join(' - '))}</p>
+        <p>${escapeHtml([product.marca, formatVehicleMakers(product.vehicle_makers), product.linha || product.categoria].filter(Boolean).join(' - '))}</p>
         <div class="product-tags">
           ${renderTag('OEM', product.oem)}
           ${renderTag('Similar', product.similar)}
@@ -462,7 +466,7 @@ function renderSellerProductCard(product, index) {
       <div class="product-card-body">
         <div class="product-code">${escapeHtml(product.codigo)}${product.linha || product.categoria ? ` · ${escapeHtml(product.linha || product.categoria)}` : ''}</div>
         <h3>${escapeHtml(product.descricao || 'Produto sem descrição')}</h3>
-        <p>${escapeHtml([product.marca, product.montadora, product.aplicacao].filter(Boolean).join(' · '))}</p>
+        <p>${escapeHtml([product.marca, formatVehicleMakers(product.vehicle_makers), product.aplicacao].filter(Boolean).join(' · '))}</p>
         <span class="seller-product-stock">Estoque: ${escapeHtml(product.estoque ?? 'não informado')}</span>
       </div>
       <div class="seller-product-buy">
@@ -850,7 +854,8 @@ function renderProductDetail(product, history) {
         ${detailItem('Linha', product.linha || product.categoria)}
         ${detailItem('Tipo de veiculo', formatVehicleTypes(product.vehicle_types))}
         ${detailItem('Grupo', product.grupo)}
-        ${detailItem('Montadora', product.montadora)}
+        ${detailItem('Montadora', formatVehicleMakers(product.vehicle_makers))}
+        ${detailItem('Fabricante (código SAP)', product.montadora)}
         ${detailItem('OEM', product.oem)}
         ${detailItem('Similares', product.similar)}
         ${detailItem('Aplicacoes', product.aplicacao)}
@@ -943,6 +948,9 @@ async function loadProductFilterOptions() {
     fillProductSelect(document.getElementById('productLineFilter'), filters.linhas, 'Todas');
     fillProductSelect(document.getElementById('productGroupFilter'), filters.grupos, 'Todos');
     fillProductSelect(document.getElementById('productMakerFilter'), filters.montadoras, 'Todas');
+    document.querySelectorAll('#productMakerFilter option').forEach((option) => {
+      if (option.value) option.textContent = vehicleMakerLabel(option.value);
+    });
   } catch (error) {
     message.style.color = 'var(--accent)';
     message.textContent = 'Nao foi possivel carregar filtros.';
@@ -993,7 +1001,7 @@ function renderProductMiniList(products, emptyText) {
     <button class="product-mini-item" type="button" data-mini-product="${escapeHtml(product.codigo)}">
       <span>${escapeHtml(product.codigo)}</span>
       <strong>${escapeHtml(product.descricao || product.marca || 'Produto')}</strong>
-      <small>${escapeHtml(product.quantidade_vendida ? `${product.quantidade_vendida} vendidos` : product.montadora || product.marca || '')}</small>
+      <small>${escapeHtml(product.quantidade_vendida ? `${product.quantidade_vendida} vendidos` : product.marca || '')}</small>
     </button>
   `).join('');
 }
@@ -1014,7 +1022,7 @@ function renderProductFilterSummary(params) {
     params.listaGeral ? 'lista geral' : '',
     params.linha ? 'linha: ' + params.linha : '',
     params.grupo ? 'grupo: ' + params.grupo : '',
-    params.montadora ? 'montadora: ' + params.montadora : '',
+    params.vehicleMaker ? 'montadora: ' + vehicleMakerLabel(params.vehicleMaker) : '',
     params.tipoVeiculo ? 'veiculo: ' + formatVehicleTypes([params.tipoVeiculo]) : '',
     params.disponiveis ? 'disponiveis' : '',
     params.comOem ? 'com OEM' : '',
@@ -1069,7 +1077,7 @@ function buildProductXlsxRows(products) {
       product.linha || product.categoria || '',
       product.grupo || product.material_group || product.fiscal_group || '',
       formatVehicleTypes(product.vehicle_types),
-      Array.isArray(product.vehicle_makers) ? product.vehicle_makers.join(' / ') : '',
+      Array.isArray(product.vehicle_makers) && product.vehicle_makers.length ? formatVehicleMakers(product.vehicle_makers) : '',
       product.oem || '',
       product.aplicacao || '',
       product.estoque ?? '',

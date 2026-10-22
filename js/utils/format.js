@@ -41,3 +41,13 @@ function formatVehicleTypes(types) {
   const labels = { LEVE: 'Leve', UTILITARIO: 'Utilitario', PESADO: 'Pesado', NAO_CLASSIFICADO: 'Nao classificado' };
   return Array.isArray(types) && types.length ? [...new Set(types)].map((type) => labels[type] || 'Nao classificado').join(' / ') : 'Nao classificado';
 }
+
+function vehicleMakerLabel(value) {
+  return value === '__SEM_MONTADORA__' ? 'Não informada' : value === 'UNIVERSAL' ? 'Aplicação universal' : String(value || '');
+}
+
+function formatVehicleMakers(makers) {
+  return Array.isArray(makers) && makers.length
+    ? [...new Set(makers.filter((maker) => typeof maker === 'string' && maker.trim()))].map(vehicleMakerLabel).join(' / ') || 'Não informada'
+    : 'Não informada';
+}
