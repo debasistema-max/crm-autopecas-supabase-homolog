@@ -110,3 +110,19 @@ test('109 guards every update using persistent decisions and keeps bulk transact
   assert.match(sql, /ALTERAR_ATIVIDADE_PRODUTO/);
   assert.doesNotMatch(sql, /disable trigger|truncate|delete from public\.products/i);
 });
+
+test('112 permanently excludes the exact requested product denylist across future syncs', () => {
+  const sql = read('supabase/migrations/112_permanent_product_exclusions.sql');
+  const codesMatch = sql.match(/\$codes\$(\[[\s\S]*?\])\$codes\$/);
+  assert.ok(codesMatch);
+  const codes = JSON.parse(codesMatch[1]);
+  assert.equal(codes.length, 74);
+  assert.equal(new Set(codes.map((code) => code.trim().toUpperCase())).size, 74);
+  for (const code of ['8769382300', 'BAN001', 'IMOB-25', 'PIS_CONFINS', 'X6115542222']) assert.ok(codes.includes(code));
+  assert.match(sql, /product_catalog_exclusions/);
+  assert.match(sql, /new\.ativo:=false/);
+  assert.match(sql, /PRODUTO_EXCLUIDO_PERMANENTEMENTE/);
+  assert.match(sql, /not exists\(select 1 from public\.product_catalog_exclusions/);
+  assert.match(sql, /update public\.products p set ativo=false/);
+  assert.doesNotMatch(sql, /delete from public\.products|truncate/i);
+});
