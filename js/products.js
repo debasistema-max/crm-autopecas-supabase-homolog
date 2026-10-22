@@ -14,6 +14,7 @@ const PRODUCT_XLSX_MAX_OFFSET = 50000;
 let productSearchRequestSequence = 0;
 const productSearchRequests = new WeakMap();
 let productDetailReturnFocus = null;
+let productDetailRequestSequence = 0;
 
 function canManageProductActivity() {
   return getStoredSession()?.perfil === 'ADMIN';
@@ -698,30 +699,38 @@ async function deactivateSelectedProducts() {
 
 async function openProductDetail(product) {
   if (!product) return;
+  const requestId = ++productDetailRequestSequence;
+  const origin = document.getElementById('productRegion')?.value || 'SP';
+  const destination = document.getElementById('productDestination')?.value || 'SP';
   productState.selected = product;
   showProductDetailModal(product);
   const detail = document.getElementById('productDetail');
+  const isCurrent = () => requestId === productDetailRequestSequence
+    && document.getElementById('productDetail') === detail
+    && productState.selected?.codigo === product.codigo
+    && (document.getElementById('productRegion')?.value || 'SP') === origin
+    && (document.getElementById('productDestination')?.value || 'SP') === destination;
   detail.innerHTML = CrmUi.renderState('loading', 'Carregando ficha do produto', 'Consultando estoque, preços e histórico.');
   try {
     const rows = await supabaseSearchProducts({ termo: product.codigo, limite: 10, incluirInativos: canManageProductActivity(),
-      regiao: document.getElementById('productRegion')?.value || 'SP',
-      destinoUf: document.getElementById('productDestination')?.value || 'SP', catalogPricing: true });
+      regiao: origin, destinoUf: destination, catalogPricing: true });
+    if (!isCurrent()) return;
     const current = rows.find((row) => row.codigo === product.codigo);
     if (!current || (current.ativo === false && !canManageProductActivity())) {
       throw new Error('Produto inativo ou indisponivel. Atualize a pesquisa.');
     }
-    if (productState.selected?.codigo !== product.codigo) return;
     product = current;
     productState.selected = current;
     await supabaseRegisterProductView(product.codigo).catch(() => null);
+    if (!isCurrent()) return;
     const history = await supabaseGetProductHistory(product.codigo).catch(() => ({ prices: [], stock: [] }));
-    if (productState.selected?.codigo !== product.codigo || !document.getElementById('productDetailModal')) return;
+    if (!isCurrent() || !document.getElementById('productDetailModal')) return;
     detail.innerHTML = renderProductDetail(product, history);
     bindProductActivityForm(product, detail);
     bindYokomitsuProductImages(detail);
     await refreshProductSideData().catch(() => null);
   } catch (error) {
-    detail.innerHTML = CrmUi.renderState('error', 'Não foi possível abrir a ficha', error.message || 'Tente novamente em instantes.');
+    if (isCurrent()) detail.innerHTML = CrmUi.renderState('error', 'Não foi possível abrir a ficha', error.message || 'Tente novamente em instantes.');
   }
 }
 
@@ -797,6 +806,7 @@ function showProductDetailModal(product) {
 }
 
 function closeProductDetail(options = {}) {
+  productDetailRequestSequence += 1;
   const photoDialog = document.getElementById('productPhotoDialog');
   if (photoDialog?.open) photoDialog.close();
   const modal = document.getElementById('productDetailModal');

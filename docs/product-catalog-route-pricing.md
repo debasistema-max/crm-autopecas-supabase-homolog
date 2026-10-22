@@ -25,8 +25,9 @@ no navegador e sem cache de precos.
 
 ## Validacao e publicacao
 
-Trabalho local na branch `codex/product-list-state-pricing`. Nao foi publicado
-em producao e a migration113 nao foi aplicada definitivamente.
+Branch `codex/product-list-state-pricing`, PR30 de homologacao. A migration113
+foi aplicada somente em homologacao em22/10/2026, apos backup verificado.
+Frontend segue publicacao controlada pela PR. Producao nao foi alterada.
 
 1. Confirmar nomenclatura e separacao de origem/destino com o usuario.
 2. Fazer backup do ambiente antes de aplicar113, cujo predecessor e112.
@@ -43,11 +44,16 @@ O smoke HTML usa valores ficticios, nao percentuais tributarios reais.
 
 ## Evidencias locais de 22/10/2026
 
-- 142 testes: 85 estaticos, 16 de sessao e 41 Python.
+- 145 testes: 88 estaticos, 16 de sessao e 41 Python.
 - Ensaio SQL com rollback: SP/PR como origem e SP/PR/SC/RJ como destino,
   comparacao com o motor existente, origem/destino invalidos e sessao ausente.
 - Pagina de500 itens: aproximadamente3,34s em SP-SP e2,22s em PR-PR neste
   ensaio, incluindo comunicacao com o banco. Nao e garantia de latencia futura.
 - ADMIN e VENDEDOR inspecionados em desktop e375px, sem overflow horizontal.
 - Previa visual exclusivamente com dados ficticios; nenhuma importacao real.
-- Migration113 criada apenas durante ensaios transacionais e revertida.
+- Migration113 aplicada apos ensaios. Produtos, estoques, precos, regras,
+  usuarios, logs e documentos permaneceram iguais na comparacao pre/pos.
+- Revisao independente encontrou corrida ao reabrir o mesmo codigo em outra
+  rota. Corrigida com sequencia da requisicao, identidade do DOM e contexto da
+  rota; fechamento invalida respostas. Testes cobrem busca, erro e historico
+  atrasados, inclusive depois de reabrir o mesmo produto.

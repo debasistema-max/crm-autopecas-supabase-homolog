@@ -63,3 +63,48 @@ test('SQL delegates fiscal rules, rejects anonymous callers and does not write c
   assert.match(sql, /v_taxes:=null;v_final:=null/);
   assert.doesNotMatch(sql, /update public\.|insert into public\.|delete from public\./i);
 });
+
+function detailHarness() {
+  const c = harness();
+  const nodes = { productRegion: { value: 'SP' }, productDestination: { value: 'SP' },
+    productDetail: { innerHTML: '' }, productDetailModal: { hidden: true } };
+  c.document.getElementById = (id) => nodes[id];
+  c.document.body = { classList: { remove() {} } };
+  c.CrmUi = { renderState: (state) => state };
+  c.showProductDetailModal = () => { nodes.productDetailModal.hidden = false; };
+  c.renderProductDetail = (p) => p.fiscal.route;
+  c.bindProductActivityForm = c.bindYokomitsuProductImages = () => {};
+  c.refreshProductSideData = c.supabaseRegisterProductView = async () => {};
+  c.supabaseGetProductHistory = async () => ({ prices: [], stock: [] });
+  return { c, nodes };
+}
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+for (const outcome of ['success', 'error']) test(`old detail lookup ${outcome} cannot replace reopened same-code route`, async () => {
+  const { c, nodes } = detailHarness();const old = deferred();let calls = 0;
+  c.supabaseSearchProducts = async (params) => calls++ === 0 ? old.promise
+    : [{ codigo: 'A', ativo: true, fiscal: { route: params.regiao + '-' + params.destinoUf } }];
+  const first = c.openProductDetail({ codigo: 'A' });
+  c.closeProductDetail({ restoreFocus: false });nodes.productDestination.value = 'RJ';
+  await c.openProductDetail({ codigo: 'A' });
+  assert.equal(nodes.productDetail.innerHTML, 'SP-RJ');
+  if (outcome === 'success') old.resolve([{ codigo: 'A', ativo: true, fiscal: { route: 'SP-SP' } }]);
+  else old.reject(new Error('old lookup failed'));
+  await first;assert.equal(nodes.productDetail.innerHTML, 'SP-RJ');
+});
+test('old history cannot replace reopened same-code route', async () => {
+  const { c, nodes } = detailHarness();const old = deferred(), started = deferred();let calls = 0;
+  c.supabaseSearchProducts = async (params) => [{ codigo: 'A', ativo: true, fiscal: { route: params.regiao + '-' + params.destinoUf } }];
+  c.supabaseGetProductHistory = async () => {
+    if (calls++ === 0) { started.resolve();return old.promise; }
+    return { prices: [], stock: [] };
+  };
+  const first = c.openProductDetail({ codigo: 'A' });await started.promise;
+  c.closeProductDetail({ restoreFocus: false });nodes.productDestination.value = 'RJ';
+  await c.openProductDetail({ codigo: 'A' });
+  old.resolve({ prices: [], stock: [] });await first;
+  assert.equal(nodes.productDetail.innerHTML, 'SP-RJ');
+});
