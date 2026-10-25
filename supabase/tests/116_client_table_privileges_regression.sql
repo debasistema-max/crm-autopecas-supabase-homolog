@@ -8,7 +8,7 @@ begin
       or has_table_privilege(r.oid,c.oid,'TRIGGER'))) then raise exception 'CLIENT_ADMIN_PRIVILEGE_REMAINS';end if;
   if not has_table_privilege('authenticated','public.products','SELECT')
     or not has_function_privilege('authenticated','public.search_product_catalog_pricing(jsonb)','EXECUTE')
-    or not has_function_privilege('authenticated','public.create_order(jsonb)','EXECUTE')
+    or not has_function_privilege('authenticated','public.commercial_create_document(text,jsonb)','EXECUTE')
     or not has_function_privilege('authenticated','public.get_app_session_status()','EXECUTE')
     then raise exception 'EXISTING_CLIENT_ACCESS_BROKEN';end if;
   if has_table_privilege('anon','public.products','SELECT')
