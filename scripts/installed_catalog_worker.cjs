@@ -2,10 +2,31 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const { Client } = require('pg');
 
 const PROJECT = 'mtwvxyvpnbgwgltelozw';
+const CATALOG_PACKAGE = 'BrunoRImbanoJunior.CatlogoYokomitsu_m47cmv7cfchvj';
+
+function catalogPackagePaths(info, programFiles = process.env.ProgramFiles) {
+  if (!programFiles || info?.PackageFamilyName !== CATALOG_PACKAGE || !path.isAbsolute(info.InstallLocation || '')) throw new Error('PACOTE_CATALOGO_INVALIDO');
+  const root = path.join(fs.realpathSync.native(programFiles), 'WindowsApps');
+  const location = fs.realpathSync.native(info.InstallLocation);
+  if (!location.toLowerCase().startsWith(root.toLowerCase() + path.sep)) throw new Error('ORIGEM_CATALOGO_INVALIDA');
+  const files = { database: fs.realpathSync.native(path.join(location, 'data', 'catalog.db')),
+    manifest: fs.realpathSync.native(path.join(location, 'manifest.json')) };
+  if (Object.values(files).some((file) => !file.toLowerCase().startsWith(location.toLowerCase() + path.sep))) throw new Error('ORIGEM_CATALOGO_INVALIDA');
+  return files;
+}
+
+function resolveCatalogConfig(config) {
+  if (!config.catalogPackageFamily) return config;
+  if (config.catalogPackageFamily !== CATALOG_PACKAGE) throw new Error('PACOTE_CATALOGO_INVALIDO');
+  const command = "Get-AppxPackage -Name 'BrunoRImbanoJunior.CatlogoYokomitsu' | Where-Object {$_.PackageFamilyName -eq 'BrunoRImbanoJunior.CatlogoYokomitsu_m47cmv7cfchvj'} | Sort-Object Version -Descending | Select-Object -First 1 InstallLocation,PackageFamilyName | ConvertTo-Json -Compress";
+  const result = execFileSync(path.join(process.env.WINDIR, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+    ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'] });
+  return { ...config, ...catalogPackagePaths(JSON.parse(result.replace(/^\uFEFF/, '').trim())) };
+}
 
 function validateConfig(config) {
   if (config.project !== PROJECT || config.user !== `ips_catalog_worker.${PROJECT}`
@@ -49,6 +70,7 @@ function runPlanner(config, backup, output) {
 }
 
 async function run(config, checkOnly = false) {
+  config = resolveCatalogConfig(config);
   validateConfig(config);
   for (const name of ['database', 'manifest', 'python', 'ca']) fs.accessSync(config[name], fs.constants.R_OK);
   const client = new Client(connectionOptions(config));
@@ -99,4 +121,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { validateConfig, connectionOptions, snapshot, run, PROJECT };
+module.exports = { validateConfig, connectionOptions, snapshot, run, PROJECT, CATALOG_PACKAGE, catalogPackagePaths, resolveCatalogConfig };

@@ -1,4 +1,13 @@
-# Sincronismo independente do catalogo instalado (homologacao)
+# Sincronismo independente do catalogo instalado
+
+## Producao
+
+Nesta branch o executor aceita exclusivamente o projeto de producao
+`doenvnjzrecrtvwooaai`. Use a pasta privada
+`IPSCRM\InstalledCatalogWorkerProduction` e a tarefa `IPS Catalogo Local Producao`.
+O roteiro de homologacao abaixo e referencia historica; nao reutilize sua senha,
+configuracao ou tarefa. Consulte `PRODUCTION_PROMOTION_20261022.md` para a
+sequencia de promocao e os limites operacionais.
 
 ## Fluxo
 
@@ -94,3 +103,20 @@ eliminam evidencias anteriores. O cache de linhas/grupos tem TTL de dez minutos.
 Para suspender: desabilitar a tarefa `IPS Catalogo Local Homolog`; revogar LOGIN
 do papel se houver suspeita de vazamento. Nao apagar auditoria ou produtos.
 Nao habilitar em producao sem revisao e autorizacao especifica.
+# Catalogo instalado como pacote Windows
+
+Quando o catalogo estiver instalado pela Microsoft Store, configure
+`catalogPackageFamily` como
+`BrunoRImbanoJunior.CatlogoYokomitsu_m47cmv7cfchvj`.
+O executor consulta o registro Appx do usuario a cada execucao e resolve
+`data/catalog.db` e `manifest.json` dentro do pacote instalado em WindowsApps.
+Isso acompanha a troca de pasta em atualizacoes, sem alterar ACLs de WindowsApps,
+usar copias temporarias ou buscar uma base online. Pacote, origem ou arquivos
+divergentes bloqueiam a execucao. Configuracoes antigas sem essa propriedade
+continuam aceitando os caminhos locais explicitos.
+
+`--check` valida acesso aos arquivos e a conexao restrita, sem consumir a fila.
+O modo normal so importa quando houver uma solicitacao ADMIN na fila. Mantenha
+credenciais diferentes por ambiente, fora do Git, em pasta privada para usuario
+e SYSTEM; nao conceda acesso direto a tabelas ao executor.
+
