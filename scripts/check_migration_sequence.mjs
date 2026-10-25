@@ -12,7 +12,7 @@ for (const file of files) {
   byNumber.set(number, entries);
 }
 
-const expectedLastMigration = 115;
+const expectedLastMigration = 116;
 const missing = [];
 for (let number = 1; number <= expectedLastMigration; number += 1) {
   if (!byNumber.has(number)) missing.push(String(number).padStart(3, '0'));

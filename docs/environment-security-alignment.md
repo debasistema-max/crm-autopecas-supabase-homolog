@@ -23,6 +23,10 @@ The migration is compatible with both current schemas and preserves RLS, policie
 4. Apply in homologation, deploy only excel-sync, verify unauthorized and foreign-origin rejection, then repeat in production. Do not trigger a real synchronization merely to validate deployment.
 5. Require green security/CodeQL and deployment checks before completing the release. Confirm the public frontend has not changed and all six deployed Edge functions have equivalent bundle hashes.
 
+## Migration 116
+
+Removes TRUNCATE, TRIGGER and REFERENCES privileges from browser roles on current public tables and postgres-owned future table defaults. TRUNCATE bypasses row-level policies, so enabling RLS alone is insufficient protection against an overprivileged database role. SELECT/INSERT/UPDATE/DELETE, function execution, server roles and existing RLS policies are preserved. The release compares effective CRUD grants before/after and verifies that both current and rollback-only future tables have no administrative browser privileges. Every application records SECURITY_CLIENT_PRIVILEGES_RESTRICTED.
+
 ## Remaining Operational Differences
 
 - Production's installed catalog worker remains NOLOGIN until the locally installed catalog.db and manifest.json are available and verified. Do not use a test database, copy homologation metadata or silently fall back to an online catalog.

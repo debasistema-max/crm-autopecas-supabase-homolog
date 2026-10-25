@@ -78,3 +78,11 @@ test('B2B administrative and password functions reject replaced sessions; login 
   const login = read('supabase/functions/crm-login/index.ts');
   assert.match(login, /consume_public_endpoint_rate_limit/);assert.match(login, /Never log identifiers, passwords or returned tokens/);
 });
+
+test('browser privilege hardening revokes administration, not CRUD or RPC execution', () => {
+  const sql = read('supabase/migrations/116_restrict_client_table_privileges.sql');
+  assert.match(sql, /revoke truncate, references, trigger on all tables in schema public from anon, authenticated/i);
+  assert.match(sql, /alter default privileges for role postgres in schema public/i);
+  assert.doesNotMatch(sql, /revoke\s+(all|select|insert|update|delete|execute)\b/i);
+  assert.match(sql, /SECURITY_CLIENT_PRIVILEGES_RESTRICTED/);
+});
