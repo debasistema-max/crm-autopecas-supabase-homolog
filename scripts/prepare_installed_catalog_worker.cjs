@@ -1,11 +1,11 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { validateConfig } = require('./installed_catalog_worker.cjs');
+const { validateConfig, resolveCatalogConfig } = require('./installed_catalog_worker.cjs');
 
 function prepare(configFile) {
   const physical = fs.realpathSync.native(configFile);
-  const config = validateConfig(JSON.parse(fs.readFileSync(physical, 'utf8')));
+  const config = validateConfig(resolveCatalogConfig(JSON.parse(fs.readFileSync(physical, 'utf8'))));
   for (const name of ['database', 'manifest', 'python', 'ca']) config[name] = fs.realpathSync.native(config[name]);
   config.evidence = path.join(path.dirname(physical), 'evidence');
   validateConfig(config);

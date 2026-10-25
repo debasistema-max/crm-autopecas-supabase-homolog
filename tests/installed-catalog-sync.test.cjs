@@ -20,6 +20,25 @@ function harness() {
   return { context, nodes };
 }
 
+test('installed Windows package is pinned and keeps credentials separate', () => {
+  const os = require('node:os');
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ips-package-unit-'));
+  try {
+    const location = path.join(folder, 'WindowsApps', 'Catalog_1.5.35');
+    fs.mkdirSync(path.join(location, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(location, 'data', 'catalog.db'), 'fixture');
+    fs.writeFileSync(path.join(location, 'manifest.json'), '{}');
+    const info = { PackageFamilyName: worker.CATALOG_PACKAGE, InstallLocation: location };
+    const files = worker.catalogPackagePaths(info, folder);
+    assert.equal(files.database, fs.realpathSync.native(path.join(location, 'data', 'catalog.db')));
+    assert.throws(() => worker.catalogPackagePaths({ ...info, PackageFamilyName: 'foreign' }, folder));
+    assert.throws(() => worker.catalogPackagePaths({ ...info, InstallLocation: folder }, folder));
+    const legacy = { password: 'fixture' };assert.equal(worker.resolveCatalogConfig(legacy), legacy);
+    assert.throws(() => worker.resolveCatalogConfig({ catalogPackageFamily: 'foreign' }));
+    assert.deepEqual(Object.keys(files).sort(), ['database', 'manifest']);
+  } finally { fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
 test('catalog action does not invoke Excel and double clicks are blocked', async () => {
   const { context, nodes } = harness();
   let finish;
@@ -60,6 +79,7 @@ test('worker pins homolog, custom database role and full TLS verification', () =
     database: path.join(absolute, 'catalog.db'), manifest: path.join(absolute, 'manifest.json'),
     python: absolute, ca: absolute, evidence: absolute };
   assert.equal(worker.validateConfig(config), config);
+  assert.equal(worker.PROJECT, 'mtwvxyvpnbgwgltelozw');
   for (const replacement of [{ project: 'doenvnjzrecrtvwooaai' }, { user: 'postgres.' + worker.PROJECT },
     { host: 'example.test' }, { port: 6543 }, { database: 'https://example.test/catalog.db' }]) {
     assert.throws(() => worker.validateConfig({ ...config, ...replacement }));
