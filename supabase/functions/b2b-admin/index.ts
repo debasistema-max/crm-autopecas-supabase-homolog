@@ -89,6 +89,8 @@ Deno.serve(async (request) => {
     });
     const { data: authData, error: authError } = await callerClient.auth.getUser();
     if (authError || !authData.user) return json(request, 401, { error: 'SESSAO_INVALIDA' });
+    const { data: sessionStatus, error: sessionError } = await callerClient.rpc('get_app_session_status');
+    if (sessionError || sessionStatus?.active !== true) return json(request, 401, { error: 'SESSAO_SUBSTITUIDA' });
     const { data: caller } = await admin.from('profiles')
       .select('id,usuario,nome,perfil,ativo').eq('id', authData.user.id).eq('ativo', true).maybeSingle();
     if (!caller || caller.perfil !== 'ADMIN') return json(request, 403, { error: 'APENAS_ADMIN' });

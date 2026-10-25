@@ -8,6 +8,7 @@ Variáveis obrigatórias no ambiente da função para iniciar a sincronização 
 - `DATA_SYNC_GITHUB_REPOSITORY`: repositório privado no formato `owner/repo`;
 - `DATA_SYNC_GITHUB_WORKFLOW`: arquivo do workflow (padrão: `excel-sync.yml`);
 - `DATA_SYNC_GITHUB_REF`: branch do workflow (padrão: `main`);
+- `DATA_SYNC_TARGET`: ambiente enviado ao executor (`homologacao` ou `producao`);
 - `DATA_SYNC_SCHEDULER_SECRET`: segredo opcional para execução agendada;
 - `DATA_SYNC_ALLOWED_ORIGIN`: origem do frontend administrativo;
 - variáveis padrão `SUPABASE_URL`, `SUPABASE_ANON_KEY` e, para agenda, `SUPABASE_SERVICE_ROLE_KEY`.

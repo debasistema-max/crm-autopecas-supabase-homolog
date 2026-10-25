@@ -50,13 +50,18 @@ async function dispatchGithubSync() {
   const repository = env('DATA_SYNC_GITHUB_REPOSITORY');
   const workflow = Deno.env.get('DATA_SYNC_GITHUB_WORKFLOW')?.trim() || 'excel-sync.yml';
   const ref = Deno.env.get('DATA_SYNC_GITHUB_REF')?.trim() || 'main';
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+  const target = verifiedSyncTarget();
+  if (repository !== 'debasistema-max/ips-crm-excel-sync-private') {
     throw new Error('CONFIGURACAO_INVALIDA:DATA_SYNC_GITHUB_REPOSITORY');
+  }
+  if (workflow !== 'excel-sync.yml' || ref !== 'main') {
+    throw new Error('CONFIGURACAO_INVALIDA:DATA_SYNC_GITHUB_WORKFLOW');
   }
 
   const endpoint = `https://api.github.com/repos/${repository}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
   const githubResponse = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(15000),
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
@@ -64,7 +69,7 @@ async function dispatchGithubSync() {
       'X-GitHub-Api-Version': '2022-11-28',
       'User-Agent': 'ips-crm-data-sync'
     },
-    body: JSON.stringify({ ref })
+    body: JSON.stringify({ ref, inputs: { mode: 'synchronize', target } })
   });
   if (!githubResponse.ok) {
     throw new Error(`GITHUB_DISPATCH_HTTP_${githubResponse.status}`);
@@ -74,6 +79,16 @@ async function dispatchGithubSync() {
     queued_at: new Date().toISOString(),
     message: 'Sincronização colocada na fila.'
   };
+}
+
+function verifiedSyncTarget() {
+  const expected = new Map([
+    ['https://doenvnjzrecrtvwooaai.supabase.co', 'producao'],
+    ['https://mtwvxyvpnbgwgltelozw.supabase.co', 'homologacao']
+  ]).get(env('SUPABASE_URL').replace(/\/$/, ''));
+  const target = env('DATA_SYNC_TARGET').toLowerCase();
+  if (!expected || target !== expected) throw new Error('CONFIGURACAO_INVALIDA:DATA_SYNC_TARGET');
+  return target;
 }
 
 Deno.serve(async (request) => {
@@ -101,6 +116,8 @@ Deno.serve(async (request) => {
   if (!scheduled) {
     const { data: authData, error: authError } = await client.auth.getUser();
     if (authError || !authData.user) return response(request,401, { error: 'SESSAO_INVALIDA' });
+    const { data: sessionStatus, error: sessionError } = await client.rpc('get_app_session_status');
+    if (sessionError || sessionStatus?.active !== true) return response(request,401, { error: 'SESSAO_SUBSTITUIDA' });
     const canManage = await rpc(client, 'can_manage_data_sync', {});
     if (canManage !== true) return response(request,403, { error: 'SEM_PERMISSAO_SINCRONIZAR' });
   }
@@ -109,6 +126,7 @@ Deno.serve(async (request) => {
   let integrationSource = 'EXCEL_API';
   let operation = '';
   try {
+    verifiedSyncTarget();
     const requestBody = await request.json().catch(() => ({}));
     const source = String(requestBody.source || 'EXCEL_API').trim().toUpperCase();
     if (source !== 'EXCEL_API') return response(request,400, { error: 'FONTE_NAO_SUPORTADA_NESTE_ADAPTER' });
@@ -209,10 +227,11 @@ Deno.serve(async (request) => {
       }).catch(() => null);
     }
     const safeScheduledMessage = message.replace(/[^A-Za-z0-9_:. -]/g, '_').slice(0, 240);
-    const safeMessage = message.startsWith('CONFIGURACAO_AUSENTE:')
+    const configurationError = /^CONFIGURACAO_(AUSENTE|INVALIDA):/.test(message);
+    const safeMessage = configurationError
       ? message
       : scheduled ? safeScheduledMessage : 'Não foi possível concluir a sincronização.';
-    return response(request,message.startsWith('CONFIGURACAO_AUSENTE:') ? 503 : 500, {
+    return response(request,configurationError ? 503 : 500, {
       error: safeMessage,
       batch_id: batchId || null,
       resumable: resumableOperation
