@@ -44,6 +44,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
@@ -55,4 +58,4 @@ jobs:
       - name: Reject committed private secrets
         shell: bash
         run: |
-          ! grep -RInE --exclude-dir=.git --exclude='security.yml' '(SUPABASE_SERVICE_ROLE_KEY|DATA_SYNC_SCHEDULER_SECRET|GRAPH_REFRESH_TOKEN)[[:space:]]*[:=][[:space:]]*[A-Za-z0-9._-]{16,}' .
+          ! grep -RInE --exclude-dir=.git --exclude='security.yml' '(SUPABASE_SERVICE_ROLE_KEY|DATA_SYNC_SCHEDULER_SECRET|MS_GRAPH_REFRESH_TOKEN|GRAPH_REFRESH_TOKEN|DATA_SYNC_GITHUB_TOKEN)[[:space:]]*[:=][[:space:]]*[A-Za-z0-9._-]{16,}' .

@@ -56,6 +56,8 @@ Deno.serve(async (request) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: authData, error: authError } = await caller.auth.getUser();
     if (authError || !authData.user) return reply(request, 401, { error: 'SESSAO_INVALIDA' });
+    const { data: sessionStatus, error: sessionError } = await caller.rpc('get_app_session_status');
+    if (sessionError || sessionStatus?.active !== true) return reply(request, 401, { error: 'SESSAO_SUBSTITUIDA' });
 
     const { data: account, error: accountError } = await admin.from('customer_portal_accounts')
       .select('user_id,client_id,email,username,must_change_password,activation_pending')
